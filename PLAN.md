@@ -24,6 +24,7 @@ Priority: **P0** must ship, **P1** strongly recommended, **P2** only if time all
 - [ ] [#9](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/9) Authoring warnings · P1
 - [ ] [#10](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/10) Editor polish · P1
 - [ ] [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/11) Demo agent, README and demo video · P0
+- [ ] [#13](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/13) Reliable caller identity capture · P1 (step 1 any time; steps 2 and 3 with #11)
 
 ---
 
@@ -205,6 +206,21 @@ Priority: **P0** must ship, **P1** strongly recommended, **P2** only if time all
 
 **Acceptance criteria:**
 - A reviewer with their own keys can go from clone to test call by following the README.
+
+## 13. Reliable caller identity capture · P1
+
+Added after the first test call misheard the caller's name (see the GitHub issue for the full text).
+
+**Scope:**
+- Set the speech-to-text language to English in `bot.py` (it is unset, so the service guesses per sentence).
+- Spell-and-confirm pattern in the demo agent (#11): ask name, ask to spell it, read it back, correct on "no".
+- Manual call script in `docs/notes/call-tests.md`.
+- Optional: speech-to-text check with 5 to 10 recorded clips.
+
+**Acceptance criteria:**
+- Transcripts never switch language during a call.
+- A misheard name can be corrected by the caller, and the saved name matches what was spelled.
+- `docs/notes/call-tests.md` exists and the demo agent passes it.
 
 ## Out of scope (state in README)
 
