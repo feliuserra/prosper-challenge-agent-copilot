@@ -33,7 +33,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot` (local path: `~/Desktop/work/
 
 ## 3. What the repo contains (VERIFIED from source)
 
-- `backend/bot.py`: Pipecat pipeline (SmallWebRTC transport, ElevenLabs realtime STT + TTS, OpenAI LLM, Silero VAD) driven by a Pipecat Flows `FlowManager`. Loads the agent from a hard-coded `AGENT_FLOW = backend/example_flow.json`. **The agent is loaded inside `bot()`, i.e. on every client connection**, so changing what `bot()` loads changes the agent with no restart.
+- `backend/bot.py`: Pipecat pipeline (SmallWebRTC transport, ElevenLabs realtime STT + TTS, OpenAI LLM, Silero VAD) driven by a Pipecat Flows `FlowManager`. Loads the agent from a hard-coded `AGENT_FLOW = backend/example_flow.json` (since #2: from the connect request, defaulting to `backend/agents/prosper-scheduler.json`). **The agent is loaded inside `bot()`, i.e. on every client connection**, so changing what `bot()` loads changes the agent with no restart.
 - `backend/agent_builder/schema.py`: dataclasses
   - `AgentConfig`: `name`, `initial_node`, `nodes`, `persona` (global role message), `voice_id` (default ElevenLabs "Rachel"), `model` (default `gpt-4o`).
   - `Node`: `name`, `task_messages` (list), `role_message` (optional persona override), `edges`, `pre_actions`, `post_actions`, `end` (bool; terminal node ends the call).
@@ -45,7 +45,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot` (local path: `~/Desktop/work/
   - Each edge becomes a `FlowsFunctionSchema`. Its handler does `flow_manager.state.update(args)`, logs `[function] -> target | collected: args`, and returns the next node. **Nodes are built lazily on transition.**
   - A node with `end: true` and no explicit `post_actions` gets `end_conversation` as a post action.
   - Context strategy is not set, so Pipecat Flows uses its default, `APPEND` (`pipecat_flows/manager.py:140`). Collected `state` is never injected into later prompts.
-- `backend/example_flow.json`: sample clinic-scheduler agent. `task_messages` is a list of `{"role": "developer", "content": "..."}`. It has no `pre_actions` or `post_actions`, so the action shape still comes from Pipecat Flows (`{"type": "tts_say", "text": ...}`, `{"type": "end_conversation"}`, ...). Treat actions as opaque records in the UI.
+- `backend/example_flow.json` (moved to `backend/agents/prosper-scheduler.json` in #2): sample clinic-scheduler agent. `task_messages` is a list of `{"role": "developer", "content": "..."}`. It has no `pre_actions` or `post_actions`, so the action shape still comes from Pipecat Flows (`{"type": "tts_say", "text": ...}`, `{"type": "end_conversation"}`, ...). Treat actions as opaque records in the UI.
 - Keys: `bot.py` loads `.env` from **`backend/.env`**, needing `ELEVENLABS_API_KEY` and `OPENAI_API_KEY`. Keys are company-provided and usage is visible to them. `.env` must stay gitignored (it is).
 - The prebuilt Pipecat browser client is `pipecat-ai-prebuilt` 1.0.3 and reported RTVI Client v1.12.0.
 
@@ -66,7 +66,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot` (local path: `~/Desktop/work/
 - **The bot must re-validate the draft it receives.** The client validates before connecting, but `bot()` must not trust the request body. If the draft is invalid, log the errors and end the call. Do not silently fall back to the example agent in that case (the author would hear the wrong agent). Fall back to the example only when no agent was sent at all.
 - **Reusing a Pipecat client after disconnect** is a common source of stale-state bugs. Create a fresh client per call. The bot can also end the call itself (end node); the UI must handle that as a normal hang-up.
 - **Collected args appear in the backend log** (and in transition events, Issue 8). In a real deployment these are PHI (names, dates of birth). Fine for the demo; say so in the README.
-- **Makefile and background jobs.** make runs each recipe line in its own shell, so `trap 'kill 0' EXIT` only works if the recipe runs in one shell: use `.ONESHELL:` or put the whole command on one line joined with `;`.
+- **Makefile and background jobs.** make runs each recipe line in its own shell, so `trap 'kill 0' EXIT` only works if the recipe runs in one shell: put the whole command on one line joined with `;` and `\`. Do not rely on `.ONESHELL:`: macOS ships GNU Make 3.81, which ignores it, and then `kill 0` kills make itself. Also avoid `kill 0`: it signals make too. The `dev` target kills only the background runner.
 
 **Editor**
 - **zod strips unknown keys by default.** Use loose objects (`.passthrough()` in zod 3, `.loose()` in zod 4) and treat actions as opaque records, or a load/save round trip silently drops fields.
@@ -83,7 +83,7 @@ Recorded so the reasoning is not lost:
 - ADR 0004 now requires the builder to collect all errors as structured records, not raise on the first one. `properties` is checked by a small hand-written check rather than a new `jsonschema` dependency.
 - Duplicate function names are rejected at edit time, not only flagged, to keep React Flow edge ids unique.
 - The bot re-validates the received draft and does not fall back silently on an invalid one.
-- Makefile background jobs need `.ONESHELL:`.
+- Makefile background jobs need a single-shell recipe (`.ONESHELL:` does not work with make 3.81 on macOS; found in #2).
 - Environment prerequisites (Node, `.env`, Intel Mac pins) added as section 2.
 - The demo video in Issue 11 is recorded by the user.
 - Stray `\` after a code fence in `README.md`: fixed in Issue 11.

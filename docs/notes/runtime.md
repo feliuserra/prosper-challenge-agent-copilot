@@ -68,6 +68,10 @@ await flow_manager.worker.queue_frame(
 
 Observed in Chrome: `[choose_intent] -> collect_details | collected: {'intent': 'book'}` in the terminal, and in the browser console `bot ready {version: '2.0.0'}` followed by `server message {type: 'transition', from: 'greeting', function: 'choose_intent', to: 'collect_details', args: {...}}`.
 
+## 4. Rejecting an invalid agent (added in #2)
+
+`bot()` validates the received agent before building anything. When it is invalid, closing the WebRTC connection directly does not work: the runner has already answered the offer, the client is still connecting, and it never notices the close (it waits at "connecting" and its ICE `PATCH` requests get 400 for the discarded peer). Instead `bot()` runs an empty pipeline (`transport.input()` to `transport.output()`), and when the client is ready it sends `rtvi.send_error("Invalid agent: ...")` (`pipecat/processors/frameworks/rtvi/processor.py:162`) and queues an `EndFrame`. The client sees bot-ready, then an RTVI `error` whose `data.error` names the problems, then a normal disconnect, about 3 seconds in total. #7 can show that message, although the client should already have validated the draft before calling.
+
 ## Other observations
 
 - **Video transceivers.** With `enableCam: false` the server still logs `Track video received` twice. The transport always negotiates the transceivers. This is harmless.
@@ -78,6 +82,8 @@ Observed in Chrome: `[choose_intent] -> collect_details | collected: {'intent': 
 - **Async tool wording.** Pipecat Flows reports edge handlers to the LLM as async tools (`"type": "async_tool"` messages in the context). Transitions still work. It only matters if we later inspect or trim the context.
 
 ## Spike code: what stays
+
+Applied in #2.
 
 | Code | Fate |
 | --- | --- |

@@ -6,7 +6,11 @@
 # definition (JSON) via AgentBuilder and runs it. Swapping the agent is a data
 # change (edit/replace the JSON), not a code change.
 #
-#   example_flow.json  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
+#   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
+#
+# The agent comes from the connect request (the editor's current draft) or, when
+# none is sent, the default agent in agents/. This file also mounts the editor's
+# agents API (composer_api.py) on the runner, so everything runs on one port.
 #
 # Run:  python bot.py   then open http://localhost:7860/client
 #
@@ -18,6 +22,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.frames.frames import EndFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -35,15 +40,19 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
-from agent_builder import AgentBuilder
+from agent_builder import AgentBuilder, ValidationError, ValidationIssue
+from composer_api import make_router
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
 
-# The agent this bot runs. Point this at any agent JSON (the Phase 2 Composer
-# would generate one and drop it here).
-AGENT_FLOW = Path(__file__).parent / "example_flow.json"
+# Agents the editor lists and saves. The default runs when a client connects
+# without sending an agent (e.g. the prebuilt client at /client).
+AGENTS_DIR = Path(__file__).parent / "agents"
+DEFAULT_AGENT = AGENTS_DIR / "prosper-scheduler.json"
+
+app.include_router(make_router(AGENTS_DIR))
 
 
 transport_params = {
@@ -62,7 +71,10 @@ async def run_bot(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         settings=ElevenLabsTTSService.Settings(voice=config.voice_id),
     )
-    llm = OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"], model=config.model)
+    llm = OpenAILLMService(
+        api_key=os.environ["OPENAI_API_KEY"],
+        settings=OpenAILLMService.Settings(model=config.model),
+    )
 
     context = LLMContext()
     context_aggregator = LLMContextAggregatorPair(
@@ -110,18 +122,57 @@ async def run_bot(
     await runner.run()
 
 
-# Spike (Issue #1): proves custom routes on the runner app are served on 7860.
-@app.get("/composer/ping")
-async def composer_ping():
-    return {"ok": True}
+async def reject_call(
+    transport: BaseTransport, runner_args: RunnerArguments, errors: list[ValidationIssue]
+) -> None:
+    """End the call without running the agent, telling the client why.
+
+    Runs an empty pipeline so the call ends the normal way: the client gets
+    bot-ready, then an RTVI error, then a disconnect. Closing the WebRTC
+    connection directly is not enough, because the client is still connecting
+    at that point and never notices.
+    """
+    worker = PipelineWorker(
+        Pipeline([transport.input(), transport.output()]),
+        idle_timeout_secs=runner_args.pipeline_idle_timeout_secs,
+    )
+
+    @worker.rtvi.event_handler("on_client_ready")
+    async def on_client_ready(rtvi):
+        await rtvi.send_error("Invalid agent: " + "; ".join(e.message for e in errors))
+        await worker.queue_frame(EndFrame())
+
+    runner = WorkerRunner(handle_sigint=runner_args.handle_sigint)
+    await runner.add_workers(worker)
+    await runner.run()
+
+
+def load_agent(body) -> AgentBuilder:
+    """Build the agent sent with the connect request, or the default one.
+
+    The client sends {"agent": {...}} as the request body (see docs/notes/runtime.md).
+    Raises ValidationError for an invalid agent: never fall back to another agent,
+    or the author would hear something other than what they are testing.
+    """
+    agent = body.get("agent") if isinstance(body, dict) else None
+    if agent is None:
+        logger.info(f"No agent in the request; using {DEFAULT_AGENT.name}")
+        return AgentBuilder.from_json(DEFAULT_AGENT)
+    return AgentBuilder.from_dict(agent)
 
 
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
-    # Spike (Issue #1): shows what the client sent with the connect request.
-    logger.info(f"runner_args.body: {runner_args.body}")
     transport = await create_transport(runner_args, transport_params)
-    builder = AgentBuilder.from_json(AGENT_FLOW)
+    try:
+        builder = load_agent(runner_args.body)
+    except ValidationError as e:
+        # The client validates before connecting, so this means a stale or
+        # hand-edited draft. Never fall back to another agent.
+        for error in e.errors:
+            logger.error(f"Invalid agent: {error.to_dict()}")
+        await reject_call(transport, runner_args, e.errors)
+        return
     await run_bot(transport, runner_args, builder)
 
 

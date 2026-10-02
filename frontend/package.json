@@ -16,6 +16,7 @@
     "@pipecat-ai/small-webrtc-transport": "1.10.8"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
   }

@@ -2,7 +2,8 @@ import { defineConfig } from "vite";
 
 // Everything the page talks to lives on the Pipecat runner (one process, ADR 0005).
 // Proxying keeps the browser on a single origin, so there is no CORS to configure.
-const runner = "http://localhost:7860";
+// RUNNER_URL overrides it, e.g. to run a second backend next to `make dev`.
+const runner = process.env.RUNNER_URL ?? "http://localhost:7860";
 
 export default defineConfig({
   server: {

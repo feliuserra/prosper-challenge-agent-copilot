@@ -10,6 +10,7 @@
 #
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Union
 
@@ -18,6 +19,7 @@ from pipecat.processors.frameworks.rtvi import RTVIServerMessageFrame
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from .schema import AgentConfig, Edge, Node
+from .validation import ValidationError, validate_agent
 
 
 class AgentBuilder:
@@ -31,6 +33,9 @@ class AgentBuilder:
     # ---- loading -----------------------------------------------------------
     @classmethod
     def from_dict(cls, data: dict) -> "AgentBuilder":
+        # Validate the raw dict first: from_dict would raise KeyError on the first
+        # missing key and hide every other problem.
+        cls._raise_if_invalid(data)
         return cls(AgentConfig.from_dict(data))
 
     @classmethod
@@ -40,20 +45,13 @@ class AgentBuilder:
 
     # ---- validation --------------------------------------------------------
     def _validate(self) -> None:
-        names = set(self._nodes_by_name)
-        if not names:
-            raise ValueError("Agent has no nodes.")
-        if self.config.initial_node not in names:
-            raise ValueError(
-                f"initial_node '{self.config.initial_node}' is not a defined node."
-            )
-        for node in self.config.nodes:
-            for edge in node.edges:
-                if edge.target not in names:
-                    raise ValueError(
-                        f"Edge '{edge.function}' in node '{node.name}' targets "
-                        f"unknown node '{edge.target}'."
-                    )
+        self._raise_if_invalid(asdict(self.config))
+
+    @staticmethod
+    def _raise_if_invalid(data: dict) -> None:
+        errors = validate_agent(data)
+        if errors:
+            raise ValidationError(errors)
 
     # ---- compilation -------------------------------------------------------
     def build_initial_node(self) -> NodeConfig:
