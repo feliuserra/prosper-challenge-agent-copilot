@@ -14,11 +14,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | (Intel Mac dependency pins) | Merged | #15 |
 | #2 Agents API + draft handover | Merged | #16 |
 | #3 Frontend skeleton, schema, store | Merged | #17 |
-| #4 Graph canvas | PR open, not merged | #18 |
-| **#5 Side panel editors** | Built and committed on `issue-5-side-panel`, branched from `issue-4-graph-canvas` (stacked, because #4 is not merged yet); not pushed | |
+| #4 Graph canvas | Merged | #18 |
+| **#5 Side panel editors** | Built and committed on `issue-5-side-panel` (its #4 commits are in `main`); not pushed | |
 | #6 to #11, #13 | Open | |
 
-**Next step:** merge #18 when the user says so (GitHub then retargets the #5 PR to `main`), push #5 and open its PR, then #6 (validation errors).
+**Next step:** push #5 and open its PR once the user agrees, then #6 (validation errors).
 
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
