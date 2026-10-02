@@ -3,19 +3,40 @@ import { PipecatClient, RTVIEvent, type APIRequest } from "@pipecat-ai/client-js
 import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
 
 import { useAgentStore } from "../store/agentStore";
+import { checkAgent, useValidationStore } from "../validation/validationStore";
+
+// Statuses in which there is no call to hang up.
+const IDLE = new Set(["idle", "checking", "disconnected", "error"]);
 
 // Minimal test call with the current draft. Issue #7 turns this into the call panel.
 export function CallButton() {
   const clientRef = useRef<PipecatClient | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [status, setStatus] = useState("idle");
-  const inCall = status !== "idle" && status !== "disconnected" && status !== "error";
+  const inCall = !IDLE.has(status);
+  // From the latest check, which may be a moment behind the draft: the click
+  // checks the current draft again before connecting.
+  const errorCount = useValidationStore((s) => s.errors.length);
 
   useEffect(() => () => void clientRef.current?.disconnect(), []);
 
   async function call() {
     const agent = useAgentStore.getState().agent;
     if (!agent) return;
+    // Errors block the call (the bot would refuse the agent anyway). They show
+    // in the problems list, and the button stays disabled until they are fixed.
+    setStatus("checking");
+    try {
+      const errors = await checkAgent(agent);
+      if (errors.length) {
+        setStatus("idle");
+        return;
+      }
+    } catch (error) {
+      console.error("[call] could not validate", error);
+      setStatus("error");
+      return;
+    }
     // A fresh client per call: reusing one after disconnect leaves stale state.
     const client = new PipecatClient({
       transport: new SmallWebRTCTransport(),
@@ -56,7 +77,11 @@ export function CallButton() {
 
   return (
     <span className="call">
-      <button onClick={() => (inCall ? clientRef.current?.disconnect() : call())}>
+      <button
+        onClick={() => (inCall ? clientRef.current?.disconnect() : call())}
+        disabled={!inCall && (status === "checking" || errorCount > 0)}
+        title={!inCall && errorCount > 0 ? "Fix the errors in Problems first" : undefined}
+      >
         {inCall ? "Hang up" : "Test call"}
       </button>
       <span className="muted">{status}</span>

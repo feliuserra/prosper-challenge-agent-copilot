@@ -188,7 +188,14 @@ details[open] summary {
 .canvas {
   position: absolute;
   inset: 0;
+  display: flex;
+  flex-direction: column;
   --xy-edge-stroke-selected: #0969da;
+}
+.canvas-flow {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 .canvas-actions {
   display: flex;
@@ -259,4 +266,89 @@ details[open] summary {
 .edge-label.selected {
   border-color: #0969da;
   color: #0969da;
+}
+.edge-label .badge {
+  margin-left: 6px;
+  font-family: system-ui, sans-serif;
+}
+.edge-label.error {
+  border-color: #cf222e;
+}
+.edge-label.warning {
+  border-color: #d4a72c;
+}
+
+/* Problems list, below the canvas */
+.problems {
+  flex-shrink: 0;
+  border-top: 1px solid #d0d7de;
+  background: #fff;
+}
+.problems-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.problems-summary {
+  font-weight: normal;
+}
+.problems-summary.error {
+  color: #cf222e;
+}
+.problems-failure {
+  padding: 0 12px 6px;
+  color: #9a6700;
+  font-size: 12px;
+}
+.problems-list {
+  max-height: 140px;
+  margin: 0;
+  padding: 0 0 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+.problem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.problem:hover {
+  background: #f6f8fa;
+}
+.problem-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.problem-dot.error {
+  background: #cf222e;
+}
+.problem-dot.warning {
+  background: #d4a72c;
+}
+.problem-text {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.problem-location {
+  color: #656d76;
 }
