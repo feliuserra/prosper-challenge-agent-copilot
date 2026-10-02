@@ -19,3 +19,15 @@ dependencies = [
 # This is an application (flat modules: bot.py + agent_builder/), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
+# Intel (x86_64) macOS: these packages no longer ship wheels for it, so pin
+# versions that still do. The markers leave every other platform untouched.
+override-dependencies = [
+    "onnxruntime==1.23.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "onnxruntime~=1.24.3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+]
+constraint-dependencies = [
+    "numba<0.63; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "llvmlite<0.46; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "opencv-python<4.12; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]
