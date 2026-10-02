@@ -15,10 +15,17 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #2 Agents API + draft handover | Merged | #16 |
 | #3 Frontend skeleton, schema, store | Merged | #17 |
 | #4 Graph canvas | Merged | #18 |
-| **#5 Side panel editors** | Built and committed on `issue-5-side-panel` (its #4 commits are in `main`); not pushed | |
-| #6 to #11, #13 | Open | |
+| #5 Side panel editors | Merged | #19 |
+| **#6 Validation errors** | **Next.** Branch `issue-6-validation-errors` exists locally, created from `main` at `11019ee`; its only commit is this handoff update | |
+| #7 to #11, #13 | Open | |
 
-**Next step:** push #5 and open its PR once the user agrees, then #6 (validation errors).
+**Next step:** build #6 (scope and acceptance criteria in `PLAN.md` section 6 and GitHub issue #6). What already exists for it:
+- `api.ts` has `validateAgent(agent)` (`POST /composer/validate`, `{message, node, edge}` records, always 200) and `saveAgent` returns the same records on 422. Today `Toolbar` only shows the first save error as text.
+- The node card has a status badge slot: `NodeStatus` in `canvas/derive.ts`, rendered by `NodeCard`, but `toFlowNodes` does not fill it yet. Edges have no badge yet; the label in `FunctionEdge.tsx` is the natural place.
+- Selection is in the store (`select`), so a problems list only has to call it; the panel and canvas follow.
+- The list must also hold warnings (#9), and errors must block the test call (#7); `CallButton.tsx` is the current call entry point.
+
+**Pending for the user:** rotate the ElevenLabs key; it appeared in a log during #5 (see section 4, Secrets).
 
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
