@@ -24,8 +24,9 @@ dev: ## Run the voice agent and the editor together (then open http://localhost:
 	trap 'kill $$runner 2>/dev/null' EXIT; \
 	npm run dev --prefix $(FRONTEND)
 
-test: ## Run the backend tests
+test: ## Run the backend and frontend tests
 	uv run --directory $(PROJECT) pytest
+	npm test --prefix $(FRONTEND)
 
 clean: ## Remove the venv, node_modules and Python caches
 	rm -rf $(PROJECT)/.venv $(FRONTEND)/node_modules

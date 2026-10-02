@@ -1,0 +1,59 @@
+:root {
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: #1f2328;
+  background: #fff;
+}
+body {
+  margin: 0;
+}
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d0d7de;
+  flex-wrap: wrap;
+}
+main {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+.spacer {
+  flex: 1;
+}
+.muted {
+  color: #656d76;
+}
+.dirty {
+  color: #9a6700;
+}
+.call {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.outline button {
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 2px 4px;
+}
+.outline button.selected {
+  border-color: #0969da;
+  border-radius: 4px;
+}
+.badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #ddf4ff;
+  font-size: 12px;
+}

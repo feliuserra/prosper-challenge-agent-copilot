@@ -1,3 +1,4 @@
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // Everything the page talks to lives on the Pipecat runner (one process, ADR 0005).
@@ -6,6 +7,7 @@ import { defineConfig } from "vite";
 const runner = process.env.RUNNER_URL ?? "http://localhost:7860";
 
 export default defineConfig({
+  plugins: [react()],
   server: {
     proxy: {
       "/start": runner,
