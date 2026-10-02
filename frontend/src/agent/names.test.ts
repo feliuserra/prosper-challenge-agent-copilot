@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { agentIdFor, FUNCTION_NAME_RE, placeholderFunctionName, sanitizeFunctionName } from "./names";
+import {
+  agentIdFor,
+  FUNCTION_NAME_RE,
+  functionNameError,
+  nodeNameError,
+  placeholderFunctionName,
+  sanitizeFunctionName,
+} from "./names";
 
 describe("placeholderFunctionName", () => {
   it("is go_to_<target>", () => {
@@ -45,5 +52,24 @@ describe("agentIdFor", () => {
 
   it("matches the backend id pattern", () => {
     expect(agentIdFor("  -Weird__Name-- ", [])).toMatch(/^[a-z0-9][a-z0-9_-]{0,63}$/);
+  });
+});
+
+describe("inline name checks", () => {
+  it("nodeNameError: empty and duplicate names, the current name is fine", () => {
+    const names = ["greeting", "confirm"];
+    expect(nodeNameError(names, "greeting", "  ")).toMatch(/empty/);
+    expect(nodeNameError(names, "greeting", " confirm ")).toMatch(/already exists/);
+    expect(nodeNameError(names, "greeting", "greeting")).toBeNull();
+    expect(nodeNameError(names, "greeting", "hello")).toBeNull();
+  });
+
+  it("functionNameError: pattern and uniqueness within the node", () => {
+    const siblings = ["choose_intent", "go_back"];
+    expect(functionNameError(siblings, "choose_intent", "has space")).toMatch(/letters/);
+    expect(functionNameError(siblings, "choose_intent", "")).toMatch(/letters/);
+    expect(functionNameError(siblings, "choose_intent", "x".repeat(65))).toMatch(/letters/);
+    expect(functionNameError(siblings, "choose_intent", "go_back")).toMatch(/already used/);
+    expect(functionNameError(siblings, "choose_intent", "choose_intent")).toBeNull();
   });
 });

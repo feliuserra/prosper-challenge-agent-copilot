@@ -16,6 +16,8 @@ export type Selection =
 
 export type Result = { ok: true } | { ok: false; error: string };
 
+// In a patch, a value of `undefined` removes the key (e.g. clearing an override),
+// so the saved JSON does not keep empty fields the user never wanted.
 export type NodePatch = Partial<Omit<Node, "name" | "edges">>;
 export type EdgePatch = Partial<Edge>;
 export type AgentPatch = Partial<Omit<Agent, "nodes" | "initial_node">>;
@@ -57,6 +59,13 @@ function selectionExists(agent: Agent, selection: Selection): boolean {
   const node = findNode(agent, selection.kind === "node" ? selection.name : selection.source);
   if (!node) return false;
   return selection.kind === "node" || edgesOf(node).some((e) => e.function === selection.function);
+}
+
+/** `{...base, ...patch}`, except that `undefined` in the patch removes the key. */
+function merge<T extends object>(base: T, patch: object): T {
+  const next = { ...base, ...patch } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key];
+  return next as T;
 }
 
 /** Replace the node called `name` with `update(node)`; other nodes keep their identity. */
@@ -167,7 +176,7 @@ export const useAgentStore = create<AgentState>()(
         },
 
         updateNode(name, patch) {
-          change((agent) => mapNode(agent, name, (n) => ({ ...n, ...patch })));
+          change((agent) => mapNode(agent, name, (n) => merge(n, patch)));
         },
 
         connect(source, target) {
@@ -204,7 +213,7 @@ export const useAgentStore = create<AgentState>()(
           set({
             agent: mapNode(agent, source, (n) => ({
               ...n,
-              edges: edgesOf(n).map((e) => (e.function === fn ? { ...e, ...patch } : e)),
+              edges: edgesOf(n).map((e) => (e.function === fn ? merge(e, patch) : e)),
             })),
             selection,
           });
@@ -237,7 +246,7 @@ export const useAgentStore = create<AgentState>()(
         },
 
         updateAgent(patch) {
-          change((agent) => ({ ...agent, ...patch }));
+          change((agent) => merge(agent, patch));
         },
       };
     },

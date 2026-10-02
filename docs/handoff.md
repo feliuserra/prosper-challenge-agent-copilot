@@ -14,10 +14,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | (Intel Mac dependency pins) | Merged | #15 |
 | #2 Agents API + draft handover | Merged | #16 |
 | #3 Frontend skeleton, schema, store | Merged | #17 |
-| **#4 Graph canvas** | Built and committed on `issue-4-graph-canvas`; not pushed, no PR yet | |
-| #5 to #11, #13 | Open | |
+| #4 Graph canvas | Merged | #18 |
+| **#5 Side panel editors** | Built and committed on `issue-5-side-panel` (its #4 commits are in `main`); not pushed | |
+| #6 to #11, #13 | Open | |
 
-**Next step:** push #4 and open its PR once the user agrees, then #5 (side panel editors, `PLAN.md` section 5). The panel edits the selection the canvas already sets in the store.
+**Next step:** push #5 and open its PR once the user agrees, then #6 (validation errors).
 
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
@@ -51,7 +52,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 44 tests) + Vitest (frontend, 62 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 89 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -68,7 +69,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `bot.py`: Pipecat pipeline (SmallWebRTC, ElevenLabs realtime STT + TTS, OpenAI LLM, Silero VAD) driven by a Pipecat Flows `FlowManager`. It mounts the agents API on the runner app and, in `bot()`, builds the agent from `runner_args.body["agent"]`:
   - no agent sent (e.g. the prebuilt `/client`): uses `agents/prosper-scheduler.json`;
   - invalid agent: logs every error and calls `reject_call()`, which runs an empty pipeline, sends an RTVI error "Invalid agent: ..." once the client is ready, and ends the call. It never falls back to another agent. Closing the WebRTC connection directly does not work (the client is still connecting and never notices); see `docs/notes/runtime.md` section 4.
-- `composer_api.py`: router factory `make_router(agents_dir)` under `/composer`: `GET /agents` (`{agents: [{id, name}]}`), `GET|PUT /agents/{id}`, `POST /validate` (`{errors: [...]}`, always 200), `GET /health` (`{ok, missing_keys}`, from the process env, never values). The id is the file stem, a lowercase slug `[a-z0-9][a-z0-9_-]{0,63}`, separate from the agent's display name. `PUT` validates (422 with every error), writes atomically and stores the JSON exactly as received.
+- `composer_api.py`: router factory `make_router(agents_dir)` under `/composer`: `GET /agents` (`{agents: [{id, name}]}`), `GET|PUT /agents/{id}`, `POST /validate` (`{errors: [...]}`, always 200), `GET /health` (`{ok, missing_keys}`, from the process env, never values), `GET /voices` (`{voices: [{id, name, category}], error?}`, the ElevenLabs account's voices for the voice picker, fetched once per process with an injectable fetcher for tests; always 200, `error` says why there is no list). The id is the file stem, a lowercase slug `[a-z0-9][a-z0-9_-]{0,63}`, separate from the agent's display name. `PUT` validates (422 with every error), writes atomically and stores the JSON exactly as received.
 - `agent_builder/validation.py`: `validate_agent(dict) -> list[ValidationIssue]` with `{message, node, edge}` records (`edge` is the function name). Runs on the raw dict, so missing keys and wrong types are errors, not `KeyError`. Checks: name, nodes, `initial_node`, unique node names, edge targets, function names (`fullmatch [a-zA-Z0-9_-]{1,64}`), unique function names per node, `properties` values are objects with a known `type`, `required` is a list of strings, field types, task messages have a `role`, actions have a `type`. Unknown keys are allowed.
 - `agent_builder/builder.py`: `AgentBuilder.from_dict` validates and raises `ValidationError(ValueError)` carrying all records; the constructor validates `asdict(config)`. Each edge handler updates `flow_manager.state`, logs, and queues an RTVI server message `{type: "transition", from, function, to, args}` (Issue #8 builds the UI on it). Nodes are built lazily on transition.
 - `agent_builder/schema.py`: dataclasses `AgentConfig` (`name`, `initial_node`, `nodes`, `persona`, `voice_id`, `model`), `Node` (`name`, `task_messages`, `role_message`, `edges`, `pre_actions`, `post_actions`, `end`), `Edge` (`function`, `description`, `target`, `properties`, `required`). Unchanged from the starter.
@@ -83,14 +84,21 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/store/agentStore.ts`: `useAgentStore` with `agent`, `agentId`, `savedJson`, `selection` (`{kind: "node", name}` or `{kind: "edge", source, function}`) and named operations: `open`, `markSaved`, `select`, `addNode(position?)`, `deleteNode` (refuses the start node; removes incoming edges), `renameNode` (cascades to targets, `initial_node`, selection; rejects duplicates and empty), `updateNode`, `connect(source, target)` (placeholder name, selects the edge), `updateEdge` (rejects duplicate function names; follows a rename with the selection), `deleteEdge`, `setInitialNode`, `moveNode` (writes `ui`), `updateAgent`. Rejectable operations return `{ok: false, error}` and leave the store unchanged. `selectIsDirty(state)` compares with `savedJson`.
 - zundo: `useAgentStore.temporal`, partialized to `{agent}`, `equality` on the agent reference, so selection changes are not recorded. `open()` clears history. Drags are one history entry each (see section 4).
 - `src/agent/layout.ts`: `autoLayout` (dagre, top to bottom, integer positions), `placeMissing` (below a positioned source node, else a fallback; never moves positioned nodes), `withPositions` (full layout only when no node has a position), `freeSpot`, `nearestFreeSpot`, `NODE_WIDTH`. The store uses it in `open` (fills missing positions without marking the agent unsaved, since they are deterministic), in `addNode()` without a position, and in `tidyLayout()`.
-- `src/api.ts`: `listAgents`, `getAgent`, `saveAgent` (returns validation errors on 422), `validateAgent`.
+- `src/api.ts`: `listAgents`, `getAgent`, `saveAgent` (returns validation errors on 422), `validateAgent`, `listVoices`.
+- Store patches (#5): in `updateNode`, `updateEdge` and `updateAgent`, a value of `undefined` removes the key, so clearing an override does not leave `""` in the file.
+- `src/store/editSession.ts` (#5): one undo step per focused text field (see section 4).
+- `src/agent/fields.ts`: collected-field operations returning an `EdgePatch` (add, remove, rename in place and in `required`, change spec keys, toggle required) and the JSON parsers for the fallback box and raw actions. `options.ts`: backend defaults (`DEFAULT_VOICE_ID`, `DEFAULT_MODEL`), the model list, field types, task roles. `names.ts` has `nodeNameError` and `functionNameError` for inline errors.
+- `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
 - `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning), `CallButton` (minimal test call with the current draft; #7 replaces it). The read-only `Outline` was removed in #4.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts` (62 in total).
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts` (89 in total). No component tests; the panel is checked in the browser.
 
 ## 4. Known gotchas
+
+**Secrets**
+- **Never format an HTTP client exception with `repr` (`{error!r}`) or log its request info.** An aiohttp `ClientResponseError` repr includes the request headers, so the ElevenLabs key ended up in a test runner log during #5 (the log was deleted; the user was told). `composer_api.py` builds its errors from the HTTP status and ElevenLabs' message only, and logs just the type for anything else.
 
 **Runtime and call**
 - **The draft must be sent as `requestData.body`.** `startBotAndConnect({endpoint: "/start", requestData: {body: {agent}}})`. The runner keeps only `body` between `/start` and the offer. The agent's loose TS type needs a documented cast to client-js's `Serializable` (see `CallButton.tsx`).
@@ -110,6 +118,10 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **Add node** goes to the centre of the view, or the nearest free spot that is still visible, falling back to the centre on top of other nodes.
 - **Reconnect knobs and shared handles.** Each edge's reconnect anchor sits just above its target handle, and edges rendered later cover earlier ones there with their wide hit strokes. That is why only the selected edge gets an anchor and is elevated. React Flow also paints a mouse-focused edge as selected; `index.css` keeps that for keyboard focus only.
 - **Driving the canvas in the browser pane:** select an edge first, then find its knob with `document.querySelectorAll('.react-flow__edgeupdater-target')`. The pane's screenshot frame is 800x600 over a 1024x768 viewport; screenshots right after a drag can be one render behind.
+- **Typing and undo.** Text fields write on every keystroke, so the canvas, a save and a test call always see the current text. `editSession.ts` makes each focused field one history entry, like drags: the session's first write is recorded and history is paused after it until blur or unmount. A session only resumes history it paused itself, so it never ends a drag's pause.
+- **Names are identifiers and are written on blur or Enter,** not per keystroke: renaming a node changes its React Flow id, and writing every keystroke would remount the node and cascade each partial name.
+- **End and post-actions.** The builder adds `end_conversation` only when a node is `end` and has no post-actions. With post-actions and no `end_conversation`, an end node never hangs up; the node panel warns about it.
+- **Voices.** The company ElevenLabs key lacks the `voices_read` permission, so `/composer/voices` answers with an error and the panel falls back to a plain voice-ID input with the reason as a hint. With a key that can read voices, the panel shows a dropdown and flags a `voice_id` that is not in the account.
 - **Validation errors are structured.** Use `node`/`edge` from `/composer/validate` to place badges (#6). Do not parse error strings.
 - **Keep zod objects loose and add no defaults**, or a round trip drops or adds fields.
 
@@ -118,6 +130,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. The user was asked whether to open an issue and has not answered.
 - **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked).
 - **STT language** is unset, so names come out in other scripts (Cyrillic, Chinese). Tracked in #13.
+- **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
 
 ## 6. Changes from the original plan
@@ -133,6 +146,8 @@ Recorded so the reasoning is not lost:
 - Drag history (#4): the drag's first position write is recorded and history is paused after it, instead of pausing on drag start (see section 4).
 - `@dagrejs/dagre` instead of `dagre`, which has been unmaintained since 2022 (#4). Same library and API, with bundled types.
 - Reconnecting an edge keeps its function name, even a placeholder such as `go_to_<old target>`. Rename it in the side panel (#5).
+- The voice picker lists the account's voices from ElevenLabs (`/composer/voices`) instead of a hard-coded list, because ElevenLabs keeps retiring default voices (#5). Models stay a short static list plus "Custom".
+- Collected fields are a two-line list per field (name, type, required, remove; description below) rather than a five-column table, to fit the 360px panel (#5). Keys the list does not show, such as `enum`, are kept and edited in the JSON box.
 - Makefile background jobs use a single-shell recipe; `.ONESHELL:` does not work with make 3.81 (#2).
 - The demo video in #11 is recorded by the user.
 - Stray `\` after a code fence in `README.md`: fix in #11.
