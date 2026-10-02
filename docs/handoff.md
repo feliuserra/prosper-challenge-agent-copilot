@@ -14,10 +14,10 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | (Intel Mac dependency pins) | Merged | #15 |
 | #2 Agents API + draft handover | Merged | #16 |
 | #3 Frontend skeleton, schema, store | Merged | #17 |
-| **#4 Graph canvas** | **Next.** Branch `issue-4-graph-canvas` exists locally, created from `main` at `b92f597`; its only commit so far is this handoff update | |
+| **#4 Graph canvas** | Built and committed on `issue-4-graph-canvas`; not pushed, no PR yet | |
 | #5 to #11, #13 | Open | |
 
-**Next step:** build #4 (scope and acceptance criteria in `PLAN.md` section 4 and GitHub issue #4). The store operations it needs already exist and are tested (section 3 below). #4 adds `@xyflow/react` and `dagre`; nothing for it is installed yet.
+**Next step:** push #4 and open its PR once the user agrees, then #5 (side panel editors, `PLAN.md` section 5). The panel edits the selection the canvas already sets in the store.
 
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
@@ -51,7 +51,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 44 tests) + Vitest (frontend, 34 tests) |
+| `make test` | pytest (backend, 44 tests) + Vitest (frontend, 59 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -81,10 +81,13 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/agent/schema.ts`: zod mirror of the dataclasses. Loose objects, actions as opaque records, optional `ui: {x, y}` per node, **no defaults**. `api.getAgent` uses zod only to check the shape and returns the original object, so a load/save round trip keeps values and key order.
 - `src/agent/names.ts`: `FUNCTION_NAME_RE`, `sanitizeFunctionName`, `uniqueName`, `placeholderFunctionName` (`go_to_<target>`, `_2`, `_3`... within 64 chars), `agentIdFor` (slug for new agents). `src/agent/templates.ts`: `blankAgent(name)` (one `start` node at 0,0), `EXAMPLE_AGENT_ID`.
 - `src/store/agentStore.ts`: `useAgentStore` with `agent`, `agentId`, `savedJson`, `selection` (`{kind: "node", name}` or `{kind: "edge", source, function}`) and named operations: `open`, `markSaved`, `select`, `addNode(position?)`, `deleteNode` (refuses the start node; removes incoming edges), `renameNode` (cascades to targets, `initial_node`, selection; rejects duplicates and empty), `updateNode`, `connect(source, target)` (placeholder name, selects the edge), `updateEdge` (rejects duplicate function names; follows a rename with the selection), `deleteEdge`, `setInitialNode`, `moveNode` (writes `ui`), `updateAgent`. Rejectable operations return `{ok: false, error}` and leave the store unchanged. `selectIsDirty(state)` compares with `savedJson`.
-- zundo: `useAgentStore.temporal`, partialized to `{agent}`, `equality` on the agent reference, so selection changes are not recorded. `open()` clears history. Pause/resume for drags is not wired yet (#4).
+- zundo: `useAgentStore.temporal`, partialized to `{agent}`, `equality` on the agent reference, so selection changes are not recorded. `open()` clears history. Drags are one history entry each (see section 4).
+- `src/agent/layout.ts`: `autoLayout` (dagre, top to bottom, integer positions), `placeMissing` (below a positioned source node, else a fallback; never moves positioned nodes), `withPositions` (full layout only when no node has a position), `freeSpot`, `nearestFreeSpot`, `NODE_WIDTH`. The store uses it in `open` (fills missing positions without marking the agent unsaved, since they are deterministic), in `addNode()` without a position, and in `tidyLayout()`.
 - `src/api.ts`: `listAgents`, `getAgent`, `saveAgent` (returns validation errors on 422), `validateAgent`.
-- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning), `Outline` (read-only node/edge list, placeholder until the canvas), `CallButton` (minimal test call with the current draft; #7 replaces it).
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`.
+- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning), `CallButton` (minimal test call with the current draft; #7 replaces it). The read-only `Outline` was removed in #4.
+- `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge; parallel edges between the same two nodes are offset so both labels show).
+- Single selection only: multi-select and box select are off, matching the store's `selection`.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts` (59 in total).
 
 ## 4. Known gotchas
 
@@ -100,8 +103,11 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 
 **Editor**
 - **React Flow ids.** Node id = node name, edge id = `${source}::${function}`. Unique because the store never holds duplicate function names in a node, even while typing (`updateEdge` rejects them). Selection lives in the store and follows renames.
-- **Dragging vs. undo (#4).** React Flow is controlled, so write positions to the store on every drag frame (`moveNode`) and pause zundo on drag start, resume on drag stop, so one drag is one history entry.
-- **Auto-layout with partial positions (#4).** Run dagre only when no node has a position. Otherwise place unpositioned nodes near their source node or the viewport centre, so adding a node never reshuffles the layout. Note `blankAgent` already places its start node at 0,0.
+- **Dragging vs. undo.** Positions go to the store on every drag frame (`moveNode`). zundo records the "before" state only on a tracked write, so pausing *before* the first write would leave a drag with no history entry. `changes.ts` keeps the drag's first write and pauses right after it, then resumes on the `dragging: false` changes at the end of the batch. Those changes are also sent when a drag is aborted, which skips `onNodeDragStop`, so tracking cannot stay paused.
+- **Controlled React Flow needs `measured` back.** It takes node sizes only from the node objects you pass in, so the canvas keeps reported sizes in component state and merges them into the derived nodes. They are DOM measurements, not agent data.
+- **Deletes go through `onDelete`, not `remove` changes.** It sees the whole deletion, so edges that `deleteNode` already cascades are skipped (one delete is one history entry). `onBeforeDelete` blocks the start node with a notice.
+- **Add node** goes to the centre of the view, or the nearest free spot that is still visible, falling back to the centre on top of other nodes.
+- **Driving the canvas in the browser pane:** the reconnect anchor of an edge sits just above the target handle (radius 10). Grabbing the handle itself starts a new connection instead. Find anchors with `document.querySelectorAll('.react-flow__edgeupdater-target')`. The pane's screenshot frame is 800x600 over a 1024x768 viewport.
 - **Validation errors are structured.** Use `node`/`edge` from `/composer/validate` to place badges (#6). Do not parse error strings.
 - **Keep zod objects loose and add no defaults**, or a round trip drops or adds fields.
 
@@ -122,6 +128,9 @@ Recorded so the reasoning is not lost:
 - The bot re-validates the received draft and ends the call with an RTVI error on an invalid one (#2).
 - `example_flow.json` moved to `backend/agents/prosper-scheduler.json` (#2).
 - The store refuses to delete the start node (#3), the rule #4 asks the canvas to enforce.
+- Drag history (#4): the drag's first position write is recorded and history is paused after it, instead of pausing on drag start (see section 4).
+- `@dagrejs/dagre` instead of `dagre`, which has been unmaintained since 2022 (#4). Same library and API, with bundled types.
+- Reconnecting an edge keeps its function name, even a placeholder such as `go_to_<old target>`. Rename it in the side panel (#5).
 - Makefile background jobs use a single-shell recipe; `.ONESHELL:` does not work with make 3.81 (#2).
 - The demo video in #11 is recorded by the user.
 - Stray `\` after a code fence in `README.md`: fix in #11.
