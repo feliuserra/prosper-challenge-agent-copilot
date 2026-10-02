@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 
+import { autoLayout, placeMissing, withPositions } from "../agent/layout";
 import { placeholderFunctionName, uniqueName } from "../agent/names";
 import type { Agent, Edge, Node, Position } from "../agent/schema";
 
@@ -40,6 +41,7 @@ interface AgentState {
   deleteEdge(source: string, fn: string): void;
   setInitialNode(name: string): Result;
   moveNode(name: string, position: Position): void;
+  tidyLayout(): void;
   updateAgent(patch: AgentPatch): void;
 }
 
@@ -77,7 +79,10 @@ export const useAgentStore = create<AgentState>()(
         savedJson: null,
         selection: null,
 
-        open(agentId, agent, saved = true) {
+        open(agentId, loaded, saved = true) {
+          // Fill in missing canvas positions. They are derived from the agent
+          // alone (same result on every load), so they are not unsaved changes.
+          const agent = withPositions(loaded);
           set({
             agent,
             agentId,
@@ -109,7 +114,9 @@ export const useAgentStore = create<AgentState>()(
             edges: [],
             ...(position ? { ui: position } : {}),
           };
-          set({ agent: { ...agent, nodes: [...agent.nodes, node] }, selection: { kind: "node", name } });
+          // Without a position, place it below the existing nodes (they never move).
+          const next = placeMissing({ ...agent, nodes: [...agent.nodes, node] });
+          set({ agent: next, selection: { kind: "node", name } });
           return name;
         },
 
@@ -223,6 +230,10 @@ export const useAgentStore = create<AgentState>()(
 
         moveNode(name, position) {
           change((agent) => mapNode(agent, name, (n) => ({ ...n, ui: { ...n.ui, ...position } })));
+        },
+
+        tidyLayout() {
+          change(autoLayout);
         },
 
         updateAgent(patch) {

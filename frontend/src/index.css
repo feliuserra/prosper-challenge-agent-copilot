@@ -21,9 +21,9 @@ body {
   flex-wrap: wrap;
 }
 main {
+  position: relative;
   flex: 1;
-  overflow: auto;
-  padding: 12px;
+  min-height: 0;
 }
 .spacer {
   flex: 1;
@@ -39,21 +39,90 @@ main {
   gap: 8px;
   align-items: center;
 }
-.outline button {
-  border: 1px solid transparent;
-  background: none;
-  cursor: pointer;
-  font: inherit;
-  padding: 2px 4px;
-}
-.outline button.selected {
-  border-color: #0969da;
-  border-radius: 4px;
+.empty {
+  padding: 12px;
 }
 .badge {
-  margin-left: 6px;
   padding: 0 6px;
   border-radius: 8px;
   background: #ddf4ff;
   font-size: 12px;
+  white-space: nowrap;
+}
+.badge.end {
+  background: #eaeef2;
+}
+.badge.error {
+  background: #ffebe9;
+  color: #cf222e;
+}
+.badge.warning {
+  background: #fff8c5;
+  color: #9a6700;
+}
+
+/* Canvas */
+.canvas {
+  position: absolute;
+  inset: 0;
+  --xy-edge-stroke-selected: #0969da;
+}
+.canvas-actions {
+  display: flex;
+  gap: 8px;
+}
+.notice {
+  padding: 6px 12px;
+  border: 1px solid #d4a72c;
+  border-radius: 6px;
+  background: #fff8c5;
+}
+.node-card {
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(31 35 40 / 8%);
+}
+.node-card.selected {
+  border-color: #0969da;
+  box-shadow: 0 0 0 1px #0969da;
+}
+.node-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.node-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.node-card-status {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.node-card-task {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.edge-label {
+  position: absolute;
+  pointer-events: all;
+  padding: 1px 6px;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  background: #fff;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: pointer;
+}
+.edge-label.selected {
+  border-color: #0969da;
+  color: #0969da;
 }

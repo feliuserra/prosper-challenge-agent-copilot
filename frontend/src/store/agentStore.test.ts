@@ -25,10 +25,38 @@ describe("open, save state and history", () => {
     expect(selectIsDirty(store())).toBe(false);
   });
 
-  it("an unchanged agent serialises to the same JSON, key order included", () => {
+  it("an unchanged agent serialises to the same JSON apart from added positions", () => {
     // Compact form: the file's own whitespace is not preserved (the backend
-    // writes indent=2), only its values and key order.
-    expect(JSON.stringify(agent())).toBe(JSON.stringify(JSON.parse(exampleText)));
+    // writes indent=2), only its values and key order. `open` adds `ui` to
+    // every node because the example has no positions.
+    const withoutUi = { ...agent(), nodes: agent().nodes.map(({ ui, ...rest }) => rest) };
+    expect(JSON.stringify(withoutUi)).toBe(JSON.stringify(JSON.parse(exampleText)));
+  });
+
+  it("lays out an agent without positions on open, without marking it unsaved", () => {
+    expect(agent().nodes.every((n) => n.ui)).toBe(true);
+    expect(selectIsDirty(store())).toBe(false);
+  });
+
+  it("keeps saved positions on open and places only the missing ones", () => {
+    const example = JSON.parse(exampleText) as Agent;
+    example.nodes[0].ui = { x: 500, y: -40 };
+    example.nodes[1].ui = { x: 500, y: 200 };
+    store().open("prosper-scheduler", example);
+    expect(node("greeting")?.ui).toEqual({ x: 500, y: -40 });
+    expect(node("collect_details")?.ui).toEqual({ x: 500, y: 200 });
+    // collect_details -> offer_times: placed below its source.
+    expect(node("offer_times")?.ui?.x).toBe(500);
+    expect(node("offer_times")?.ui?.y).toBeGreaterThan(200);
+    expect(selectIsDirty(store())).toBe(false);
+  });
+
+  it("tidyLayout is one history step", () => {
+    store().moveNode("greeting", { x: 999, y: 999 });
+    const before = useAgentStore.temporal.getState().pastStates.length;
+    store().tidyLayout();
+    expect(useAgentStore.temporal.getState().pastStates).toHaveLength(before + 1);
+    expect(node("greeting")?.ui).not.toEqual({ x: 999, y: 999 });
   });
 
   it("a new unsaved agent is dirty", () => {
@@ -61,8 +89,15 @@ describe("addNode", () => {
     expect(first).toBe("new_node");
     expect(second).toBe("new_node_2");
     expect(node(first)?.ui).toEqual({ x: 5, y: 6 });
-    expect(node(second)?.ui).toBeUndefined();
     expect(store().selection).toEqual({ kind: "node", name: second });
+  });
+
+  it("places a node added without a position below the others, moving none", () => {
+    const before = agent().nodes.map((n) => n.ui);
+    const name = store().addNode();
+    const lowest = Math.max(...before.map((p) => p!.y));
+    expect(node(name)?.ui?.y).toBeGreaterThan(lowest);
+    expect(agent().nodes.slice(0, -1).map((n) => n.ui)).toEqual(before);
   });
 });
 

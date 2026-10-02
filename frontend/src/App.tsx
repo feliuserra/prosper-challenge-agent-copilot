@@ -1,4 +1,4 @@
-import { Outline } from "./components/Outline";
+import { Canvas } from "./canvas/Canvas";
 import { Toolbar } from "./components/Toolbar";
 
 export function App() {
@@ -6,7 +6,7 @@ export function App() {
     <div className="app">
       <Toolbar />
       <main>
-        <Outline />
+        <Canvas />
       </main>
     </div>
   );
