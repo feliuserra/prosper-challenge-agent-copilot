@@ -8,7 +8,7 @@ Each record explains one decision: the context, what we chose, what we rejected 
 | [0002](0002-keep-schema-add-ui-positions.md) | Keep the existing schema; add only optional UI positions | Accepted |
 | [0003](0003-node-name-is-identifier.md) | Node name is the identifier, renames cascade | Accepted |
 | [0004](0004-validate-with-agent-builder.md) | Validate with the real AgentBuilder, add warnings on the client | Accepted |
-| [0005](0005-draft-to-bot-at-connect-time.md) | Hand the current draft to the bot at connect time, one backend process | Proposed |
+| [0005](0005-draft-to-bot-at-connect-time.md) | Hand the current draft to the bot at connect time, one backend process | Accepted |
 | [0006](0006-stream-transitions-over-rtvi.md) | Stream transitions to the UI over RTVI | Accepted |
 | [0007](0007-frontend-stack.md) | Frontend stack | Accepted |
 

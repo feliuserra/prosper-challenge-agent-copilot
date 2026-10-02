@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Union
 
 from loguru import logger
+from pipecat.processors.frameworks.rtvi import RTVIServerMessageFrame
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from .schema import AgentConfig, Edge, Node
@@ -64,7 +65,7 @@ class AgentBuilder:
             "name": node.name,
             "role_message": node.role_message or self.config.persona,
             "task_messages": node.task_messages,
-            "functions": [self._make_edge_function(edge) for edge in node.edges],
+            "functions": [self._make_edge_function(node, edge) for edge in node.edges],
         }
         if node.pre_actions:
             node_config["pre_actions"] = node.pre_actions
@@ -75,11 +76,23 @@ class AgentBuilder:
             node_config["post_actions"] = [{"type": "end_conversation"}]
         return node_config
 
-    def _make_edge_function(self, edge: Edge) -> FlowsFunctionSchema:
+    def _make_edge_function(self, node: Node, edge: Edge) -> FlowsFunctionSchema:
         async def handler(args: dict, flow_manager: FlowManager):
             # Persist what the caller gave us so later nodes can use it.
             flow_manager.state.update(args)
             logger.info(f"[{edge.function}] -> {edge.target} | collected: {args}")
+            # Tell the UI which edge was taken (RTVI server message, ADR 0006).
+            await flow_manager.worker.queue_frame(
+                RTVIServerMessageFrame(
+                    data={
+                        "type": "transition",
+                        "from": node.name,
+                        "function": edge.function,
+                        "to": edge.target,
+                        "args": args,
+                    }
+                )
+            )
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 
