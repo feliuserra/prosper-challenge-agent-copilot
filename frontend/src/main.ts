@@ -3,6 +3,7 @@ import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
 
 const button = document.querySelector<HTMLButtonElement>("#call")!;
 const status = document.querySelector<HTMLSpanElement>("#status")!;
+const agentInput = document.querySelector<HTMLTextAreaElement>("#agent")!;
 
 // A fresh client per call: reusing one after disconnect leaves stale state.
 let client: PipecatClient | null = null;
@@ -23,14 +24,21 @@ function playBotAudio(track: MediaStreamTrack) {
 }
 
 async function call() {
+  let agent; // any: sent as is, the backend validates it
+  try {
+    agent = JSON.parse(agentInput.value);
+  } catch {
+    setStatus("agent is not valid JSON");
+    return;
+  }
   client = new PipecatClient({
     transport: new SmallWebRTCTransport(),
     enableMic: true,
     enableCam: false,
     callbacks: {
       onTransportStateChanged: (state) => setStatus(state),
-      onBotReady: (data) => console.log("[spike] bot ready", data),
-      onServerMessage: (data) => console.log("[spike] server message", data),
+      onBotReady: (data) => console.log("[test] bot ready", data),
+      onServerMessage: (data) => console.log("[test] server message", data),
       onTrackStarted: (track, participant) => {
         if (!participant?.local && track.kind === "audio") playBotAudio(track);
       },
@@ -42,7 +50,7 @@ async function call() {
       },
     },
   });
-  client.on(RTVIEvent.Error, (message) => console.error("[spike] rtvi error", message));
+  client.on(RTVIEvent.Error, (message) => console.error("[test] rtvi error", message));
 
   button.textContent = "Hang up";
   // POST /start with this JSON. The runner keeps `body` for the session and
@@ -50,10 +58,10 @@ async function call() {
   try {
     await client.startBotAndConnect({
       endpoint: "/start",
-      requestData: { body: { agent: { name: "spike-test" } } },
+      requestData: { body: { agent } },
     });
   } catch (error) {
-    console.error("[spike] call failed", error);
+    console.error("[test] call failed", error);
     setStatus("error (see console)");
     await client?.disconnect();
     client = null;
@@ -69,8 +77,8 @@ button.addEventListener("click", async () => {
   await call();
 });
 
-// Proves custom routes on the runner app are reachable through the proxy.
-fetch("/composer/ping")
+// Start from the saved default agent.
+fetch("/composer/agents/prosper-scheduler")
   .then((res) => res.json())
-  .then((data) => console.log("[spike] /composer/ping", data))
-  .catch((error) => console.error("[spike] /composer/ping failed", error));
+  .then((agent) => (agentInput.value = JSON.stringify(agent, null, 2)))
+  .catch((error) => console.error("[test] could not load the default agent", error));

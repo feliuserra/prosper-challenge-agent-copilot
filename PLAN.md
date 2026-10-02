@@ -62,7 +62,7 @@ Priority: **P0** must ship, **P1** strongly recommended, **P2** only if time all
 - `/composer/health` reports which required keys are missing from `backend/.env`.
 - Handover (Option A unless Issue 1 said otherwise): `bot()` builds from `runner_args.body`; no agent sent means the example agent; an invalid agent is logged and the call ends, with no silent fallback.
 - pytest as a uv dev dependency (coordinate with the uncommitted pins in `pyproject.toml`).
-- Makefile `dev` target that starts the runner (+ frontend once it exists) as background jobs with `trap 'kill 0' EXIT`, using `.ONESHELL:` so the trap covers all jobs.
+- Makefile `dev` target that starts the runner (+ frontend once it exists) as background jobs, in a single-shell recipe whose `trap` stops the runner when the frontend exits (`.ONESHELL:` is ignored by the make 3.81 that macOS ships).
 
 **Acceptance criteria:**
 - The next call uses the handed-over agent with no restart.

@@ -3,12 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Runtime spike</title>
+    <title>Test call</title>
   </head>
   <body>
-    <h1>Runtime spike (Issue #1)</h1>
-    <button id="call">Call</button>
-    <p>Status: <span id="status">idle</span></p>
+    <h1>Test call</h1>
+    <p>Temporary page until the editor lands (#3). The agent below is sent with the call.</p>
+    <textarea id="agent" rows="24" cols="100" spellcheck="false"></textarea>
+    <p>
+      <button id="call">Call</button>
+      Status: <span id="status">idle</span>
+    </p>
     <p>Server messages are logged to the browser console.</p>
     <script type="module" src="/src/main.ts"></script>
   </body>
