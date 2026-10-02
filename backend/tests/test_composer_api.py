@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from composer_api import make_router
+from composer_api import VoiceListError, http_error_message, make_router
 
 
 @pytest.fixture
@@ -84,3 +84,72 @@ def test_health_lists_missing_keys(client, monkeypatch):
     }
     monkeypatch.setenv("ELEVENLABS_API_KEY", "y")
     assert client.get("/composer/health").json() == {"ok": True, "missing_keys": []}
+
+
+def voices_client(agents_dir, fetch_voices):
+    app = FastAPI()
+    app.include_router(make_router(agents_dir, fetch_voices=fetch_voices))
+    return TestClient(app)
+
+
+def test_voices_are_fetched_once_with_the_key(agents_dir, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key")
+    calls = []
+
+    async def fetch(api_key):
+        calls.append(api_key)
+        return [{"id": "v1", "name": "Voice One", "category": "premade"}]
+
+    client = voices_client(agents_dir, fetch)
+    expected = {"voices": [{"id": "v1", "name": "Voice One", "category": "premade"}]}
+    assert client.get("/composer/voices").json() == expected
+    assert client.get("/composer/voices").json() == expected
+    assert calls == ["test-key"]
+
+
+def test_voices_without_a_key(agents_dir, monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+
+    async def fetch(api_key):
+        raise AssertionError("must not be called without a key")
+
+    body = voices_client(agents_dir, fetch).get("/composer/voices").json()
+    assert body["voices"] == [] and "ELEVENLABS_API_KEY" in body["error"]
+
+
+def test_voices_failure_is_reported_and_retried(agents_dir, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key")
+    results = [RuntimeError("down"), [{"id": "v1", "name": "Voice One", "category": None}]]
+
+    async def fetch(api_key):
+        result = results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    client = voices_client(agents_dir, fetch)
+    first = client.get("/composer/voices").json()
+    assert first["voices"] == [] and first["error"]
+    assert client.get("/composer/voices").json()["voices"][0]["id"] == "v1"
+
+
+def test_voices_error_message_comes_from_status_and_body_only(agents_dir, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
+    body = json.dumps({"detail": {"status": "missing_permissions", "message": "Missing voices_read."}})
+
+    async def fetch(api_key):
+        raise VoiceListError(http_error_message(401, body))
+
+    error = voices_client(agents_dir, fetch).get("/composer/voices").json()["error"]
+    assert error == "ElevenLabs answered HTTP 401: Missing voices_read."
+    assert http_error_message(500, "not json") == "ElevenLabs answered HTTP 500."
+
+
+def test_unexpected_voice_errors_report_only_the_type(agents_dir, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret-key")
+
+    async def fetch(api_key):
+        raise RuntimeError(f"headers: xi-api-key={api_key}")
+
+    error = voices_client(agents_dir, fetch).get("/composer/voices").json()["error"]
+    assert "secret-key" not in error and "RuntimeError" in error

@@ -38,6 +38,9 @@ export function Toolbar() {
   }
 
   const save = useCallback(async () => {
+    // Names are written when their field is left: leave it first (Cmd/Ctrl+S
+    // can be pressed while typing one), so the save includes it.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const { agent, agentId } = useAgentStore.getState();
     if (!agent || !agentId) return;
     try {

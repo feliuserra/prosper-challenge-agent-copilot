@@ -50,3 +50,14 @@ export async function saveAgent(id: string, agent: Agent): Promise<ValidationIss
 export async function validateAgent(agent: Agent): Promise<ValidationIssue[]> {
   return (await (await request("/validate", { method: "POST", body: JSON.stringify(agent) })).json()).errors;
 }
+
+export interface Voice {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+/** The ElevenLabs account's voices, or an error saying why they could not be listed. */
+export async function listVoices(): Promise<{ voices: Voice[]; error?: string }> {
+  return (await request("/voices")).json();
+}

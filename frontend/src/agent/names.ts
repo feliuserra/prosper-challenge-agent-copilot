@@ -36,3 +36,20 @@ export function agentIdFor(name: string, taken: Iterable<string>): string {
       .slice(0, 60) || "agent";
   return uniqueName(slug, taken, 64);
 }
+
+/** Why `draft` cannot be the new name of node `current`, or null if it can (as renameNode checks). */
+export function nodeNameError(nodeNames: string[], current: string, draft: string): string | null {
+  const name = draft.trim();
+  if (!name) return "Node name cannot be empty.";
+  if (name !== current && nodeNames.includes(name)) return `A node called '${name}' already exists.`;
+  return null;
+}
+
+/** Why `draft` cannot be the function name of an edge, or null if it can. */
+export function functionNameError(siblingFunctions: string[], current: string, draft: string): string | null {
+  if (!FUNCTION_NAME_RE.test(draft)) return "Use 1 to 64 letters, digits, '_' or '-' (no spaces).";
+  if (draft !== current && siblingFunctions.includes(draft)) {
+    return `'${draft}' is already used by another edge of this node.`;
+  }
+  return null;
+}

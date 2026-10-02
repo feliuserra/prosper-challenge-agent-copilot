@@ -233,3 +233,19 @@ describe("deleteEdge, setInitialNode, moveNode, updateNode", () => {
     expect(node("confirm")).toBe(other);
   });
 });
+
+describe("patches", () => {
+  it("undefined removes a key from a node, an edge or the agent, keeping key order", () => {
+    store().updateNode("greeting", { role_message: "Be brief." });
+    expect(node("greeting")?.role_message).toBe("Be brief.");
+    store().updateNode("greeting", { role_message: undefined });
+    expect("role_message" in node("greeting")!).toBe(false);
+
+    store().updateEdge("collect_details", "record_details", { required: undefined });
+    expect("required" in node("collect_details")!.edges![0]).toBe(false);
+
+    const keys = Object.keys(agent());
+    store().updateAgent({ persona: undefined });
+    expect(Object.keys(agent())).toEqual(keys.filter((k) => k !== "persona"));
+  });
+});
