@@ -13,13 +13,11 @@ export type NodeStatus = { tone: "error" | "warning"; label: string; title?: str
 export type AgentNodeData = { node: Node; isStart: boolean; status?: NodeStatus[] };
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
-export type FunctionEdgeData = { function: string; offset: number };
+/** `lane` separates edges that join the same two nodes (see edgePath.ts). */
+export type FunctionEdgeData = { function: string; lane: number };
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
 
 export type Dimensions = { width: number; height: number };
-
-// Horizontal spacing between edges that join the same two nodes, so each label shows.
-const PARALLEL_EDGE_SPACING = 28;
 
 export const edgeId = (source: string, fn: string) => `${source}::${fn}`;
 
@@ -67,16 +65,18 @@ export function toFlowEdges(agent: Agent, selection: Selection): AgentFlowEdge[]
     const pair = `${source}->${edge.target}`;
     const index = pairIndex.get(pair) ?? 0;
     pairIndex.set(pair, index + 1);
+    const selected = selection?.kind === "edge" && selection.source === source && selection.function === edge.function;
     return {
       id: edgeId(source, edge.function),
       type: "function",
       source,
       target: edge.target,
-      data: { function: edge.function, offset: (index - (pairCount.get(pair)! - 1) / 2) * PARALLEL_EDGE_SPACING },
-      selected: selection?.kind === "edge" && selection.source === source && selection.function === edge.function,
-      // Only the target end can be dragged to another node; moving the source
-      // would move the edge into another node's function list.
-      reconnectable: "target",
+      data: { function: edge.function, lane: index - (pairCount.get(pair)! - 1) / 2 },
+      selected,
+      // Only the selected edge shows a reconnect knob, so it is clear which edge
+      // moves when several end at the same handle. Only the target end: moving
+      // the source would move the edge into another node's function list.
+      reconnectable: selected ? "target" : false,
       markerEnd: { type: MarkerType.ArrowClosed },
     };
   });

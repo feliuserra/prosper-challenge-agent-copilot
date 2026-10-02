@@ -112,6 +112,17 @@ main {
   white-space: nowrap;
   font-size: 12px;
 }
+/* Blue means selected. React Flow also paints an edge blue when a mouse press
+   focuses it without selecting it; keep that for keyboard focus only. */
+.react-flow__edge.selectable:not(.selected):focus:not(:focus-visible) .react-flow__edge-path {
+  stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));
+}
+/* The selected edge's reconnect knob, over its arrowhead: drag it to another node. */
+.react-flow__edge.selected .react-flow__edgeupdater-target {
+  fill: rgb(9 105 218 / 15%);
+  stroke: #0969da;
+  stroke-width: 1.5;
+}
 .edge-label {
   position: absolute;
   pointer-events: all;

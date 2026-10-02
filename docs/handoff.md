@@ -51,7 +51,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 44 tests) + Vitest (frontend, 59 tests) |
+| `make test` | pytest (backend, 44 tests) + Vitest (frontend, 62 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -85,9 +85,10 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/agent/layout.ts`: `autoLayout` (dagre, top to bottom, integer positions), `placeMissing` (below a positioned source node, else a fallback; never moves positioned nodes), `withPositions` (full layout only when no node has a position), `freeSpot`, `nearestFreeSpot`, `NODE_WIDTH`. The store uses it in `open` (fills missing positions without marking the agent unsaved, since they are deterministic), in `addNode()` without a position, and in `tidyLayout()`.
 - `src/api.ts`: `listAgents`, `getAgent`, `saveAgent` (returns validation errors on 422), `validateAgent`.
 - `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning), `CallButton` (minimal test call with the current draft; #7 replaces it). The read-only `Outline` was removed in #4.
-- `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge; parallel edges between the same two nodes are offset so both labels show).
+- `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
+- Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts` (59 in total).
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts` (62 in total).
 
 ## 4. Known gotchas
 
@@ -107,7 +108,8 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **Controlled React Flow needs `measured` back.** It takes node sizes only from the node objects you pass in, so the canvas keeps reported sizes in component state and merges them into the derived nodes. They are DOM measurements, not agent data.
 - **Deletes go through `onDelete`, not `remove` changes.** It sees the whole deletion, so edges that `deleteNode` already cascades are skipped (one delete is one history entry). `onBeforeDelete` blocks the start node with a notice.
 - **Add node** goes to the centre of the view, or the nearest free spot that is still visible, falling back to the centre on top of other nodes.
-- **Driving the canvas in the browser pane:** the reconnect anchor of an edge sits just above the target handle (radius 10). Grabbing the handle itself starts a new connection instead. Find anchors with `document.querySelectorAll('.react-flow__edgeupdater-target')`. The pane's screenshot frame is 800x600 over a 1024x768 viewport.
+- **Reconnect knobs and shared handles.** Each edge's reconnect anchor sits just above its target handle, and edges rendered later cover earlier ones there with their wide hit strokes. That is why only the selected edge gets an anchor and is elevated. React Flow also paints a mouse-focused edge as selected; `index.css` keeps that for keyboard focus only.
+- **Driving the canvas in the browser pane:** select an edge first, then find its knob with `document.querySelectorAll('.react-flow__edgeupdater-target')`. The pane's screenshot frame is 800x600 over a 1024x768 viewport; screenshots right after a drag can be one render behind.
 - **Validation errors are structured.** Use `node`/`edge` from `/composer/validate` to place badges (#6). Do not parse error strings.
 - **Keep zod objects loose and add no defaults**, or a round trip drops or adds fields.
 

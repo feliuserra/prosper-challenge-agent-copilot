@@ -38,13 +38,18 @@ describe("toFlowEdges", () => {
   it("uses `${source}::${function}` ids and skips edges to missing nodes", () => {
     expect(edges.map((e) => e.id)).toEqual(["start::book", "start::cancel"]);
     expect(edges.map((e) => e.selected)).toEqual([false, true]);
-    expect(edges.every((e) => e.reconnectable === "target")).toBe(true);
+    // Only the selected edge can be reconnected.
+    expect(edges.map((e) => e.reconnectable)).toEqual([false, "target"]);
   });
 
-  it("spreads edges between the same two nodes so both labels show", () => {
-    const [a, b] = edges.map((e) => e.data!.offset);
-    expect(a).toBe(-b);
-    expect(a).not.toBe(0);
+  it("gives edges between the same two nodes their own lanes, a lone edge lane 0", () => {
+    expect(edges.map((e) => e.data!.lane)).toEqual([-0.5, 0.5]);
+    const loop: Agent = {
+      name: "l",
+      initial_node: "a",
+      nodes: [{ name: "a", edges: [{ function: "again", description: "", target: "a" }] }],
+    };
+    expect(toFlowEdges(loop, null)[0].data!.lane).toBe(0);
   });
 });
 

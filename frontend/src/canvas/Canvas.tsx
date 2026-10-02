@@ -132,6 +132,10 @@ function Flow() {
         onBeforeDelete={onBeforeDelete}
         onDelete={onDelete}
         deleteKeyCode={["Backspace", "Delete"]}
+        reconnectRadius={12}
+        // The selected edge (and its reconnect knob) draws above the others,
+        // which may end at the same handle.
+        elevateEdgesOnSelect
         // One selected element at a time, like the store's selection.
         multiSelectionKeyCode={null}
         selectionKeyCode={null}
