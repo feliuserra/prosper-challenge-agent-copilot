@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { Agent } from "../agent/schema";
-import { edgeId, parseEdgeId, toFlowEdges, toFlowNodes } from "./derive";
+import type { Problem } from "../validation/problems";
+import { edgeId, parseEdgeId, statusBadges, toFlowEdges, toFlowNodes } from "./derive";
 
 const agent: Agent = {
   name: "a",
@@ -50,6 +51,58 @@ describe("toFlowEdges", () => {
       nodes: [{ name: "a", edges: [{ function: "again", description: "", target: "a" }] }],
     };
     expect(toFlowEdges(loop, null)[0].data!.lane).toBe(0);
+  });
+});
+
+describe("statusBadges", () => {
+  const problem = (node: string | null, edge: string | null, message: string, severity: Problem["severity"] = "error") => ({
+    severity,
+    message,
+    node,
+    edge,
+  });
+
+  it("puts node problems on the node and edge problems on the edge, matched by name", () => {
+    const { nodes, edges } = statusBadges(agent, [
+      problem("next", null, "Each task message needs a role."),
+      problem("start", "book", "Property 'date' needs a type."),
+    ]);
+    expect([...nodes.keys()]).toEqual(["next"]);
+    expect([...edges.keys()]).toEqual(["start::book"]);
+    expect(edges.get("start::book")).toEqual([
+      { tone: "error", label: "1 error", title: "Property 'date' needs a type." },
+    ]);
+  });
+
+  it("shows several problems as one badge per severity, errors first", () => {
+    const { nodes } = statusBadges(agent, [
+      problem("start", null, "w", "warning"),
+      problem("start", null, "a"),
+      problem("start", null, "b"),
+    ]);
+    expect(nodes.get("start")).toEqual([
+      { tone: "error", label: "2 errors", title: "a\nb" },
+      { tone: "warning", label: "1 warning", title: "w" },
+    ]);
+  });
+
+  it("puts a problem of an edge that is not drawn on its node, naming the edge", () => {
+    const { nodes, edges } = statusBadges(agent, [problem("start", "lost", "Edge targets unknown node 'nowhere'.")]);
+    expect(edges.size).toBe(0);
+    expect(nodes.get("start")![0].title).toBe("lost: Edge targets unknown node 'nowhere'.");
+  });
+
+  it("gives agent-level problems and unknown nodes no badge", () => {
+    const { nodes, edges } = statusBadges(agent, [problem(null, null, "Agent needs a name."), problem("gone", null, "x")]);
+    expect(nodes.size + edges.size).toBe(0);
+  });
+
+  it("hands the badges to the flow nodes and edges", () => {
+    const badges = statusBadges(agent, [problem("next", null, "n"), problem("start", "cancel", "e")]);
+    const flowNodes = toFlowNodes(agent, null, {}, badges.nodes);
+    const flowEdges = toFlowEdges(agent, null, badges.edges);
+    expect(flowNodes.map((n) => n.data.status?.[0].title)).toEqual([undefined, "n"]);
+    expect(flowEdges.map((e) => e.data!.status?.[0].title)).toEqual([undefined, "e"]);
   });
 });
 

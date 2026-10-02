@@ -16,14 +16,12 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #3 Frontend skeleton, schema, store | Merged | #17 |
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
-| **#6 Validation errors** | **Next.** Branch `issue-6-validation-errors` exists locally, created from `main` at `11019ee`; its only commit is this handoff update | |
+| #6 Validation errors | Built on branch `issue-6-validation-errors`, PR not opened yet | |
 | #7 to #11, #13 | Open | |
 
-**Next step:** build #6 (scope and acceptance criteria in `PLAN.md` section 6 and GitHub issue #6). What already exists for it:
-- `api.ts` has `validateAgent(agent)` (`POST /composer/validate`, `{message, node, edge}` records, always 200) and `saveAgent` returns the same records on 422. Today `Toolbar` only shows the first save error as text.
-- The node card has a status badge slot: `NodeStatus` in `canvas/derive.ts`, rendered by `NodeCard`, but `toFlowNodes` does not fill it yet. Edges have no badge yet; the label in `FunctionEdge.tsx` is the natural place.
-- Selection is in the store (`select`), so a problems list only has to call it; the panel and canvas follow.
-- The list must also hold warnings (#9), and errors must block the test call (#7); `CallButton.tsx` is the current call entry point.
+**Next step:** once #6 is merged, build #7 (scope in `PLAN.md` section 7 and GitHub issue #7). What #6 left for it and for #9:
+- **#7:** `checkAgent(agent)` in `src/validation/validationStore.ts` validates the draft, publishes the errors to the problems list and returns them. `CallButton.tsx` already calls it before connecting and is disabled while the latest check has errors; the call panel should keep both (after the health check, per the plan).
+- **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
 
 **Pending for the user:** rotate the ElevenLabs key; it appeared in a log during #5 (see section 4, Secrets).
 
@@ -59,7 +57,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 89 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 103 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -96,11 +94,13 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/store/editSession.ts` (#5): one undo step per focused text field (see section 4).
 - `src/agent/fields.ts`: collected-field operations returning an `EdgePatch` (add, remove, rename in place and in `required`, change spec keys, toggle required) and the JSON parsers for the fallback box and raw actions. `options.ts`: backend defaults (`DEFAULT_VOICE_ID`, `DEFAULT_MODEL`), the model list, field types, task roles. `names.ts` has `nodeNameError` and `functionNameError` for inline errors.
 - `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
-- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning), `CallButton` (minimal test call with the current draft; #7 replaces it). The read-only `Outline` was removed in #4.
+- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list), `CallButton` (minimal test call with the current draft, blocked by errors; #7 replaces it). The read-only `Outline` was removed in #4.
+- `src/validation/` (#6): `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
+- Problems on the canvas (#6): `statusBadges` in `derive.ts` groups problems by their `node`/`edge` fields into one badge per severity ("2 errors", messages in the tooltip) for node cards and edge labels. `ProblemsList.tsx` is a collapsible strip below the graph; clicking a problem selects its node or edge (or nothing, for agent-level problems, which shows the agent settings) and fits the view to it. `Canvas` is now a column: `.canvas-flow` (React Flow, and the box Add node measures) above the strip.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts` (89 in total). No component tests; the panel is checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts` (103 in total). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -129,7 +129,11 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **Names are identifiers and are written on blur or Enter,** not per keystroke: renaming a node changes its React Flow id, and writing every keystroke would remount the node and cascade each partial name.
 - **End and post-actions.** The builder adds `end_conversation` only when a node is `end` and has no post-actions. With post-actions and no `end_conversation`, an end node never hangs up; the node panel warns about it.
 - **Voices.** The company ElevenLabs key lacks the `voices_read` permission, so `/composer/voices` answers with an error and the panel falls back to a plain voice-ID input with the reason as a hint. With a key that can read voices, the panel shows a dropdown and flags a `voice_id` that is not in the account.
-- **Validation errors are structured.** Use `node`/`edge` from `/composer/validate` to place badges (#6). Do not parse error strings.
+- **Validation errors are structured.** Badges and the problems list use `node`/`edge` from `/composer/validate`. Do not parse error strings. The backend tests pin the `(node, edge)` of every rule.
+- **Checks finish out of order** (a debounced check, then a save). Each check takes a number when it starts and may only publish if it is newer than the last one published, so an older draft's errors never replace a newer one's. Opening another agent invalidates checks still running.
+- **An edge whose target is missing is not drawn,** so its problems go on its source node's badge, prefixed with the function name. The list still selects the edge, and the edge panel shows the target as "(missing)".
+- **The call button is disabled from the latest check,** which can be up to 400 ms plus a request behind the draft. That is only a hint; the click validates the current draft again and does not connect if it has errors.
+- **The problems strip has the `nokey` class.** React Flow listens for Delete/Backspace on the whole document, so without it Backspace on a focused problem would delete the node it just selected.
 - **Keep zod objects loose and add no defaults**, or a round trip drops or adds fields.
 
 ## 5. Open items not tracked in an issue yet

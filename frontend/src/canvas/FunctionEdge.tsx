@@ -4,7 +4,7 @@ import { useAgentStore } from "../store/agentStore";
 import type { AgentFlowEdge } from "./derive";
 import { edgeGeometry, selfLoopGeometry } from "./edgePath";
 
-/** A transition, labelled with its function name. Clicking the label selects it. */
+/** A transition, labelled with its function name and problem badges. Clicking the label selects it. */
 export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
   const { id, source, target, data, selected, markerEnd } = props;
   const ends = {
@@ -16,19 +16,28 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
   };
   const { path, labelX, labelY, labelAlign } = source === target ? selfLoopGeometry(ends) : edgeGeometry(ends);
   const fn = data?.function ?? "";
+  const status = data?.status ?? [];
+  const className = ["edge-label", "nodrag", "nopan", selected && "selected", status.length > 0 && status[0].tone]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd} />
       <EdgeLabelRenderer>
         <button
-          className={selected ? "edge-label nodrag nopan selected" : "edge-label nodrag nopan"}
+          className={className}
           style={{
             transform: `translate(${labelAlign === "start" ? "0" : "-50%"}, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
           onClick={() => useAgentStore.getState().select({ kind: "edge", source, function: fn })}
         >
           {fn}
+          {status.map((s) => (
+            <span key={s.tone} className={`badge ${s.tone}`} title={s.title}>
+              {s.label}
+            </span>
+          ))}
         </button>
       </EdgeLabelRenderer>
     </>

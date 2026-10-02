@@ -22,8 +22,8 @@ export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<Age
         {isStart && <span className="badge start">Start</span>}
         {node.end && <span className="badge end">End</span>}
         <span className="node-card-status">
-          {status.map((s, i) => (
-            <span key={i} className={`badge ${s.tone}`} title={s.title}>
+          {status.map((s) => (
+            <span key={s.tone} className={`badge ${s.tone}`} title={s.title}>
               {s.label}
             </span>
           ))}
