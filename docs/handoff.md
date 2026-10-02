@@ -16,7 +16,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #3 Frontend skeleton, schema, store | Merged | #17 |
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
-| #6 Validation errors | Built on branch `issue-6-validation-errors`, PR not opened yet | |
+| #6 Validation errors | In review | #20 |
 | #7 to #11, #13 | Open | |
 
 **Next step:** once #6 is merged, build #7 (scope in `PLAN.md` section 7 and GitHub issue #7). What #6 left for it and for #9:
