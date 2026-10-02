@@ -25,6 +25,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.runner.run import app
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
@@ -109,8 +110,16 @@ async def run_bot(
     await runner.run()
 
 
+# Spike (Issue #1): proves custom routes on the runner app are served on 7860.
+@app.get("/composer/ping")
+async def composer_ping():
+    return {"ok": True}
+
+
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
+    # Spike (Issue #1): shows what the client sent with the connect request.
+    logger.info(f"runner_args.body: {runner_args.body}")
     transport = await create_transport(runner_args, transport_params)
     builder = AgentBuilder.from_json(AGENT_FLOW)
     await run_bot(transport, runner_args, builder)

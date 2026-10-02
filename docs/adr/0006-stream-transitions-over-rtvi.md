@@ -1,6 +1,6 @@
 # ADR 0006: Stream transitions to the UI over RTVI
 
-- **Status:** Accepted. The exact send API is confirmed in Issue 1.
+- **Status:** Accepted. Send API confirmed in Issue 1 (2026-10-02), see [`docs/notes/runtime.md`](../notes/runtime.md).
 - **Date:** 2026-09-29
 
 ## Context
@@ -11,7 +11,7 @@ In pipecat-ai 1.4.0, `PipelineWorker` enables RTVI by default (`enable_rtvi=True
 
 ## Decision
 
-- The edge handler sends an RTVI server message `{type: "transition", from, function, to, args}` by queueing an `RTVIServerMessageFrame` on the worker.
+- The edge handler sends an RTVI server message `{type: "transition", from, function, to, args}` by queueing an `RTVIServerMessageFrame` with `flow_manager.worker.queue_frame(...)`. The default RTVI observer turns it into a `server-message` (`observer.py:549`), and client-js delivers `data` to `onServerMessage`. `from` is the source node name, captured when the edge function is built.
 - The initial node is highlighted by the client on bot-ready. The client already knows `initial_node`, and a server message sent at connect may arrive before the client is listening.
 - The UI highlights the active node, animates the edge taken and lists transitions with their collected args.
 

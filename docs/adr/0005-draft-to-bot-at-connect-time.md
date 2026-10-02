@@ -1,6 +1,6 @@
 # ADR 0005: Hand the current draft to the bot at connect time, one backend process
 
-- **Status:** Proposed. Becomes Accepted (or amended) when Issue 1 proves a call end to end.
+- **Status:** Accepted (Option A), 2026-10-02, after the Issue 1 spike proved a call end to end. Details in [`docs/notes/runtime.md`](../notes/runtime.md).
 - **Date:** 2026-09-29
 
 ## Context
@@ -15,10 +15,10 @@
 1. **One backend process.** The agents API is registered on the runner's app, under a `/composer/` prefix to avoid the runner's own routes (`/start`, `/status`, `/api/offer`, `/sessions/...`, `/client`):
    `GET /composer/agents`, `GET /composer/agents/{name}`, `PUT /composer/agents/{name}`, `POST /composer/validate`, `GET /composer/health`.
    Agents are JSON files in `backend/agents/`.
-2. **Option A: the draft travels with the connect request.** The client sends the agent in the connect request data; `bot()` reads it from `runner_args.body`, re-validates it and builds from it.
+2. **Option A: the draft travels with the connect request.** The client calls `startBotAndConnect({endpoint: "/start", requestData: {body: {agent}}})`; `bot()` reads it from `runner_args.body`, re-validates it and builds from it. The draft must sit under `body`: the runner keeps only `requestData.body` for the session and hands it to the bot when the offer arrives on `/sessions/{id}/api/offer` (`run.py:629`, `:856-858`).
    - No agent in the body: use the example agent.
    - Invalid agent in the body: log the errors and end the call. Never fall back silently to another agent.
-3. **Option B (fallback if Issue 1 shows the body cannot carry the draft):** `POST /composer/activate` validates the draft and writes `backend/agents/.active.json` atomically (temp file + `os.replace`); `bot()` reads it on connect.
+3. **Option B (fallback, not needed):** `POST /composer/activate` validates the draft and writes `backend/agents/.active.json` atomically (temp file + `os.replace`); `bot()` reads it on connect.
 
 ## Alternatives considered
 
