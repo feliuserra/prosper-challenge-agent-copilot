@@ -188,12 +188,14 @@ Priority: **P0** must ship, **P1** strongly recommended, **P2** only if time all
 **Scope:**
 - Undo/redo UI and keyboard shortcuts (zundo is already set up in Issues 3 and 4).
 - Import/export agent JSON file; read-only JSON view of the current agent.
-- Readable self-loops and multiple edges between the same pair of nodes.
+- Readable self-loops and multiple edges between the same pair of nodes (done in #4: lanes for parallel edges, self-loops round the right side).
+- Back edges: an edge to a node above its source (a retry or "go back") is drawn as a plain curve and runs through the nodes in between. Route it like a self-loop: out of the bottom, round the right side of both nodes, into the top of the target, with lanes when several back edges share a path.
 - P2 extras if time allows: editable JSON view (zod-parsed), node duplication, post-call summary.
 
 **Acceptance criteria:**
 - Undo after rename, delete and connect restores the previous agent exactly.
 - A "clarify" self-loop and two parallel edges render without overlapping labels.
+- In the example agent, an edge from `confirm` back to `greeting` does not cross `collect_details` or `offer_times`.
 
 ## 11. Demo agent, README and demo video · P0
 

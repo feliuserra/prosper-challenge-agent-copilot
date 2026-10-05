@@ -19,10 +19,10 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #6 Validation errors | Merged | #20 |
 | #7 Test call panel | Merged | #21 |
 | #8 Live transition events | Merged | #22 |
-| **#9 Authoring warnings** | **Built** on branch `issue-9-authoring-warnings`, committed locally, not pushed | |
+| **#9 Authoring warnings** | **In review**, checked by the user | #23 |
 | #10, #11, #13 | Open | |
 
-**Next step:** ask the user to push and open the PR for #9, then merge on their "merge". Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** merge #23 when the user says "merge", then #10 (its scope now includes back-edge routing, see below). Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
 What #9 built (frontend only), for reference:
 - `src/validation/warnings.ts`: `agentWarnings(agent)` returns `Problem`s with `severity: "warning"`, by node in file order: not reachable from the start node (BFS over edges whose target exists; skipped when `initial_node` does not exist, which is already a backend error), dead end (not `end` and no edges), end node with edges (the builder queues `end_conversation` right after the node's first reply, so they are never taken), no task messages, each empty task message, empty edge description (on the edge), `required` names missing from `properties` (on the edge). Reads the draft defensively (non-array fields are treated as empty), since it runs on every edit.
@@ -31,6 +31,7 @@ What #9 built (frontend only), for reference:
 - The example agent has no warnings (tested). A new blank agent has two (dead end, empty task message), which is correct.
 - Tests: 144 in Vitest (one fixture per warning, clean and example agents, cycles and self-loops, missing start node, malformed shapes; a call placed with an agent that only has warnings).
 - Checked in the browser pane: badges on nodes and edge labels with tooltips, the list, selecting a node from a warning, Test call enabled with warnings.
+- To reach a backend error from the UI (the editor blocks most at edit time): clear the agent name (agent-level, no badge), or give an edge's fields JSON box a property without a type, e.g. `{"properties": {"x": {}}}` (red badge on the edge). Clearing a node name does not work: `NameInput` never writes an invalid name.
 - Not done: the node panel's "end node with After actions never hangs up" note is still only in the panel; it could become a warning too.
 
 What #8 built (frontend only; the backend message existed since #1), for reference:
@@ -195,3 +196,4 @@ Recorded so the reasoning is not lost:
 - The call panel is a third column, opened from the toolbar, rather than part of the side panel or the problems strip, so neither the selection editor nor the problems list is hidden during a call (#7). At 1024px wide the canvas gets narrow while it is open; close it to edit.
 - The mic step checks `mediaState.mic` after `initDevices()`, and the step list shows each phase's result, since "checking" is too fast to see against a local backend (#7).
 - Stray `\` after a code fence in `README.md`: fix in #11.
+- Back edges (to a node above the source) are plain curves that cross the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope and `PLAN.md` section 10 during #9.
