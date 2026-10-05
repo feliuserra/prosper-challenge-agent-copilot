@@ -4,6 +4,7 @@ import type { APIRequest, DeviceStatus, RTVIEventCallbacks, RTVIMessage } from "
 import type { Health, ValidationIssue } from "../api";
 import { blankAgent } from "../agent/templates";
 import { useAgentStore } from "../store/agentStore";
+import { agentWarnings } from "../validation/warnings";
 import { hangUp, selectMic, setCallDeps, setMuted, startCall, useCallStore, type CallClient } from "./callStore";
 
 /** A stand-in for PipecatClient; the test decides when the bot is ready. */
@@ -113,6 +114,15 @@ describe("startCall", () => {
     expect(state().steps).toMatchObject({ backend: "done", agent: "failed", mic: "pending" });
     expect(state().notice?.text).toContain("1 error.");
     expect(clients).toHaveLength(0);
+  });
+
+  it("calls an agent that only has warnings", async () => {
+    // The blank agent's start node is a dead end with an empty task message.
+    expect(agentWarnings(useAgentStore.getState().agent!).length).toBeGreaterThan(0);
+    const { done, client } = await callUntilConnecting();
+    client.ready();
+    await done;
+    expect(state().phase).toBe("in-call");
   });
 
   it("says when the microphone cannot be used", async () => {

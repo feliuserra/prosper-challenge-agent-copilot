@@ -2,8 +2,9 @@ import { useMemo } from "react";
 
 import type { ValidationIssue } from "../api";
 import type { Agent } from "../agent/schema";
-import type { Selection } from "../store/agentStore";
+import { useAgentStore, type Selection } from "../store/agentStore";
 import { useValidationStore } from "./validationStore";
+import { agentWarnings } from "./warnings";
 
 // One list for everything wrong with the agent: backend validation errors (#6),
 // which block a test call, and client-side authoring warnings (#9), which do not.
@@ -14,10 +15,18 @@ export type Severity = "error" | "warning";
 
 export type Problem = ValidationIssue & { severity: Severity };
 
-/** The problems of the open agent, errors first. */
+/**
+ * The problems of the open agent, errors first. Errors come from the latest
+ * backend check (debounced); warnings are computed from the draft as it is now.
+ */
 export function useProblems(): Problem[] {
   const errors = useValidationStore((s) => s.errors);
-  return useMemo(() => errors.map((e) => ({ ...e, severity: "error" as const })), [errors]);
+  const agent = useAgentStore((s) => s.agent);
+  const warnings = useMemo(() => (agent ? agentWarnings(agent) : []), [agent]);
+  return useMemo(
+    () => [...errors.map((e) => ({ ...e, severity: "error" as const })), ...warnings],
+    [errors, warnings],
+  );
 }
 
 /** What a problem points at: an edge, a node, or (null) the agent's own settings. */

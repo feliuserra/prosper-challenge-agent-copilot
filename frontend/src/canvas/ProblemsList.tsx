@@ -36,7 +36,7 @@ export function ProblemsList({ problems }: { problems: Problem[] }) {
     <section className="problems nokey" aria-label="Problems">
       <button className="problems-header" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span>Problems</span>
-        <span className={errors ? "problems-summary error" : "problems-summary muted"}>{summary}</span>
+        <span className={`problems-summary ${errors ? "error" : warnings ? "warning" : "muted"}`}>{summary}</span>
         {problems.length > 0 && <span className="muted">{open ? "▾" : "▸"}</span>}
       </button>
       {failure && <div className="problems-failure">Could not check the agent: {failure}</div>}
