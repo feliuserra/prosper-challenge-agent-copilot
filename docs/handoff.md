@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05)
+## 0. Status (updated 2026-10-05, after #7 merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -17,28 +17,25 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
-| **#7 Test call panel** | **In review** (done and checked) | #21 |
-| #8 to #11, #13 | Open | |
+| #7 Test call panel | Merged | #21 |
+| **#8 Live transition events** | **Next.** Branch `issue-8-live-transitions` exists locally, created from `main` at `b63ddfd`; its only commit is this handoff update | |
+| #9 to #11, #13 | Open | |
 
-**Next step:** merge #21 when the user says so (see "How we work through an issue"), then #8.
+**Next step:** build #8 (scope and acceptance criteria in `PLAN.md` section 8 and GitHub issue #8). What already exists for it:
+- **The backend half is done** (since #1). The edge handler in `backend/agent_builder/builder.py` (`_make_edge_function`, around line 77) logs `[function] -> target | collected: {args}` and queues an RTVI server message `{type: "transition", from, function, to, args}`. `from` is the source node's name, passed in at build time, so it does not depend on when Flows updates its current node. Check that nothing else is needed there; the plan's first scope bullet is already met.
+- **The client receives it** in `onServerMessage` in `frontend/src/call/callStore.ts` (in `callbacks(call)`), which only logs it for now. Replace the log with state in the call store, behind the same `live()` guard as the other callbacks, so a late message from an earlier call is ignored. Suggested state: `activeNode: string | null`, `lastEdge: {source, function} | null`, `transitions: [...]` (with the args and a time). Reset them at the start of `startCall`, like `transcript`.
+- **Initial node on bot-ready:** `startCall` sets `phase: "in-call"` once bot-ready arrives (end of `startCall`). Set `activeNode` there to the `initial_node` of the agent that was sent (the local `agent` in `startCall`), not the editor's current agent.
+- **The call uses a snapshot.** The user can keep editing during a call (rename a node, open another agent). Highlight only when the open agent is the one being called (keep the call's `agentId`), and match by node name; a node renamed mid-call simply loses its highlight. Do not try to follow renames.
+- **Canvas hooks:** `toFlowNodes(agent, selection, measured, badges.nodes)` and `toFlowEdges(agent, selection, badges.edges)` in `canvas/derive.ts`, called from `Canvas.tsx`, build the node and edge data; `NodeCard.tsx` and `FunctionEdge.tsx` render them. Add an `active` flag to `AgentNodeData` and `FunctionEdgeData` (derive tests in `derive.test.ts`) rather than reading the call store inside the cards. Edge id is `${source}::${function}` (`edgeId` in `derive.ts`). React Flow edges have an `animated` prop.
+- **Transitions list:** goes in the call panel (`CallPanel.tsx`), next to or merged with the transcript. It stays after hang-up until the next call (acceptance criterion), like the transcript does now. The active highlight should probably clear when the call ends.
+- **PHI:** collected args are shown in the browser and logged. Fine for the demo; #11 says so in the README.
+- **Testing:** the call store logic is unit-tested with a fake client (`callStore.test.ts`); add cases for transitions (including a late message from an earlier call). A real transition needs a mic, so the user checks it: the highlighted node must match the `[function] -> target` lines in the `make dev` terminal. The browser pane cannot speak to the bot (see "Testing without disturbing the user").
 
-Checked on 2026-10-05: the user ran steps 1 to 4 below with a real call (all fine); the bot-crash timeout (step 5) was checked from the browser pane against a copy of `bot.py` that raises at the top of `bot()`: the panel showed the timeout message at 15 s and the traceback was in the backend log.
-
-What #7 built (`frontend/src/call/`):
-- `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (loaded with a dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps, each shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic` (applies now during a call and is remembered for the next one), `listMicsIfAllowed` (fills the mic list before the first call when the browser already allows mic access). Dependencies are injectable with `setCallDeps` for tests.
-- `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`, so an interrupted sentence stays cut off where the bot stopped).
-- `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar (which shows "● In call" while a call is on). Call / Cancel / Hang up, Mute, status with a timer, the step list (while placing a call and after a failed attempt), a notice (how the last call ended, or why it failed), mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
-- `api.ts` has `getHealth`. `CallButton.tsx` is gone.
-- Tests: `transcript.test.ts`, `callStore.test.ts` (fake client: every failure step, timeout, bot hang-up, our hang-up, a second call with a new client, late events from the first call ignored, RTVI error kept as the notice, cancel, mute and mic).
-
-Checked in the browser pane (mic blocked there): the panel, missing keys (health stubbed in the page), an agent error clicked before the debounced check, a blocked mic stopping before the bot step. One real call happened by accident before the blocked-mic fix (about 8 s, greeting only): it showed the transcript filling word by word and a clean hang-up.
-
-**For the user to check with a mic** (`make dev`, Chrome, `http://localhost:5173`, open "Test call"):
-1. Edit the greeting node's task, do not save, press Call: the bot says the new greeting. The transcript shows both sides.
-2. Mute, speak, unmute: the bot does not hear you while muted. Switch microphones during the call if you have two.
-3. Hang up, call again without reloading: the second call works and the transcript starts empty.
-4. Go through to the end node: the bot hangs up, the panel says "The bot ended the call." and Call is enabled again.
-5. Bot crash: stop the backend after the page loaded and press Call ("Cannot reach the backend"); for the timeout, temporarily raise an exception at the top of `bot()` and press Call: after 15 s the panel says the bot did not start and points to the terminal.
+What #7 built (`frontend/src/call/`), for reference:
+- `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic`, `listMicsIfAllowed`. Dependencies are injectable with `setCallDeps` for tests.
+- `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`).
+- `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar. Call / Cancel / Hang up, Mute, status with a timer, step list, notice, mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
+- Checked by the user with real calls (edit without saving, mute, transcript, second call, end node) and in the browser pane (missing keys, agent errors, blocked mic, the 15 s timeout against a bot that crashes).
 
 Also prepared by #6, for later:
 - **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
@@ -48,7 +45,7 @@ Also prepared by #6, for later:
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
 2. Build, run `make test`, and verify in the real app (see "Testing without disturbing the user" below).
-3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
+3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20 and #21, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
 4. Things that need a mic (a real call) are checked by the user: give them exact steps and what to look for in the terminal and the browser DevTools console (Cmd+Option+J). The user runs `make dev` in a terminal outside the app, so its output is not readable from the session; ask them to paste it.
 
 ## 1. The task
