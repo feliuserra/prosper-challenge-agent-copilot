@@ -17,10 +17,12 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
-| **#7 Test call panel** | **Built, committed locally** on `issue-7-test-call-panel`, not pushed. Waiting for the user's real-call check | |
+| **#7 Test call panel** | **Done and checked**, committed locally on `issue-7-test-call-panel`, not pushed | |
 | #8 to #11, #13 | Open | |
 
-**Next step:** the user checks #7 with a real call (steps below), then push and open the PR (ask first). After that, #8.
+**Next step:** push #7 and open the PR (ask first). After that, #8.
+
+Checked on 2026-10-05: the user ran steps 1 to 4 below with a real call (all fine); the bot-crash timeout (step 5) was checked from the browser pane against a copy of `bot.py` that raises at the top of `bot()`: the panel showed the timeout message at 15 s and the traceback was in the backend log.
 
 What #7 built (`frontend/src/call/`):
 - `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (loaded with a dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps, each shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic` (applies now during a call and is remembered for the next one), `listMicsIfAllowed` (fills the mic list before the first call when the browser already allows mic access). Dependencies are injectable with `setCallDeps` for tests.
@@ -84,7 +86,7 @@ cd backend && .venv/bin/python bot.py --port 7861            # background
 cd frontend && RUNNER_URL=http://localhost:7861 npx vite --port 5174 --strictPort   # background
 ```
 
-Then drive `http://localhost:5174` in the built-in browser pane. Its mic is blocked, which is fine for everything except hearing the bot. In dev builds the store is on `window.agentStore` (e.g. `window.agentStore.getState().moveNode("greeting", {x: 0, y: 0})`). `window.prompt`/`confirm` can be stubbed from JS to drive the "New" buttons. Afterwards stop both servers and delete any agent files the test created in `backend/agents/`.
+Then drive `http://localhost:5174` in the built-in browser pane. Its mic is blocked, which is fine for everything except hearing the bot. A call stops at the Microphone step there; faking `getUserMedia` does not get past Daily's device matching. To test the bot step anyway, import the app's own store in the page (`await import("/src/call/callStore.ts")`, the same module instance the panel uses) and `setCallDeps({createClient})` with a real `PipecatClient` wrapped so `mediaState` reports the mic as `granted`. With a working bot this places a real call (key usage), so only do it against a bot that fails before building services. In dev builds the store is on `window.agentStore` (e.g. `window.agentStore.getState().moveNode("greeting", {x: 0, y: 0})`). `window.prompt`/`confirm` can be stubbed from JS to drive the "New" buttons. Afterwards stop both servers and delete any agent files the test created in `backend/agents/`.
 
 ## 3. What the repo contains now
 
