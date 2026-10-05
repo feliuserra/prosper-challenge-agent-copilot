@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, #9 built)
+## 0. Status (updated 2026-10-05, after #9 merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -19,10 +19,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #6 Validation errors | Merged | #20 |
 | #7 Test call panel | Merged | #21 |
 | #8 Live transition events | Merged | #22 |
-| **#9 Authoring warnings** | **In review**, checked by the user | #23 |
-| #10, #11, #13 | Open | |
+| #9 Authoring warnings | Merged | #23 |
+| **#10 Editor polish** | **Next.** Branch `issue-10-editor-polish` exists locally, created from `main` at `7e63996`; its only commit is this handoff update | |
+| #11, #13 | Open | |
 
-**Next step:** merge #23 when the user says "merge", then #10 (its scope now includes back-edge routing, see below). Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** build #10 (scope in `PLAN.md` section 10 and GitHub issue #10; it now includes back-edge routing, see section 6). Self-loops and parallel edges are already done (#4). For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
 What #9 built (frontend only), for reference:
 - `src/validation/warnings.ts`: `agentWarnings(agent)` returns `Problem`s with `severity: "warning"`, by node in file order: not reachable from the start node (BFS over edges whose target exists; skipped when `initial_node` does not exist, which is already a backend error), dead end (not `end` and no edges), end node with edges (the builder queues `end_conversation` right after the node's first reply, so they are never taken), no task messages, each empty task message, empty edge description (on the edge), `required` names missing from `properties` (on the edge). Reads the draft defensively (non-array fields are treated as empty), since it runs on every edit.
