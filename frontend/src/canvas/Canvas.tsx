@@ -17,10 +17,19 @@ import "@xyflow/react/dist/style.css";
 
 import { nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
 import { useAgentStore } from "../store/agentStore";
+import { useProblems } from "../validation/problems";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
-import { toFlowEdges, toFlowNodes, type AgentFlowEdge, type AgentFlowNode, type Dimensions } from "./derive";
+import {
+  statusBadges,
+  toFlowEdges,
+  toFlowNodes,
+  type AgentFlowEdge,
+  type AgentFlowNode,
+  type Dimensions,
+} from "./derive";
 import { FunctionEdge } from "./FunctionEdge";
 import { NodeCard } from "./NodeCard";
+import { ProblemsList } from "./ProblemsList";
 
 const nodeTypes = { agent: NodeCard };
 const edgeTypes = { function: FunctionEdge };
@@ -43,13 +52,18 @@ export function Canvas() {
 function Flow() {
   const agent = useAgentStore((s) => s.agent)!;
   const selection = useAgentStore((s) => s.selection);
+  const problems = useProblems();
   const [measured, setMeasured] = useState<Record<string, Dimensions>>({});
   const [notice, setNotice] = useState("");
   const wrapper = useRef<HTMLDivElement>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
 
-  const nodes = useMemo(() => toFlowNodes(agent, selection, measured), [agent, selection, measured]);
-  const edges = useMemo(() => toFlowEdges(agent, selection), [agent, selection]);
+  const badges = useMemo(() => statusBadges(agent, problems), [agent, problems]);
+  const nodes = useMemo(
+    () => toFlowNodes(agent, selection, measured, badges.nodes),
+    [agent, selection, measured, badges],
+  );
+  const edges = useMemo(() => toFlowEdges(agent, selection, badges.edges), [agent, selection, badges]);
 
   // Notices (e.g. a blocked delete) fade after a few seconds.
   useEffect(() => {
@@ -119,45 +133,49 @@ function Flow() {
   }
 
   return (
-    <div className="canvas" ref={wrapper}>
-      <ReactFlow<AgentFlowNode, AgentFlowEdge>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onReconnect={onReconnect}
-        onBeforeDelete={onBeforeDelete}
-        onDelete={onDelete}
-        deleteKeyCode={["Backspace", "Delete"]}
-        reconnectRadius={12}
-        // The selected edge (and its reconnect knob) draws above the others,
-        // which may end at the same handle.
-        elevateEdgesOnSelect
-        // One selected element at a time, like the store's selection.
-        multiSelectionKeyCode={null}
-        selectionKeyCode={null}
-        minZoom={0.2}
-        fitView
-        fitViewOptions={fitViewOptions}
-      >
-        <Panel position="top-left" className="canvas-actions">
-          <button onClick={addNode}>Add node</button>
-          <button onClick={tidy} title="Lay out all nodes again">
-            Tidy layout
-          </button>
-        </Panel>
-        {notice && (
-          <Panel position="bottom-center" className="notice" role="status">
-            {notice}
+    <div className="canvas">
+      <div className="canvas-flow" ref={wrapper}>
+        <ReactFlow<AgentFlowNode, AgentFlowEdge>
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onReconnect={onReconnect}
+          onBeforeDelete={onBeforeDelete}
+          onDelete={onDelete}
+          deleteKeyCode={["Backspace", "Delete"]}
+          reconnectRadius={12}
+          // The selected edge (and its reconnect knob) draws above the others,
+          // which may end at the same handle.
+          elevateEdgesOnSelect
+          // One selected element at a time, like the store's selection.
+          multiSelectionKeyCode={null}
+          selectionKeyCode={null}
+          minZoom={0.2}
+          fitView
+          fitViewOptions={fitViewOptions}
+        >
+          <Panel position="top-left" className="canvas-actions">
+            <button onClick={addNode}>Add node</button>
+            <button onClick={tidy} title="Lay out all nodes again">
+              Tidy layout
+            </button>
           </Panel>
-        )}
-        <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
-        <MiniMap pannable zoomable />
-        <Background />
-      </ReactFlow>
+          {notice && (
+            <Panel position="bottom-center" className="notice" role="status">
+              {notice}
+            </Panel>
+          )}
+          <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
+          <MiniMap pannable zoomable />
+          <Background />
+        </ReactFlow>
+      </div>
+      {/* Below the graph, not over it, so it never hides a node or its badge. */}
+      <ProblemsList problems={problems} />
     </div>
   );
 }

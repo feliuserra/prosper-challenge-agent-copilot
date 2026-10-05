@@ -4,6 +4,7 @@ import { getAgent, listAgents, saveAgent, type AgentSummary } from "../api";
 import { agentIdFor } from "../agent/names";
 import { blankAgent, EXAMPLE_AGENT_ID } from "../agent/templates";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
+import { checkAgent } from "../validation/validationStore";
 import { CallButton } from "./CallButton";
 
 export function Toolbar() {
@@ -44,11 +45,10 @@ export function Toolbar() {
     const { agent, agentId } = useAgentStore.getState();
     if (!agent || !agentId) return;
     try {
-      const errors = await saveAgent(agentId, agent);
+      // The backend validates on save; its errors go to the problems list.
+      const errors = await checkAgent(agent, (draft) => saveAgent(agentId, draft));
       if (errors.length) {
-        // Issue #6 shows these on the canvas; for now, the first one and the console.
-        console.warn("[save] validation errors", errors);
-        setMessage(`Not saved: ${errors.length} problem(s). ${errors[0].message}`);
+        setMessage(`Not saved: ${errors.length} error${errors.length === 1 ? "" : "s"}, see Problems.`);
         return;
       }
       useAgentStore.getState().markSaved();
