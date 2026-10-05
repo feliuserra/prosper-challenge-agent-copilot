@@ -2,7 +2,7 @@ import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
 
 import { useAgentStore } from "../store/agentStore";
 import type { AgentFlowEdge } from "./derive";
-import { edgeGeometry, selfLoopGeometry } from "./edgePath";
+import { backEdgeGeometry, edgeGeometry, selfLoopGeometry } from "./edgePath";
 
 /**
  * A transition, labelled with its function name and problem badges. Clicking the
@@ -17,7 +17,9 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
     targetY: props.targetY,
     lane: data?.lane ?? 0,
   };
-  const { path, labelX, labelY, labelAlign } = source === target ? selfLoopGeometry(ends) : edgeGeometry(ends);
+  const route = data?.route;
+  const { path, labelX, labelY, labelAlign } =
+    source === target ? selfLoopGeometry(ends) : route ? backEdgeGeometry(ends, route) : edgeGeometry(ends);
   const fn = data?.function ?? "";
   const status = data?.status ?? [];
   const className = [

@@ -54,7 +54,7 @@ const edgesOf = (node: Node): Edge[] => node.edges ?? [];
 const findNode = (agent: Agent, name: string) => agent.nodes.find((n) => n.name === name);
 
 /** Whether the selected node or edge still exists in `agent`. */
-function selectionExists(agent: Agent, selection: Selection): boolean {
+export function selectionExists(agent: Agent, selection: Selection): boolean {
   if (!selection) return true;
   const node = findNode(agent, selection.kind === "node" ? selection.name : selection.source);
   if (!node) return false;

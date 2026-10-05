@@ -71,8 +71,8 @@ function Flow() {
     [agent, selection, measured, badges, activeNode],
   );
   const edges = useMemo(
-    () => toFlowEdges(agent, selection, badges.edges, activeEdge),
-    [agent, selection, badges, activeEdge],
+    () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured),
+    [agent, selection, badges, activeEdge, measured],
   );
 
   // Notices (e.g. a blocked delete) fade after a few seconds.

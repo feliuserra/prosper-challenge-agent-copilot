@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, after #9 merged)
+## 0. Status (updated 2026-10-05, #10 built)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -20,10 +20,18 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #7 Test call panel | Merged | #21 |
 | #8 Live transition events | Merged | #22 |
 | #9 Authoring warnings | Merged | #23 |
-| **#10 Editor polish** | **Next.** Branch `issue-10-editor-polish` exists locally, created from `main` at `7e63996`; its only commit is this handoff update | |
+| **#10 Editor polish** | **Built** on branch `issue-10-editor-polish`, committed locally, not pushed yet | |
 | #11, #13 | Open | |
 
-**Next step:** build #10 (scope in `PLAN.md` section 10 and GitHub issue #10; it now includes back-edge routing, see section 6). Self-loops and parallel edges are already done (#4). For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** push #10 and open its PR once the user agrees, then #11 or #13. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+
+What #10 built (frontend only), for reference:
+- Back edges (`edgePath.ts`): an edge into a node whose top is above the source's bottom gets a route from `routeBackEdges(boxes, edges)`, computed in `toFlowEdges` (which now takes the measured card sizes) and drawn by `backEdgeGeometry`: out of the bottom of the source, up a column, into the top of the target, label beside the column. The column clears every node in the edge's vertical span that starts left of it, plus self-loops and their labels (label width estimated from the function name). Back edges that share a column and overlap vertically get lanes, shorter spans inside, labels stacked by lane. Forward edges and self-loops are unchanged. Known limits: React Flow's fit view counts nodes only, so a column or label right of the graph can start out of view; the column is not checked against nodes to its right.
+- Undo/redo (`store/history.ts`): `undo()`, `redo()`, `useCanUndo()`, `useCanRedo()`. After a step the selection is cleared if it points at something the step removed. Toolbar buttons blur the focused field first (ends its edit session, so the typing is one complete step). Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y, except in a text input or textarea, which keep their own undo.
+- Import/export (`agent/file.ts`): Export downloads the draft as `<id>.json` (indent 2, `ui` included, unsaved changes included). Import checks the shape with zod like `getAgent`, keeps the original object (key order), and opens it as a new unsaved agent under a fresh id from its name, like "New". Backend errors in an imported agent show in the problems list as usual.
+- JSON tab in the side panel: the whole agent, read-only, live, with Copy.
+- Tests: 160 in Vitest (undo after rename, delete and connect restores the same agent object; selection after undo/redo; back-edge routes, including the example agent with `confirm -> greeting` sampled against every card; file round trip and errors).
+- Checked in the browser pane: back edges and lanes next to a self-loop and parallel edges, Undo/Redo buttons and shortcuts, Cmd+Z in a text field left to the field, Undo while typing, live JSON tab, export (download captured from JS), import of a valid and an invalid file.
 
 What #9 built (frontend only), for reference:
 - `src/validation/warnings.ts`: `agentWarnings(agent)` returns `Problem`s with `severity: "warning"`, by node in file order: not reachable from the start node (BFS over edges whose target exists; skipped when `initial_node` does not exist, which is already a backend error), dead end (not `end` and no edges), end node with edges (the builder queues `end_conversation` right after the node's first reply, so they are never taken), no task messages, each empty task message, empty edge description (on the edge), `required` names missing from `properties` (on the edge). Reads the draft defensively (non-array fields are treated as empty), since it runs on every edit.
@@ -85,7 +93,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 144 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 160 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -122,14 +130,14 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/store/editSession.ts` (#5): one undo step per focused text field (see section 4).
 - `src/agent/fields.ts`: collected-field operations returning an `EdgePatch` (add, remove, rename in place and in `required`, change spec keys, toggle required) and the JSON parsers for the fallback box and raw actions. `options.ts`: backend defaults (`DEFAULT_VOICE_ID`, `DEFAULT_MODEL`), the model list, field types, task roles. `names.ts` has `nodeNameError` and `functionNameError` for inline errors.
 - `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
-- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list; the "Test call" toggle for the call panel). The read-only `Outline` was removed in #4.
+- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Import, Export, Undo, Redo, Save, Cmd/Ctrl+S and +Z, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list; the "Test call" toggle for the call panel). The read-only `Outline` was removed in #4.
 - `src/call/` (#7, #8): see section 0.
 - `src/validation/` (#6, #9): `warnings.ts` (client-side warnings, see section 0); `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
 - Problems on the canvas (#6): `statusBadges` in `derive.ts` groups problems by their `node`/`edge` fields into one badge per severity ("2 errors", messages in the tooltip) for node cards and edge labels. `ProblemsList.tsx` is a collapsible strip below the graph; clicking a problem selects its node or edge (or nothing, for agent-level problems, which shows the agent settings) and fits the view to it. `Canvas` is now a column: `.canvas-flow` (React Flow, and the box Add node measures) above the strip.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts`, `warnings.test.ts` (144 in total). No component tests; the panel and the problems list are checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts`, `warnings.test.ts`, `history.test.ts`, `file.test.ts` (160 in total). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -197,4 +205,5 @@ Recorded so the reasoning is not lost:
 - The call panel is a third column, opened from the toolbar, rather than part of the side panel or the problems strip, so neither the selection editor nor the problems list is hidden during a call (#7). At 1024px wide the canvas gets narrow while it is open; close it to edit.
 - The mic step checks `mediaState.mic` after `initDevices()`, and the step list shows each phase's result, since "checking" is too fast to see against a local backend (#7).
 - Stray `\` after a code fence in `README.md`: fix in #11.
-- Back edges (to a node above the source) are plain curves that cross the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope and `PLAN.md` section 10 during #9.
+- Back edges (to a node above the source) were plain curves that crossed the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope during #9 and built in #10.
+- Import opens the file as a new agent instead of replacing the open one (#10), so it cannot overwrite a saved agent by accident.
