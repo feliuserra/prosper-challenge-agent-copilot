@@ -16,11 +16,13 @@
    - edges are functions that move to their target;
    - tools (ADR 0008) are functions that run and keep the conversation in the node;
    - an end node ends the call after its reply;
-   - `tts_say` actions become bot lines.
+   - `tts_say` actions become bot lines;
+   - the clinic's date is added to the system message, as in the bot (ADR 0008).
 2. **It calls OpenAI directly** with the agent's own model and the same parameters as `bot.py`, and runs tests in parallel with asyncio.
-3. **A model plays the caller** from the test's persona, goal, facts and style. When a test has `replay` turns (from a real call), the caller says them word for word first, then improvises.
-4. **It shares code with the runtime:** the tool implementations and the world from `backend/clinic/`. A conformance test checks that the runner offers the same functions per node as `AgentBuilder` on the example and fixture agents.
-5. **One entry point** used by the Copilot, `make eval` and a CLI (`uv run python -m sim run <agent> <tests>`).
+3. **A model plays the caller** from the test's persona, goal, facts and style.
+4. **Anchored replay.** A test built from a real call carries the caller's turns as speech-to-text heard them, each with the question it answered. When the agent asks for the same thing, the caller says the recorded words exactly, garbles included; when the agent goes elsewhere (as it will after a fix), the caller improvises. Replaying turns blindly in order would stop making sense as soon as the fixed agent behaves differently.
+5. **It shares code with the runtime:** the tool implementations and the world from `backend/clinic/`. A conformance test checks that the runner offers the same functions per node as `AgentBuilder` on the example and fixture agents.
+6. **One entry point** used by the Copilot, `make eval` and a CLI (`uv run python -m sim run <agent> <tests>`).
 
 ## Alternatives considered
 
@@ -32,4 +34,5 @@
 
 - Tests run in seconds to a minute and can run in the Copilot's loop.
 - The runner can drift from the runtime. Not modelled: Flows' context handling in detail, interruptions, turn-taking and timing. The conformance test limits the drift; the rest is listed in "What the tests don't catch" (`PLAN-phase2.md`).
+- Spelled letters are assumed to be heard correctly; only garbles recorded in real calls are replayed.
 - A pass in text does not prove the voice call works. Live calls stay part of each issue's checks (`docs/notes/call-tests.md`).

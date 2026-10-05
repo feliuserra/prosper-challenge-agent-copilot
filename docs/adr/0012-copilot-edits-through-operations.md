@@ -18,7 +18,8 @@
 4. **Loop until green:** after a valid change, run the affected tests, then all of them; send failures with their evidence back; at most 3 rounds.
 5. **One proposal:** the operations, the resulting agent, a short rationale and test results before and after. The UI shows it as a diff on the canvas. Accept applies it as one undo step and saves a version (ADR 0013); Reject discards it.
 6. **The model is asked for the smallest change** that makes the failing tests pass. The diff shows anything beyond that.
-7. **Shared test cases:** `backend/tests/fixtures/ops/` holds cases (agent, operations, expected agent or error) that pytest runs against the Python operations and Vitest runs against the store, so the two implementations cannot drift apart unnoticed.
+7. **It works on what the user sees.** Each Copilot request carries the editor's current draft, as test calls do (ADR 0005). While the Copilot builds or fixes, the canvas and side panel are read-only with a Stop button, and a proposal records the draft it started from: Accept is refused if the draft has changed since.
+8. **Shared test cases:** `backend/tests/fixtures/ops/` holds cases (agent, operations, expected agent or error) that pytest runs against the Python operations and Vitest runs against the store, so the two implementations cannot drift apart unnoticed.
 
 ## Alternatives considered
 

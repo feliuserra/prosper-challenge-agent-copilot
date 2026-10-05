@@ -12,13 +12,15 @@
 
 ## Decision
 
-1. **Backend service** in `backend/copilot/`, mounted under `/copilot` on the runner, like the agents API (one process, ADR 0005). Long steps (spec, build, test runs, audits) stream progress to the browser as server-sent events.
+1. **Backend service** in `backend/copilot/`, mounted under `/copilot` on the runner, like the agents API (one process, ADR 0005). Long steps (spec, build, test runs, audits) stream progress to the browser as server-sent events. Each request carries the editor's current draft (ADR 0012).
 2. **OpenAI only,** with dated model versions pinned in one config: a larger model for writing specs and agents and for checking calls, a small one for simulated callers, and the judge chosen by calibration (ADR 0010, ADR 0011). Prompts live in their own files.
 3. **A chat with a small toolset:** read the workspace, propose or edit the spec, build, edit the agent (ADR 0012), run tests, list and audit calls, reproduce an issue. The model decides when to use them during a conversation.
 4. **Buttons call the same endpoints directly:** "Create from guidelines", "Run tests", "Audit calls", "Fix". The core flows work without the model choosing a tool, which keeps the demo reliable.
 5. **Replies are cards,** not only text: requirements, client questions, tests, build progress, proposals with their diff and test results, issues with quotes.
 6. **One right-hand column with tabs:** Copilot, Tests, Calls, Test call. It takes the call panel's place; the side panel (node and edge editor) stays.
-7. **Untrusted text stays data.** Transcripts, tickets and guidelines go into prompts delimited and labelled as data, never as instructions. The Copilot's tools can only read its own workspace.
+7. **The conversation persists** in the workspace (ADR 0013).
+8. **Live demo with a fallback.** Everything runs live, but every long step can switch to results cached during the rehearsal, so a slow model call never stalls the demo.
+9. **Untrusted text stays data.** Transcripts, tickets and guidelines go into prompts delimited and labelled as data, never as instructions. The Copilot's tools can only read its own workspace.
 
 ## Alternatives considered
 

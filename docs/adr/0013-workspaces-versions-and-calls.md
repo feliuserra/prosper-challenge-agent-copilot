@@ -15,6 +15,7 @@
 1. **One workspace per agent,** next to the agent file and optional: `backend/workspaces/<agent-id>/`
    - `guidelines.md`: the client's document, pasted in;
    - `spec.json`: requirements, client questions and tests, each test `draft` or `approved`;
+   - `chat.json`: the Copilot conversation, so a reload keeps it;
    - `versions/`: numbered snapshots;
    - `calls/`: call records;
    - `tickets/`: client tickets.

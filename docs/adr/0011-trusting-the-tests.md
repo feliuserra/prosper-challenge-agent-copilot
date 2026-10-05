@@ -14,13 +14,14 @@
 1. **Test-first human approval.** The Copilot shows requirements, client questions and tests before any graph exists. The human edits and approves the tests; reviewing 20 one-line tests against the guidelines is the cheapest place for human judgment.
 2. **Locked tests.** Once approved, the Copilot cannot change a test. If it believes a test is wrong, it says so in its proposal and the human decides. (Coding agents fail the same way: deleting or weakening the failing test.)
 3. **Tests come from requirements, not from the graph.** The spec step never sees an agent.
-4. **A held-out reference suite.** 20 hand-written tests for a fictional clinic live in `backend/eval/`, outside the workspace the Copilot can read. The Copilot loops only on its own tests; the reference suite measures the result afterwards. A test checks that no reference test reaches a Copilot prompt.
-5. **Mutation testing.** About 8 deliberately broken versions of the hand-built reference agent. Every mutant must fail at least one reference test, and every reference test must catch at least one mutant (or the reason is written down). A test that passes on a broken agent checks nothing.
-6. **Judge calibration.** About 30 hand-labelled transcripts for the soft rules. Each judged rule needs at least 90% agreement with the labels; otherwise it is rewritten or turned into an exact check.
-7. **Planted issues.** The mock production calls come from a deliberately weak agent with known defects, so we know what each call contains. The call checker's recall and false alarms are measured against that list.
-8. **A second clinic** (stretch): a few tests for a clinic never used while tuning the Copilot's prompts, run once at the end. We will tune on clinic A all week; this shows whether the Copilot generalises or just learned clinic A.
-9. **Report effort, not only pass rates:** human edits needed after generation, minutes from guidelines to green, minutes from issue to accepted fix. Pass rates show the agent works; these show the team's work went down.
-10. **State the limits** in the README: what text tests cannot see, and that real calls are the final judge.
+4. **No test facts in the agent.** A proposal whose agent contains facts from any test (caller names, dates of birth, phone numbers) is blocked. It is the cheapest guard against special-casing a test ("if the caller is Ana Lopez...").
+5. **A held-out reference suite.** 20 hand-written tests for a fictional clinic live in `backend/eval/`, outside the workspace the Copilot can read. The Copilot loops only on its own tests; the reference suite measures the result afterwards. A test checks that no reference test reaches a Copilot prompt.
+6. **Mutation testing.** About 8 deliberately broken versions of the hand-built reference agent. Every mutant must fail at least one reference test, and every reference test must catch at least one mutant (or the reason is written down). A test that passes on a broken agent checks nothing.
+7. **Judge calibration.** About 30 transcripts for the soft rules, labelled by Claude with a reason each and corrected by the user. Each judged rule needs at least 90% agreement with the labels; otherwise it is rewritten or turned into an exact check.
+8. **Planted issues.** The mock production calls come from a deliberately weak agent with known defects, so we know what each call contains. The call checker's recall and false alarms are measured against that list. Real recorded voice calls and hand-roughened ones are mixed in, so the checker is not measured only on clean simulated text.
+9. **A blind second clinic.** Claude writes the reference suite and the Copilot's prompts, so the reference suite is held out from the Copilot but not from its author. The user writes clinic B (guidelines and about 6 tests) and keeps it out of the repo until a single final run. No prompt changes after seeing it; the result is reported as it is. It shows whether the Copilot generalises or just learned clinic A.
+10. **Report effort, not only pass rates:** human edits needed after generation, minutes from guidelines to green, minutes from issue to accepted fix. Pass rates show the agent works; these show the team's work went down.
+11. **State the limits** in the README: what text tests cannot see, and that real calls are the final judge.
 
 ## Alternatives considered
 
@@ -33,4 +34,4 @@
 - About half a day spread over #27, #29, #30 and #32: labels, mutants and the planted-issue list.
 - Numbers to quote in the README and the demo: reference pass rate, mutants caught, judge agreement, checker recall and false alarms, effort.
 - Still no guarantee. In production, real outcomes (completed bookings, transfers, hang-ups), a canary before full rollout and a rollback would be the next layer; they are out of scope.
-- If time runs short, the second clinic goes first. Mutation testing, the held-out reference suite and locked tests stay: without them "20/20" means little.
+- If time runs short, the second clinic goes first (it needs the user's time to write). Mutation testing, the held-out reference suite and locked tests stay: without them "20/20" means little.

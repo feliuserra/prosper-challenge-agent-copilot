@@ -12,7 +12,11 @@
 ## Decision
 
 1. **A fixed catalog in the backend** (`backend/clinic/`): `lookup_patient`, `register_patient`, `find_slots`, `book_appointment`, `reschedule_appointment`, `cancel_appointment`, `transfer_to_human`. Each has a description and a parameter schema. Tools only read and change the calendar; clinic policies (fees, new-patient rules) stay in the agent's prompts, where the deployment team writes them.
-2. **A fake clinic world per call:** providers, patients, appointments and open slots from a seed JSON, copied fresh for each call or test. Deterministic: a fixed "today", no clock, no randomness. A test can bring its own world ("nothing free this week", "patient not on file").
+2. **A fake clinic world:** providers, patients, appointments and open slots from a seed JSON. Deterministic: a fixed "today", no clock, no randomness.
+   - Live calls share one state that persists across calls (`backend/clinic/state.json`, gitignored, created from the seed when missing), so "book, then call back to reschedule" works in a demo. Deleting it, or `make demo-reset`, restores the seed.
+   - Every test starts from its own fresh world, the clinic's seed or one it brings ("nothing free this week", "patient not on file").
+   - The agent is told the clinic's date and weekday: the bot and the text runner add one line with it to the system message. Without it "next Tuesday" is meaningless and scheduling tests fail at random.
+   - Strict formats in tool parameters and results (ISO dates and times, slot and appointment ids). The model converts what the caller says; tests compare exact values.
 3. **Nodes list the tools they may use:** optional `tools: [name]` on `Node`. Tools return data and keep the conversation in the node; edges still move it. Branching on a result (patient found or not) is done by the model choosing between edges after it sees the result.
 4. **Validation:** unknown tool, duplicate tool, or a tool with the same name as an edge function in the same node, each tied to its node.
 5. **Visible like transitions:** each tool call is logged and sent to the UI as an RTVI server message `{type: "tool_call", node, tool, args, result}` (the same channel as [ADR 0006](0006-stream-transitions-over-rtvi.md)). Call records keep them (ADR 0013).
