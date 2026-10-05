@@ -17,10 +17,10 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
-| **#7 Test call panel** | **Done and checked**, committed locally on `issue-7-test-call-panel`, not pushed | |
+| **#7 Test call panel** | **In review** (done and checked) | #21 |
 | #8 to #11, #13 | Open | |
 
-**Next step:** push #7 and open the PR (ask first). After that, #8.
+**Next step:** merge #21 when the user says so (see "How we work through an issue"), then #8.
 
 Checked on 2026-10-05: the user ran steps 1 to 4 below with a real call (all fine); the bot-crash timeout (step 5) was checked from the browser pane against a copy of `bot.py` that raises at the top of `bot()`: the panel showed the timeout message at 15 s and the traceback was in the backend log.
 
