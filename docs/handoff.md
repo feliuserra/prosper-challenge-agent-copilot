@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, #8 in review)
+## 0. Status (updated 2026-10-05, after #8 merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -18,12 +18,13 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
 | #7 Test call panel | Merged | #21 |
-| **#8 Live transition events** | **In review.** Checked by the user with a real call; the user merges it | #22 |
-| #9 to #11, #13 | Open | |
+| #8 Live transition events | Merged | #22 |
+| **#9 Authoring warnings** | **Next.** Branch `issue-9-authoring-warnings` exists locally, created from `main` at `25d0b6a`; its only commit is this handoff update | |
+| #10, #11, #13 | Open | |
 
-**Next step:** once #22 is merged, update local `main`, delete `issue-8-live-transitions`, branch `issue-9-authoring-warnings` from `main` and build #9 (see "Also prepared by #6" below). Merging from the session was blocked by the permission classifier ("Merge Without Review"), so the user merges PRs on GitHub unless they add a permission rule for `gh pr merge`.
+**Next step:** build #9 (scope in `PLAN.md` section 9 and GitHub issue #9; see "Also prepared by #6" below). Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
-What #8 built (frontend only; the backend message existed since #1):
+What #8 built (frontend only; the backend message existed since #1), for reference:
 - `transcript.ts`: a third entry kind, `Transition` (`{role: "transition", from, function, to, args}`), and `parseTransition(data)` for the server message. Transitions go into the same list as the user and bot turns, so the panel shows what was said around each one, and they stay after hang-up until the next call like the rest of the transcript. A transition ends the current user turn (the next final starts a new one); bot progress messages still find their sentence across it.
 - `callStore.ts`: `live: {agentId, node, edge} | null`. Set at bot-ready to the `initial_node` of the agent that was sent, and the editor's `agentId` at the moment it was sent; each transition moves `node` to `to` and sets `edge`. Cleared when the call ends (`finish`) and at the start of a call. `onServerMessage` ignores other message types and messages from a call that is no longer current.
 - Canvas: `toFlowNodes(..., activeNode)` and `toFlowEdges(..., activeEdge)` add `active` to the node and edge data and `animated` to the edge. `Canvas.tsx` passes them only when `live.agentId` is the open agent. Matched by node name: a node renamed mid-call loses its highlight. CSS: the active node has a green outline (so it combines with the blue selection), the edge taken is green and animated, its label green.
