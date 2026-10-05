@@ -36,6 +36,7 @@ from pipecat.runner.utils import create_transport
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
@@ -66,7 +67,12 @@ async def run_bot(
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
 
-    stt = ElevenLabsRealtimeSTTService(api_key=os.environ["ELEVENLABS_API_KEY"])
+    # Fixed to English: left unset, the service detects the language per utterance
+    # and short answers with an unusual name come back in other scripts (#13).
+    stt = ElevenLabsRealtimeSTTService(
+        api_key=os.environ["ELEVENLABS_API_KEY"],
+        settings=ElevenLabsRealtimeSTTService.Settings(language=Language.EN),
+    )
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         settings=ElevenLabsTTSService.Settings(voice=config.voice_id),

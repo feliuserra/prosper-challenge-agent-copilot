@@ -104,10 +104,10 @@ const edge = (source: string, target: string, label = `${source}_to_${target}`):
 });
 
 describe("back edges", () => {
-  // The example agent as the editor lays it out, plus a "start over" edge from
+  // The fixture agent (the original example) as the editor lays it out, plus a "start over" edge from
   // the last node back to the first.
   const example = JSON.parse(
-    readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8"),
+    readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8"),
   ) as Agent;
   const laidOut = withPositions(example);
   const withBackEdge: Agent = {
@@ -119,7 +119,7 @@ describe("back edges", () => {
     ),
   };
 
-  it("in the example agent, confirm -> greeting does not cross collect_details or offer_times", () => {
+  it("in the fixture agent, confirm -> greeting does not cross collect_details or offer_times", () => {
     const flow = toFlowEdges(withBackEdge, null);
     const back = flow.find((e) => e.id === "confirm::start_over")!;
     // Forward edges keep the plain curve.

@@ -6,7 +6,7 @@ import type { Agent, Position } from "./schema";
 
 const example = () =>
   JSON.parse(
-    readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8"),
+    readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8"),
   ) as Agent;
 
 const pos = (agent: Agent, name: string) => agent.nodes.find((n) => n.name === name)!.ui!;

@@ -4,10 +4,19 @@ from pathlib import Path
 
 import pytest
 
-EXAMPLE = json.loads((Path(__file__).parent.parent / "agents" / "prosper-scheduler.json").read_text())
+TESTS = Path(__file__).parent
+EXAMPLE = json.loads((TESTS.parent / "agents" / "prosper-scheduler.json").read_text())
+# The original four-node example, frozen so the tests do not change with the example agent.
+LINEAR = json.loads((TESTS / "fixtures" / "linear-agent.json").read_text())
 
 
 @pytest.fixture
 def agent() -> dict:
-    """A fresh copy of the example agent, safe to mutate."""
+    """A fresh copy of the linear fixture agent, safe to mutate."""
+    return copy.deepcopy(LINEAR)
+
+
+@pytest.fixture
+def example() -> dict:
+    """A fresh copy of the example agent that ships in agents/."""
     return copy.deepcopy(EXAMPLE)

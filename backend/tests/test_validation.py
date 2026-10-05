@@ -11,7 +11,12 @@ def edge(agent, node="greeting", i=0) -> dict:
     return next(n for n in agent["nodes"] if n["name"] == node)["edges"][i]
 
 
-def test_example_agent_is_valid(agent):
+def test_example_agent_is_valid(example):
+    assert validate_agent(example) == []
+    AgentBuilder.from_dict(example)
+
+
+def test_fixture_agent_is_valid(agent):
     assert validate_agent(agent) == []
     AgentBuilder.from_dict(agent)
 
