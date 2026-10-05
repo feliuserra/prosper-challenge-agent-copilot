@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BotOutputData } from "@pipecat-ai/client-js";
 
-import { addBotOutput, addUserTranscript, turnText, type Turn } from "./transcript";
+import { addBotOutput, addUserTranscript, parseTransition, turnText, type Turn } from "./transcript";
 
 const user = (turns: Turn[], text: string, final = true) => addUserTranscript(turns, { text, final });
 const texts = (turns: Turn[]) => turns.map((t) => `${t.role}: ${turnText(t)}`);
@@ -78,5 +78,33 @@ describe("addBotOutput", () => {
   it("ignores word and token messages", () => {
     const turns = addBotOutput([], { text: "Hello", aggregated_by: "word", segment_id: 3 });
     expect(turns).toEqual([]);
+  });
+});
+
+describe("parseTransition", () => {
+  it("reads the edge handler's message", () => {
+    const data = { type: "transition", from: "greeting", function: "choose_intent", to: "details", args: { intent: "book" } };
+    expect(parseTransition(data)).toEqual({
+      role: "transition",
+      from: "greeting",
+      function: "choose_intent",
+      to: "details",
+      args: { intent: "book" },
+    });
+  });
+
+  it("ignores other server messages and tolerates missing args", () => {
+    expect(parseTransition({ type: "something-else" })).toBeNull();
+    expect(parseTransition({ type: "transition", from: "a" })).toBeNull();
+    expect(parseTransition("transition")).toBeNull();
+    expect(parseTransition({ type: "transition", from: "a", function: "f", to: "b" })?.args).toEqual({});
+  });
+
+  it("starts a new user turn after a transition", () => {
+    let turns: Turn[] = addUserTranscript([], { text: "Book, please.", final: true });
+    turns = [...turns, parseTransition({ type: "transition", from: "a", function: "f", to: "b", args: {} })!];
+    turns = addUserTranscript(turns, { text: "Tuesday", final: true });
+    expect(turns.map((t) => t.role)).toEqual(["user", "transition", "user"]);
+    expect(turnText(turns[1])).toBe("f -> b");
   });
 });

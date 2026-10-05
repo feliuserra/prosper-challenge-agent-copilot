@@ -4,7 +4,10 @@ import { useAgentStore } from "../store/agentStore";
 import type { AgentFlowEdge } from "./derive";
 import { edgeGeometry, selfLoopGeometry } from "./edgePath";
 
-/** A transition, labelled with its function name and problem badges. Clicking the label selects it. */
+/**
+ * A transition, labelled with its function name and problem badges. Clicking the
+ * label selects it. The edge a test call took last is animated and marked.
+ */
 export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
   const { id, source, target, data, selected, markerEnd } = props;
   const ends = {
@@ -17,7 +20,14 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
   const { path, labelX, labelY, labelAlign } = source === target ? selfLoopGeometry(ends) : edgeGeometry(ends);
   const fn = data?.function ?? "";
   const status = data?.status ?? [];
-  const className = ["edge-label", "nodrag", "nopan", selected && "selected", status.length > 0 && status[0].tone]
+  const className = [
+    "edge-label",
+    "nodrag",
+    "nopan",
+    selected && "selected",
+    data?.active && "active",
+    status.length > 0 && status[0].tone,
+  ]
     .filter(Boolean)
     .join(" ");
 

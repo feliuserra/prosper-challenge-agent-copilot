@@ -11,11 +11,15 @@ import type { Problem, Severity } from "../validation/problems";
 /** A badge on a node card or an edge label: validation errors (#6), warnings (#9). */
 export type StatusBadge = { tone: Severity; label: string; title: string };
 
-export type AgentNodeData = { node: Node; isStart: boolean; status?: StatusBadge[] };
+/** `active`: the node a test call is in (#8). */
+export type AgentNodeData = { node: Node; isStart: boolean; status?: StatusBadge[]; active?: boolean };
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
-/** `lane` separates edges that join the same two nodes (see edgePath.ts). */
-export type FunctionEdgeData = { function: string; lane: number; status?: StatusBadge[] };
+/**
+ * `lane` separates edges that join the same two nodes (see edgePath.ts).
+ * `active`: the edge a test call took last (#8).
+ */
+export type FunctionEdgeData = { function: string; lane: number; status?: StatusBadge[]; active?: boolean };
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
 
 export type Dimensions = { width: number; height: number };
@@ -85,13 +89,19 @@ export function toFlowNodes(
   selection: Selection,
   measured: Record<string, Dimensions> = {},
   status: Map<string, StatusBadge[]> = new Map(),
+  activeNode: string | null = null,
 ): AgentFlowNode[] {
   return agent.nodes.map((node) => ({
     id: node.name,
     type: "agent",
     // The store gives every node a position (open, addNode); 0,0 is only a guard.
     position: { x: node.ui?.x ?? 0, y: node.ui?.y ?? 0 },
-    data: { node, isStart: node.name === agent.initial_node, status: status.get(node.name) },
+    data: {
+      node,
+      isStart: node.name === agent.initial_node,
+      status: status.get(node.name),
+      active: node.name === activeNode,
+    },
     selected: selection?.kind === "node" && selection.name === node.name,
     measured: measured[node.name],
   }));
@@ -101,6 +111,7 @@ export function toFlowEdges(
   agent: Agent,
   selection: Selection,
   status: Map<string, StatusBadge[]> = new Map(),
+  activeEdge: string | null = null,
 ): AgentFlowEdge[] {
   // Edges to a missing node cannot be drawn; validation reports them on their node.
   const drawn = drawnEdges(agent);
@@ -118,13 +129,15 @@ export function toFlowEdges(
     pairIndex.set(pair, index + 1);
     const selected = selection?.kind === "edge" && selection.source === source && selection.function === edge.function;
     const id = edgeId(source, edge.function);
+    const active = id === activeEdge;
     return {
       id,
       type: "function",
       source,
       target: edge.target,
-      data: { function: edge.function, lane: index - (pairCount.get(pair)! - 1) / 2, status: status.get(id) },
+      data: { function: edge.function, lane: index - (pairCount.get(pair)! - 1) / 2, status: status.get(id), active },
       selected,
+      animated: active,
       // Only the selected edge shows a reconnect knob, so it is clear which edge
       // moves when several end at the same handle. Only the target end: moving
       // the source would move the edge into another node's function list.

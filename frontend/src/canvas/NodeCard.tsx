@@ -10,10 +10,11 @@ function taskSummary(content: string | undefined): string {
 }
 
 export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<AgentFlowNode>) {
-  const { node, isStart, status = [] } = data;
+  const { node, isStart, status = [], active } = data;
   const task = taskSummary(node.task_messages?.[0]?.content);
+  const className = ["node-card", selected && "selected", active && "active"].filter(Boolean).join(" ");
   return (
-    <div className={selected ? "node-card selected" : "node-card"} style={{ width: NODE_WIDTH }}>
+    <div className={className} style={{ width: NODE_WIDTH }} title={active ? "The test call is here" : undefined}>
       <Handle type="target" position={Position.Top} />
       <div className="node-card-header">
         <span className="node-card-name" title={node.name}>

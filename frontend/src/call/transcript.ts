@@ -1,12 +1,14 @@
 import type { BotOutputData, TranscriptData } from "@pipecat-ai/client-js";
 
 // The live transcript of a test call, as alternating user and bot turns, built
-// from two RTVI events:
+// from two RTVI events, with the agent's transitions in between (#8):
 // - `user-transcription`: speech-to-text partials, then a final for each segment.
 //   Finals in a row belong to one turn; the latest partial shows after them.
 // - `bot-output`: one message per sentence (`segment_id`) when it is queued for
 //   speech, then progress messages as its words are spoken. A turn shows only
 //   what was actually spoken, so a sentence cut off by the user stays cut off.
+// - `server-message` of type "transition": an edge the bot took, sent by the
+//   edge handler in backend/agent_builder/builder.py.
 
 export interface UserTurn {
   role: "user";
@@ -21,12 +23,31 @@ export interface BotTurn {
   segments: { id: number | undefined; text: string }[];
 }
 
-export type Turn = UserTurn | BotTurn;
+/** An edge the bot took, with the arguments the LLM collected for it. */
+export interface Transition {
+  role: "transition";
+  from: string;
+  function: string;
+  to: string;
+  args: Record<string, unknown>;
+}
+
+export type Turn = UserTurn | BotTurn | Transition;
 
 const join = (...parts: string[]) => parts.filter(Boolean).join(" ");
 
 export function turnText(turn: Turn): string {
+  if (turn.role === "transition") return `${turn.function} -> ${turn.to}`;
   return turn.role === "user" ? join(turn.text, turn.partial) : join(...turn.segments.map((s) => s.text));
+}
+
+/** The transition in a server message, or null for any other message. */
+export function parseTransition(data: unknown): Transition | null {
+  if (typeof data !== "object" || data === null) return null;
+  const { type, from, function: fn, to, args } = data as Record<string, unknown>;
+  if (type !== "transition" || typeof from !== "string" || typeof fn !== "string" || typeof to !== "string") return null;
+  const collected = typeof args === "object" && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+  return { role: "transition", from, function: fn, to, args: collected };
 }
 
 export function addUserTranscript(turns: Turn[], data: Pick<TranscriptData, "text" | "final">): Turn[] {

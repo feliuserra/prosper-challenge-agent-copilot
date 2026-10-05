@@ -16,10 +16,12 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
+import { useCallStore } from "../call/callStore";
 import { useAgentStore } from "../store/agentStore";
 import { useProblems } from "../validation/problems";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
 import {
+  edgeId,
   statusBadges,
   toFlowEdges,
   toFlowNodes,
@@ -51,8 +53,13 @@ export function Canvas() {
 
 function Flow() {
   const agent = useAgentStore((s) => s.agent)!;
+  const agentId = useAgentStore((s) => s.agentId);
   const selection = useAgentStore((s) => s.selection);
   const problems = useProblems();
+  // Where a test call of this agent is; another agent's call is not shown.
+  const live = useCallStore((s) => (s.live && s.live.agentId === agentId ? s.live : null));
+  const activeNode = live?.node ?? null;
+  const activeEdge = live?.edge ? edgeId(live.edge.source, live.edge.function) : null;
   const [measured, setMeasured] = useState<Record<string, Dimensions>>({});
   const [notice, setNotice] = useState("");
   const wrapper = useRef<HTMLDivElement>(null);
@@ -60,10 +67,13 @@ function Flow() {
 
   const badges = useMemo(() => statusBadges(agent, problems), [agent, problems]);
   const nodes = useMemo(
-    () => toFlowNodes(agent, selection, measured, badges.nodes),
-    [agent, selection, measured, badges],
+    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode),
+    [agent, selection, measured, badges, activeNode],
   );
-  const edges = useMemo(() => toFlowEdges(agent, selection, badges.edges), [agent, selection, badges]);
+  const edges = useMemo(
+    () => toFlowEdges(agent, selection, badges.edges, activeEdge),
+    [agent, selection, badges, activeEdge],
+  );
 
   // Notices (e.g. a blocked delete) fade after a few seconds.
   useEffect(() => {

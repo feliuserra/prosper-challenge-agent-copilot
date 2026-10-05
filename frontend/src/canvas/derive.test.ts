@@ -106,6 +106,24 @@ describe("statusBadges", () => {
   });
 });
 
+describe("a test call's position", () => {
+  it("marks the active node and animates the edge taken", () => {
+    const nodes = toFlowNodes(agent, null, {}, new Map(), "next");
+    expect(nodes.map((n) => n.data.active)).toEqual([false, true]);
+    const edges = toFlowEdges(agent, null, new Map(), edgeId("start", "cancel"));
+    expect(edges.map((e) => [e.animated, e.data!.active])).toEqual([
+      [false, false],
+      [true, true],
+    ]);
+  });
+
+  it("marks nothing outside a call or for a node that is gone", () => {
+    expect(toFlowNodes(agent, null).some((n) => n.data.active)).toBe(false);
+    expect(toFlowNodes(agent, null, {}, new Map(), "renamed").some((n) => n.data.active)).toBe(false);
+    expect(toFlowEdges(agent, null).some((e) => e.animated)).toBe(false);
+  });
+});
+
 describe("edge ids", () => {
   it("round-trip, even when the node name contains '::'", () => {
     expect(parseEdgeId(edgeId("a::b", "go_to_c"))).toEqual({ source: "a::b", function: "go_to_c" });
