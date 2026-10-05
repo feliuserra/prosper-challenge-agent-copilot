@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05)
+## 0. Status (updated 2026-10-05, #8 in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -17,28 +17,27 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
-| **#7 Test call panel** | **In review** (done and checked) | #21 |
-| #8 to #11, #13 | Open | |
+| #7 Test call panel | Merged | #21 |
+| **#8 Live transition events** | **In review.** Checked by the user with a real call; the user merges it | #22 |
+| #9 to #11, #13 | Open | |
 
-**Next step:** merge #21 when the user says so (see "How we work through an issue"), then #8.
+**Next step:** once #22 is merged, update local `main`, delete `issue-8-live-transitions`, branch `issue-9-authoring-warnings` from `main` and build #9 (see "Also prepared by #6" below). Merging from the session was blocked by the permission classifier ("Merge Without Review"), so the user merges PRs on GitHub unless they add a permission rule for `gh pr merge`.
 
-Checked on 2026-10-05: the user ran steps 1 to 4 below with a real call (all fine); the bot-crash timeout (step 5) was checked from the browser pane against a copy of `bot.py` that raises at the top of `bot()`: the panel showed the timeout message at 15 s and the traceback was in the backend log.
+What #8 built (frontend only; the backend message existed since #1):
+- `transcript.ts`: a third entry kind, `Transition` (`{role: "transition", from, function, to, args}`), and `parseTransition(data)` for the server message. Transitions go into the same list as the user and bot turns, so the panel shows what was said around each one, and they stay after hang-up until the next call like the rest of the transcript. A transition ends the current user turn (the next final starts a new one); bot progress messages still find their sentence across it.
+- `callStore.ts`: `live: {agentId, node, edge} | null`. Set at bot-ready to the `initial_node` of the agent that was sent, and the editor's `agentId` at the moment it was sent; each transition moves `node` to `to` and sets `edge`. Cleared when the call ends (`finish`) and at the start of a call. `onServerMessage` ignores other message types and messages from a call that is no longer current.
+- Canvas: `toFlowNodes(..., activeNode)` and `toFlowEdges(..., activeEdge)` add `active` to the node and edge data and `animated` to the edge. `Canvas.tsx` passes them only when `live.agentId` is the open agent. Matched by node name: a node renamed mid-call loses its highlight. CSS: the active node has a green outline (so it combines with the blue selection), the edge taken is green and animated, its label green.
+- `CallPanel.tsx`: transition rows in the transcript (`choose_intent → collect_details`, then the collected args as a key/value list).
+- Tests: 132 in Vitest (call store: initial node, following transitions, editor changes mid-call, cleared at hang-up with transitions kept, late transitions from an earlier call; `parseTransition`; derive flags).
+- Checked in the browser pane by setting the call store from JS (no mic there): highlight, animated edge, selection plus highlight, transition row, cleared after the call, no highlight when another agent's call is live.
 
-What #7 built (`frontend/src/call/`):
-- `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (loaded with a dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps, each shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic` (applies now during a call and is remembered for the next one), `listMicsIfAllowed` (fills the mic list before the first call when the browser already allows mic access). Dependencies are injectable with `setCallDeps` for tests.
-- `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`, so an interrupted sentence stays cut off where the bot stopped).
-- `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar (which shows "● In call" while a call is on). Call / Cancel / Hang up, Mute, status with a timer, the step list (while placing a call and after a failed attempt), a notice (how the last call ended, or why it failed), mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
-- `api.ts` has `getHealth`. `CallButton.tsx` is gone.
-- Tests: `transcript.test.ts`, `callStore.test.ts` (fake client: every failure step, timeout, bot hang-up, our hang-up, a second call with a new client, late events from the first call ignored, RTVI error kept as the notice, cancel, mute and mic).
+**Real-call check** (done by the user; kept for reference. `make dev`, open the example agent, Test call, Call): the start node is outlined in green as soon as the call connects; after each answer that moves the conversation on, the `[function] -> target | collected: {...}` line in the `make dev` terminal must match the newly outlined node, the animated edge and the new "Transition" row in the panel. After hang-up (or the end node) the outline and animation go away and the transcript, transitions included, stays until the next call.
 
-Checked in the browser pane (mic blocked there): the panel, missing keys (health stubbed in the page), an agent error clicked before the debounced check, a blocked mic stopping before the bot step. One real call happened by accident before the blocked-mic fix (about 8 s, greeting only): it showed the transcript filling word by word and a clean hang-up.
-
-**For the user to check with a mic** (`make dev`, Chrome, `http://localhost:5173`, open "Test call"):
-1. Edit the greeting node's task, do not save, press Call: the bot says the new greeting. The transcript shows both sides.
-2. Mute, speak, unmute: the bot does not hear you while muted. Switch microphones during the call if you have two.
-3. Hang up, call again without reloading: the second call works and the transcript starts empty.
-4. Go through to the end node: the bot hangs up, the panel says "The bot ended the call." and Call is enabled again.
-5. Bot crash: stop the backend after the page loaded and press Call ("Cannot reach the backend"); for the timeout, temporarily raise an exception at the top of `bot()` and press Call: after 15 s the panel says the bot did not start and points to the terminal.
+What #7 built (`frontend/src/call/`), for reference:
+- `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic`, `listMicsIfAllowed`. Dependencies are injectable with `setCallDeps` for tests.
+- `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`).
+- `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar. Call / Cancel / Hang up, Mute, status with a timer, step list, notice, mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
+- Checked by the user with real calls (edit without saving, mute, transcript, second call, end node) and in the browser pane (missing keys, agent errors, blocked mic, the 15 s timeout against a bot that crashes).
 
 Also prepared by #6, for later:
 - **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
@@ -48,7 +47,7 @@ Also prepared by #6, for later:
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
 2. Build, run `make test`, and verify in the real app (see "Testing without disturbing the user" below).
-3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
+3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20 and #21, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
 4. Things that need a mic (a real call) are checked by the user: give them exact steps and what to look for in the terminal and the browser DevTools console (Cmd+Option+J). The user runs `make dev` in a terminal outside the app, so its output is not readable from the session; ask them to paste it.
 
 ## 1. The task
@@ -77,7 +76,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 124 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 132 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -115,13 +114,13 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/agent/fields.ts`: collected-field operations returning an `EdgePatch` (add, remove, rename in place and in `required`, change spec keys, toggle required) and the JSON parsers for the fallback box and raw actions. `options.ts`: backend defaults (`DEFAULT_VOICE_ID`, `DEFAULT_MODEL`), the model list, field types, task roles. `names.ts` has `nodeNameError` and `functionNameError` for inline errors.
 - `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
 - `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list; the "Test call" toggle for the call panel). The read-only `Outline` was removed in #4.
-- `src/call/` (#7): see section 0.
+- `src/call/` (#7, #8): see section 0.
 - `src/validation/` (#6): `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
 - Problems on the canvas (#6): `statusBadges` in `derive.ts` groups problems by their `node`/`edge` fields into one badge per severity ("2 errors", messages in the tooltip) for node cards and edge labels. `ProblemsList.tsx` is a collapsible strip below the graph; clicking a problem selects its node or edge (or nothing, for agent-level problems, which shows the agent settings) and fits the view to it. `Canvas` is now a column: `.canvas-flow` (React Flow, and the box Add node measures) above the strip.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts` (124 in total). No component tests; the panel and the problems list are checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts` (132 in total). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -136,7 +135,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **A blocked microphone does not make `initDevices()` throw.** The transport's Daily media manager swallows the denial, so the call would go ahead with a bot that hears nothing. client-js records it in `client.mediaState.mic` (`{state: "error", reason: "blocked"}`); the call store requires `granted` before starting the bot. Found when a call from the browser pane (mic blocked) connected anyway.
 - **Bot transcript comes from `bot-output`.** With protocol 2.0 the server sends one `bot-output` per sentence (`spoken_status: "new"`, nothing spoken yet) and then progress messages with `spoken_progress.accumulated_text` as words are spoken (`pipecat/processors/frameworks/rtvi/observer.py:645-760`). Word-level `bot-output` is not sent to 2.0 clients. `bot-transcription` is deprecated.
 - **The call store ignores events from a call that is no longer current** (hung up, failed, replaced): a late `onDisconnected` from the first call must not end the second.
-- **Server messages** (transitions) are logged in `onServerMessage` in `callStore.ts`; #8 replaces the log with state.
+- **Server messages** of type `transition` become transcript entries and move `live` (#8). Others are ignored.
 - **Create a fresh Pipecat client per call.** The bot can end the call itself (end node); treat that as a normal hang-up.
 - **Collected args are logged and sent to the browser** (transition events). In production these are PHI. Fine for the demo; say so in the README (#11).
 - **Makefile background jobs** need a single-shell recipe (lines joined with `;` and `\`). make 3.81 ignores `.ONESHELL:`, and `trap 'kill 0' EXIT` then kills make itself. The `dev` target's trap kills only the background runner.

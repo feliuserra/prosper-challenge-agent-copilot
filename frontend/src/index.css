@@ -214,6 +214,11 @@ details[open] summary {
   border-color: #0969da;
   box-shadow: 0 0 0 1px #0969da;
 }
+/* The node a test call is in. An outline, so it shows with the selection too. */
+.node-card.active {
+  outline: 3px solid rgb(26 127 55 / 45%);
+  outline-offset: 2px;
+}
 .node-card-header {
   display: flex;
   align-items: center;
@@ -268,6 +273,14 @@ details[open] summary {
 }
 .edge-label.error {
   border-color: #cf222e;
+}
+/* The edge a test call took last; React Flow animates its dashes. */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: #1a7f37;
+  stroke-width: 2;
+}
+.edge-label.active {
+  background: #dafbe1;
 }
 .edge-label.warning {
   border-color: #d4a72c;
@@ -469,6 +482,29 @@ button.primary:disabled {
 .turn-role {
   color: #656d76;
   font-size: 12px;
+}
+.turn.transition {
+  margin: 0 12px 8px;
+  padding: 4px 8px;
+  border-left: 3px solid #1a7f37;
+  border-radius: 0;
+  font-size: 12px;
+}
+.transition-edge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.transition-args {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 8px;
+  margin: 2px 0 0;
+}
+.transition-args dt {
+  color: #656d76;
+}
+.transition-args dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .partial {
   color: #656d76;

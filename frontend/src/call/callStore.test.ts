@@ -72,7 +72,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await hangUp();
-  useCallStore.setState({ phase: "idle", steps: null, notice: null, transcript: [], mics: [], micId: null });
+  useCallStore.setState({ phase: "idle", steps: null, notice: null, transcript: [], live: null, mics: [], micId: null });
   setCallDeps();
   vi.useRealTimers();
 });
@@ -227,6 +227,53 @@ describe("during and after a call", () => {
     expect(client.updateMic).toHaveBeenCalledWith("usb");
     await hangUp();
     expect(state().muted).toBe(false);
+  });
+
+  const transition = (from: string, fn: string, to: string, args: Record<string, unknown> = {}) => ({
+    type: "transition",
+    from,
+    function: fn,
+    to,
+    args,
+  });
+
+  it("starts in the initial node of the agent sent, and follows transitions", async () => {
+    const client = await connected();
+    expect(state().live).toEqual({ agentId: "a", node: "start", edge: null });
+    client.callbacks.onUserTranscript?.({ text: "Book", final: true, timestamp: "", user_id: "" });
+    client.callbacks.onServerMessage?.(transition("start", "book", "details", { intent: "book" }));
+    expect(state().live).toEqual({ agentId: "a", node: "details", edge: { source: "start", function: "book" } });
+    expect(state().transcript.map((t) => t.role)).toEqual(["user", "transition"]);
+    expect(state().transcript[1]).toMatchObject({ to: "details", args: { intent: "book" } });
+    // Other server messages are not transitions.
+    client.callbacks.onServerMessage?.({ type: "other" });
+    expect(state().transcript).toHaveLength(2);
+  });
+
+  it("keeps the node it was called with when the editor changes during the call", async () => {
+    const client = await connected();
+    useAgentStore.getState().open("b", { ...blankAgent("B"), initial_node: "elsewhere" });
+    expect(state().live).toMatchObject({ agentId: "a", node: "start" });
+    client.callbacks.onServerMessage?.(transition("start", "go", "next"));
+    expect(state().live).toMatchObject({ agentId: "a", node: "next" });
+  });
+
+  it("clears the position at hang-up but keeps the transitions until the next call", async () => {
+    const first = await connected();
+    first.callbacks.onServerMessage?.(transition("start", "go", "next"));
+    first.callbacks.onDisconnected?.();
+    expect(state().live).toBeNull();
+    expect(state().transcript).toHaveLength(1);
+
+    const second = await connected();
+    expect(state().transcript).toEqual([]);
+    expect(state().live).toMatchObject({ node: "start", edge: null });
+    // A late transition from the first call changes nothing.
+    first.callbacks.onServerMessage?.(transition("start", "go", "next"));
+    expect(state().live).toMatchObject({ node: "start", edge: null });
+    expect(state().transcript).toEqual([]);
+    second.callbacks.onServerMessage?.(transition("start", "go", "next"));
+    expect(state().live).toMatchObject({ node: "next" });
   });
 
   it("applies the chosen microphone to the next call", async () => {

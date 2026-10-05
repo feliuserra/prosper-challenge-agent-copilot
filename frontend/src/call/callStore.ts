@@ -5,7 +5,7 @@ import { getHealth, type Health, type ValidationIssue } from "../api";
 import type { Agent } from "../agent/schema";
 import { useAgentStore } from "../store/agentStore";
 import { checkAgent } from "../validation/validationStore";
-import { addBotOutput, addUserTranscript, type Turn } from "./transcript";
+import { addBotOutput, addUserTranscript, parseTransition, type Turn } from "./transcript";
 
 // The test call: one at a time, with a fresh Pipecat client each, so nothing
 // from an earlier call (state, callbacks) can leak into the next one.
@@ -24,6 +24,16 @@ export type StepName = "backend" | "agent" | "mic" | "bot";
 export type StepState = "pending" | "running" | "done" | "failed";
 export type Steps = Record<StepName, StepState>;
 
+/** Where the call is in the agent's graph, for the canvas (#8). */
+export interface LivePosition {
+  /** The agent being called, by id: the canvas highlights only that agent. */
+  agentId: string | null;
+  /** The node the bot is in, by name. */
+  node: string;
+  /** The edge that led there; null in the start node. */
+  edge: { source: string; function: string } | null;
+}
+
 export interface Notice {
   tone: "error" | "info";
   text: string;
@@ -36,8 +46,10 @@ interface CallState {
   steps: Steps | null;
   /** How the latest call ended or failed, or a problem the bot reported. */
   notice: Notice | null;
-  /** The latest call's transcript, kept after it ends until the next call. */
+  /** The latest call's transcript and transitions, kept after it ends until the next call. */
   transcript: Turn[];
+  /** Set while connected. */
+  live: LivePosition | null;
   /** When the bot became ready (ms since epoch), for the call timer. */
   startedAt: number | null;
   mics: MediaDeviceInfo[];
@@ -54,6 +66,7 @@ export const useCallStore = create<CallState>()(() => ({
   steps: null,
   notice: null,
   transcript: [],
+  live: null,
   startedAt: null,
   mics: [],
   micId: null,
@@ -151,7 +164,7 @@ function finish(call: Call) {
   const notice: Notice | null = call.failed
     ? get().notice
     : { tone: "info", text: call.hungUp ? "Call ended." : "The bot ended the call." };
-  set({ phase: "idle", notice, startedAt: null, muted: false, botTrack: null });
+  set({ phase: "idle", notice, live: null, startedAt: null, muted: false, botTrack: null });
 }
 
 function callbacks(call: Call): RTVIEventCallbacks {
@@ -172,8 +185,17 @@ function callbacks(call: Call): RTVIEventCallbacks {
       call.failed = true;
       set({ notice: { tone: "error", text: `The bot reported an error: ${data?.error ?? data?.message ?? "unknown"}` } });
     },
-    // Transition events, logged for now (#8 shows them).
-    onServerMessage: (data) => console.log("[call] server message", data),
+    // Transitions (the edge handlers in builder.py). Matched by node name: a
+    // node renamed in the editor during the call loses its highlight.
+    onServerMessage: (data) => {
+      const transition = parseTransition(data);
+      const live = get().live;
+      if (!transition || !live || current !== call) return;
+      set({
+        transcript: [...get().transcript, transition],
+        live: { ...live, node: transition.to, edge: { source: transition.from, function: transition.function } },
+      });
+    },
     // Both our hang-up and the bot's (an end node). Before bot-ready a lost
     // connection rejects startBotAndConnect instead, handled in startCall.
     onDisconnected: () => {
@@ -196,6 +218,7 @@ export async function startCall() {
     steps: { backend: "running", agent: "pending", mic: "pending", bot: "pending" },
     notice: null,
     transcript: [],
+    live: null,
     startedAt: null,
     muted: false,
     botTrack: null,
@@ -215,7 +238,7 @@ export async function startCall() {
   setStep("backend", "done");
 
   // The draft as it is now: this exact object is validated and sent.
-  const agent = useAgentStore.getState().agent;
+  const { agent, agentId } = useAgentStore.getState();
   if (!agent) return fail(call, "agent", "No agent is open.");
   setStep("agent", "running");
   try {
@@ -282,7 +305,9 @@ export async function startCall() {
     clearTimeout(timer);
   }
   setStep("bot", "done");
-  set({ phase: "in-call", startedAt: Date.now() });
+  // The bot starts in the initial node of the agent it was sent, which may no
+  // longer be the one in the editor.
+  set({ phase: "in-call", startedAt: Date.now(), live: { agentId, node: agent.initial_node, edge: null } });
 }
 
 /** Hang up, or cancel a call that is still being placed. */

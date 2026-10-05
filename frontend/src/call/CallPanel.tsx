@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { useAgentStore } from "../store/agentStore";
 import { useValidationStore } from "../validation/validationStore";
@@ -14,7 +14,7 @@ import {
   type StepName,
   type Steps,
 } from "./callStore";
-import { turnText } from "./transcript";
+import { turnText, type Transition } from "./transcript";
 
 const STEP_LABELS: Record<StepName, string> = {
   backend: "Backend keys",
@@ -31,7 +31,7 @@ const PHASE_LABELS: Record<CallPhase, string> = {
   "in-call": "In call",
 };
 
-/** The test call: controls, setup progress, how the last call ended, transcript. */
+/** The test call: controls, setup progress, how the last call ended, transcript with transitions. */
 export function CallPanel() {
   const phase = useCallStore((s) => s.phase);
   const steps = useCallStore((s) => s.steps);
@@ -163,26 +163,55 @@ function Transcript() {
     <section className="call-transcript">
       <div className="field-label">Transcript</div>
       {shown.length === 0 ? (
-        <div className="muted">{phase === "in-call" ? "Say something…" : "The conversation shows here during a call."}</div>
+        <div className="muted">
+          {phase === "in-call" ? "Say something…" : "The conversation and the edges the agent takes show here during a call."}
+        </div>
       ) : (
         <ol ref={listRef} className="turns">
-          {shown.map(({ turn, text }, i) => (
-            <li key={i} className={`turn ${turn.role}`}>
-              <span className="turn-role">{turn.role === "user" ? "You" : "Bot"}</span>
-              {turn.role === "user" && turn.partial ? (
-                // Still being transcribed: the partial is replaced as it firms up.
-                <span className="turn-text">
-                  {turn.text && `${turn.text} `}
-                  <span className="partial">{turn.partial}</span>
-                </span>
-              ) : (
-                <span className="turn-text">{text}</span>
-              )}
-            </li>
-          ))}
+          {shown.map(({ turn, text }, i) =>
+            turn.role === "transition" ? (
+              <TransitionRow key={i} transition={turn} />
+            ) : (
+              <li key={i} className={`turn ${turn.role}`}>
+                <span className="turn-role">{turn.role === "user" ? "You" : "Bot"}</span>
+                {turn.role === "user" && turn.partial ? (
+                  // Still being transcribed: the partial is replaced as it firms up.
+                  <span className="turn-text">
+                    {turn.text && `${turn.text} `}
+                    <span className="partial">{turn.partial}</span>
+                  </span>
+                ) : (
+                  <span className="turn-text">{text}</span>
+                )}
+              </li>
+            ),
+          )}
         </ol>
       )}
     </section>
+  );
+}
+
+/** An edge the bot took, with what it collected (PHI in a real call). */
+function TransitionRow({ transition }: { transition: Transition }) {
+  const args = Object.entries(transition.args);
+  return (
+    <li className="turn transition">
+      <span className="turn-role">Transition</span>
+      <span className="transition-edge">
+        {transition.function} → {transition.to}
+      </span>
+      {args.length > 0 && (
+        <dl className="transition-args">
+          {args.map(([key, value]) => (
+            <Fragment key={key}>
+              <dt>{key}</dt>
+              <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+    </li>
   );
 }
 
