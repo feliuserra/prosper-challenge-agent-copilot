@@ -1,8 +1,10 @@
 import { MarkerType, type Edge as FlowEdge, type Node as FlowNode } from "@xyflow/react";
 
+import { NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
+import { routeBackEdges, type BackRoute, type Box } from "./edgePath";
 
 // React Flow nodes and edges are derived from the agent on every change (ADR 0001).
 // Node id = node name; edge id = `${source}::${function}` (unique: the store never
@@ -17,9 +19,16 @@ export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /**
  * `lane` separates edges that join the same two nodes (see edgePath.ts).
+ * `route`: set for a back edge (into a node above), the column it runs up.
  * `active`: the edge a test call took last (#8).
  */
-export type FunctionEdgeData = { function: string; lane: number; status?: StatusBadge[]; active?: boolean };
+export type FunctionEdgeData = {
+  function: string;
+  lane: number;
+  route?: BackRoute;
+  status?: StatusBadge[];
+  active?: boolean;
+};
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
 
 export type Dimensions = { width: number; height: number };
@@ -112,9 +121,31 @@ export function toFlowEdges(
   selection: Selection,
   status: Map<string, StatusBadge[]> = new Map(),
   activeEdge: string | null = null,
+  measured: Record<string, Dimensions> = {},
 ): AgentFlowEdge[] {
   // Edges to a missing node cannot be drawn; validation reports them on their node.
   const drawn = drawnEdges(agent);
+
+  const boxes = new Map<string, Box>(
+    agent.nodes.map((n) => [
+      n.name,
+      {
+        x: n.ui?.x ?? 0,
+        y: n.ui?.y ?? 0,
+        width: measured[n.name]?.width ?? NODE_WIDTH,
+        height: measured[n.name]?.height ?? NODE_HEIGHT,
+      },
+    ]),
+  );
+  const routes = routeBackEdges(
+    boxes,
+    drawn.map(({ source, edge }) => ({
+      id: edgeId(source, edge.function),
+      source,
+      target: edge.target,
+      label: edge.function,
+    })),
+  );
 
   const pairCount = new Map<string, number>();
   for (const { source, edge } of drawn) {
@@ -135,7 +166,13 @@ export function toFlowEdges(
       type: "function",
       source,
       target: edge.target,
-      data: { function: edge.function, lane: index - (pairCount.get(pair)! - 1) / 2, status: status.get(id), active },
+      data: {
+        function: edge.function,
+        lane: index - (pairCount.get(pair)! - 1) / 2,
+        route: routes.get(id),
+        status: status.get(id),
+        active,
+      },
       selected,
       animated: active,
       // Only the selected edge shows a reconnect knob, so it is clear which edge

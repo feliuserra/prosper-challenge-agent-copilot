@@ -57,3 +57,84 @@ export function selfLoopGeometry({ sourceX, sourceY, targetX, targetY, lane }: E
     labelAlign: "start",
   };
 }
+
+// Back edges: an edge into a node whose top is above the source's bottom (a
+// retry or "go back"). A plain curve would run through the nodes in between, so
+// it goes like a self-loop instead: out of the bottom, up a column right of
+// every node it passes, into the top of the target.
+
+/** A label's approximate width: 12px monospace text plus padding and border. */
+const labelWidth = (text: string) => text.length * 7.3 + 14;
+
+export type Box = { x: number; y: number; width: number; height: number };
+
+/** Where a back edge runs: the x of its column, and its lane among back edges sharing it. */
+export type BackRoute = { x: number; lane: number };
+
+export type RoutedEdge = { id: string; source: string; target: string; label: string };
+
+/**
+ * Routes for the back edges among `edges` (the others are not in the result).
+ * `boxes` are the node cards in flow coordinates. Columns clear every node the
+ * edge passes and the self-loops beside them, labels included. Back edges that
+ * would share a column and overlap vertically get separate lanes, shorter ones
+ * inside, so nested loops do not cross.
+ */
+export function routeBackEdges(boxes: Map<string, Box>, edges: RoutedEdge[]): Map<string, BackRoute> {
+  // How far right each node reaches, counting its self-loops and their labels.
+  const loops = new Map<string, string[]>();
+  for (const e of edges) if (e.source === e.target) loops.set(e.source, [...(loops.get(e.source) ?? []), e.label]);
+  const reach = (name: string) => {
+    const box = boxes.get(name)!;
+    const labels = loops.get(name);
+    if (!labels) return box.x + box.width;
+    // The outermost loop (lanes are centred, as in toFlowEdges) and the widest label.
+    const outer = LOOP_OUT + ((labels.length - 1) / 2) * LOOP_LANE;
+    return box.x + box.width + outer + 8 + Math.max(...labels.map(labelWidth));
+  };
+  const byX = [...boxes].sort(([, a], [, b]) => a.x - b.x);
+
+  const back = edges.flatMap((e) => {
+    const s = boxes.get(e.source);
+    const t = boxes.get(e.target);
+    if (!s || !t || e.source === e.target || t.y >= s.y + s.height) return [];
+    const top = t.y;
+    const bottom = s.y + s.height;
+    let column = Math.max(reach(e.source), reach(e.target)) + LOOP_OUT;
+    // Left to right, so the column only moves right: any node in the span that
+    // starts left of it pushes it past its right side.
+    for (const [name, box] of byX) {
+      if (box.y < bottom && box.y + box.height > top && box.x < column) {
+        column = Math.max(column, reach(name) + LOOP_OUT);
+      }
+    }
+    return [{ id: e.id, top, bottom, column }];
+  });
+
+  const routes = new Map<string, BackRoute>();
+  const placed: { top: number; bottom: number; column: number; lane: number }[] = [];
+  // Shorter spans first, so they take the inner lanes.
+  for (const e of [...back].sort((a, b) => a.bottom - a.top - (b.bottom - b.top))) {
+    const taken = new Set(
+      placed.filter((p) => p.column === e.column && p.top < e.bottom && e.top < p.bottom).map((p) => p.lane),
+    );
+    let lane = 0;
+    while (taken.has(lane)) lane++;
+    placed.push({ ...e, lane });
+    routes.set(e.id, { x: e.column + lane * LOOP_LANE, lane });
+  }
+  return routes;
+}
+
+/** A back edge along its column: out of the bottom of the source, into the top of the target. */
+export function backEdgeGeometry({ sourceX, sourceY, targetX, targetY }: Omit<Ends, "lane">, route: BackRoute): EdgeGeometry {
+  const x = route.x;
+  return {
+    path:
+      `M${sourceX},${sourceY} C${sourceX},${sourceY + LOOP_REACH} ${x},${sourceY + LOOP_REACH} ${x},${sourceY} ` +
+      `L${x},${targetY} C${x},${targetY - LOOP_REACH} ${targetX},${targetY - LOOP_REACH} ${targetX},${targetY}`,
+    labelX: x + 8,
+    labelY: (sourceY + targetY) / 2 + route.lane * LABEL_STACK,
+    labelAlign: "start",
+  };
+}
