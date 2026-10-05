@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, #8 built)
+## 0. Status (updated 2026-10-05, #8 in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -18,10 +18,10 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
 | #7 Test call panel | Merged | #21 |
-| **#8 Live transition events** | **Built, committed locally on `issue-8-live-transitions`, not pushed.** Waiting for the user's real-call check | |
+| **#8 Live transition events** | **In review.** Checked by the user with a real call; the user merges it | #22 |
 | #9 to #11, #13 | Open | |
 
-**Next step:** the user checks #8 with a real call (steps below), then push and open the PR. After that, #9.
+**Next step:** once #22 is merged, update local `main`, delete `issue-8-live-transitions`, branch `issue-9-authoring-warnings` from `main` and build #9 (see "Also prepared by #6" below). Merging from the session was blocked by the permission classifier ("Merge Without Review"), so the user merges PRs on GitHub unless they add a permission rule for `gh pr merge`.
 
 What #8 built (frontend only; the backend message existed since #1):
 - `transcript.ts`: a third entry kind, `Transition` (`{role: "transition", from, function, to, args}`), and `parseTransition(data)` for the server message. Transitions go into the same list as the user and bot turns, so the panel shows what was said around each one, and they stay after hang-up until the next call like the rest of the transcript. A transition ends the current user turn (the next final starts a new one); bot progress messages still find their sentence across it.
@@ -31,7 +31,7 @@ What #8 built (frontend only; the backend message existed since #1):
 - Tests: 132 in Vitest (call store: initial node, following transitions, editor changes mid-call, cleared at hang-up with transitions kept, late transitions from an earlier call; `parseTransition`; derive flags).
 - Checked in the browser pane by setting the call store from JS (no mic there): highlight, animated edge, selection plus highlight, transition row, cleared after the call, no highlight when another agent's call is live.
 
-**Real-call check for the user** (`make dev`, open the example agent, Test call, Call): the start node is outlined in green as soon as the call connects; after each answer that moves the conversation on, the `[function] -> target | collected: {...}` line in the `make dev` terminal must match the newly outlined node, the animated edge and the new "Transition" row in the panel. After hang-up (or the end node) the outline and animation go away and the transcript, transitions included, stays until the next call.
+**Real-call check** (done by the user; kept for reference. `make dev`, open the example agent, Test call, Call): the start node is outlined in green as soon as the call connects; after each answer that moves the conversation on, the `[function] -> target | collected: {...}` line in the `make dev` terminal must match the newly outlined node, the animated edge and the new "Transition" row in the panel. After hang-up (or the end node) the outline and animation go away and the transcript, transitions included, stays until the next call.
 
 What #7 built (`frontend/src/call/`), for reference:
 - `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic`, `listMicsIfAllowed`. Dependencies are injectable with `setCallDeps` for tests.
