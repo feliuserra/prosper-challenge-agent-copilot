@@ -1,5 +1,7 @@
 # Phase 1 plan: graph editor + test call
 
+Phase 2 (the Agent Copilot) is planned in [`PLAN-phase2.md`](PLAN-phase2.md).
+
 Issues in build order. Context is in [`docs/handoff.md`](docs/handoff.md), decisions in [`docs/adr/`](docs/adr/README.md). Each item is a GitHub issue on the fork (same numbers). One branch/PR per issue, referencing the issue number (`Closes #N`). GitHub is the source of truth for status; update this file only when scope changes.
 
 Priority: **P0** must ship, **P1** strongly recommended, **P2** only if time allows.

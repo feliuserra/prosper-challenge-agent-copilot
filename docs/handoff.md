@@ -1,6 +1,6 @@
 # Handoff: Prosper challenge (Agent Composer), Phase 1 UI
 
-Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
+Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #34), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
 
 Working style: the user (Feliu) is a strong Python developer and wants direct answers with explicit reasoning and trade-offs. Explain why each decision is made. Avoid overengineering. In documents written for the repo, keep a plain voice and avoid em-dashes.
 

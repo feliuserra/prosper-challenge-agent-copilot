@@ -1,6 +1,6 @@
 # ADR 0002: Keep the existing schema; add only optional UI positions
 
-- **Status:** Accepted
+- **Status:** Accepted. Amended by [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (Phase 2): nodes gain an optional `tools` list.
 - **Date:** 2026-09-29
 
 ## Context
