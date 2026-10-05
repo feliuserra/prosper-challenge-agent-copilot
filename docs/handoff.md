@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-02)
+## 0. Status (updated 2026-10-05)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -16,11 +16,20 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #3 Frontend skeleton, schema, store | Merged | #17 |
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
-| #6 Validation errors | In review | #20 |
-| #7 to #11, #13 | Open | |
+| #6 Validation errors | Merged | #20 |
+| **#7 Test call panel** | **Next.** Branch `issue-7-test-call-panel` exists locally, created from `main` at `8040f57`; its only commit is this handoff update | |
+| #8 to #11, #13 | Open | |
 
-**Next step:** once #6 is merged, build #7 (scope in `PLAN.md` section 7 and GitHub issue #7). What #6 left for it and for #9:
-- **#7:** `checkAgent(agent)` in `src/validation/validationStore.ts` validates the draft, publishes the errors to the problems list and returns them. `CallButton.tsx` already calls it before connecting and is disabled while the latest check has errors; the call panel should keep both (after the health check, per the plan).
+**Next step:** build #7 (scope and acceptance criteria in `PLAN.md` section 7 and GitHub issue #7). What already exists for it:
+- `CallButton.tsx` (in the toolbar) is the minimal call #7 replaces: a fresh `PipecatClient` per call with `SmallWebRTCTransport`, the draft sent as `requestData.body`, an `<audio>` element for the bot track, the transport state as status text, transition server messages logged to the console (#8 builds on them) and RTVI errors logged. Real calls with it work (checked by the user after #6).
+- Errors block the call (#6): before connecting, it runs `checkAgent(agent)` (`src/validation/validationStore.ts`), which validates the current draft, publishes the errors to the problems list and returns them; the button is also disabled while the latest check has errors. Keep both in the call panel, after the health check per the plan.
+- `GET /composer/health` (`{ok, missing_keys}`) exists on the backend; `api.ts` has no wrapper for it yet.
+- The "checking" status lasts a few milliseconds against a local backend, so it is never visible; the user asked where it was. The panel's status display should make the phases clear without relying on it.
+- An invalid agent that reaches the bot ends the call with an RTVI error "Invalid agent: ..." (section 3, `bot.py`); missing keys or a bot crash hang at "Connecting", which is what the bot-ready timeout is for (section 4).
+- `@pipecat-ai/client-react` 1.8.2 is compatible but not installed.
+- Layout is undecided: the side panel is the selection editor (360px) and the problems strip sits below the graph. Pick a place for the panel that does not hide either.
+
+Also prepared by #6, for later:
 - **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
 
 **Pending for the user:** rotate the ElevenLabs key; it appeared in a log during #5 (see section 4, Secrets).
@@ -28,7 +37,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 **How we work through an issue:**
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
 2. Build, run `make test`, and verify in the real app (see "Testing without disturbing the user" below).
-3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one.
+3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
 4. Things that need a mic (a real call) are checked by the user: give them exact steps and what to look for in the terminal and the browser DevTools console (Cmd+Option+J). The user runs `make dev` in a terminal outside the app, so its output is not readable from the session; ask them to paste it.
 
 ## 1. The task
