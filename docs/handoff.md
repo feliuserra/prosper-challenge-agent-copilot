@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, #10 built)
+## 0. Status (updated 2026-10-05, after #10 merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -20,10 +20,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #7 Test call panel | Merged | #21 |
 | #8 Live transition events | Merged | #22 |
 | #9 Authoring warnings | Merged | #23 |
-| **#10 Editor polish** | **Built** on branch `issue-10-editor-polish`, committed locally, not pushed yet | |
-| #11, #13 | Open | |
+| #10 Editor polish | Merged | #24 |
+| **#13 Reliable caller identity** | **Next.** Branch `issue-13-caller-identity` exists locally, created from `main` at `36c37cb`; its only commit is this handoff update | |
+| #11 | Open (last: the README and demo video describe the finished agent) | |
 
-**Next step:** push #10 and open its PR once the user agrees, then #11 or #13. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** build #13 (scope in `PLAN.md` section 13 and GitHub issue #13), then #11. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #24, the first `gh pr merge` was blocked by the permission classifier ("Merge Without Review") after the user said "ok yes"; it went through once they said "merge". The stale `docs/plan-and-adrs` branch (merged as #12) still exists locally and on origin: deleting it was blocked by the classifier, so the user deletes it. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
 What #10 built (frontend only), for reference:
 - Back edges (`edgePath.ts`): an edge into a node whose top is above the source's bottom gets a route from `routeBackEdges(boxes, edges)`, computed in `toFlowEdges` (which now takes the measured card sizes) and drawn by `backEdgeGeometry`: out of the bottom of the source, up a column, into the top of the target, label beside the column. The column clears every node in the edge's vertical span that starts left of it, plus self-loops and their labels (label width estimated from the function name). Back edges that share a column and overlap vertically get lanes, shorter spans inside, labels stacked by lane. Forward edges and self-loops are unchanged. Known limits: React Flow's fit view counts nodes only, so a column or label right of the graph can start out of view; the column is not checked against nodes to its right.
