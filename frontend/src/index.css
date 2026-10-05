@@ -311,6 +311,9 @@ details[open] summary {
 .problems-summary.error {
   color: #cf222e;
 }
+.problems-summary.warning {
+  color: #9a6700;
+}
 .problems-failure {
   padding: 0 12px 6px;
   color: #9a6700;

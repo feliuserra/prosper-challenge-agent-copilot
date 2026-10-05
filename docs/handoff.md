@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-05, #8 in review)
+## 0. Status (updated 2026-10-05, #9 built)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -18,12 +18,23 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
 | #7 Test call panel | Merged | #21 |
-| **#8 Live transition events** | **In review.** Checked by the user with a real call; the user merges it | #22 |
-| #9 to #11, #13 | Open | |
+| #8 Live transition events | Merged | #22 |
+| **#9 Authoring warnings** | **In review**, checked by the user | #23 |
+| #10, #11, #13 | Open | |
 
-**Next step:** once #22 is merged, update local `main`, delete `issue-8-live-transitions`, branch `issue-9-authoring-warnings` from `main` and build #9 (see "Also prepared by #6" below). Merging from the session was blocked by the permission classifier ("Merge Without Review"), so the user merges PRs on GitHub unless they add a permission rule for `gh pr merge`.
+**Next step:** merge #23 when the user says "merge", then #10 (its scope now includes back-edge routing, see below). Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
-What #8 built (frontend only; the backend message existed since #1):
+What #9 built (frontend only), for reference:
+- `src/validation/warnings.ts`: `agentWarnings(agent)` returns `Problem`s with `severity: "warning"`, by node in file order: not reachable from the start node (BFS over edges whose target exists; skipped when `initial_node` does not exist, which is already a backend error), dead end (not `end` and no edges), end node with edges (the builder queues `end_conversation` right after the node's first reply, so they are never taken), no task messages, each empty task message, empty edge description (on the edge), `required` names missing from `properties` (on the edge). Reads the draft defensively (non-array fields are treated as empty), since it runs on every edit.
+- `useProblems()` merges them after the backend errors. Warnings are computed from the current draft, so they update at once while errors follow the 400 ms check. They never go into `useValidationStore`, which is what the call checks, so they cannot block a call.
+- The problems summary is yellow when there are only warnings. Badges and the list needed no other change.
+- The example agent has no warnings (tested). A new blank agent has two (dead end, empty task message), which is correct.
+- Tests: 144 in Vitest (one fixture per warning, clean and example agents, cycles and self-loops, missing start node, malformed shapes; a call placed with an agent that only has warnings).
+- Checked in the browser pane: badges on nodes and edge labels with tooltips, the list, selecting a node from a warning, Test call enabled with warnings.
+- To reach a backend error from the UI (the editor blocks most at edit time): clear the agent name (agent-level, no badge), or give an edge's fields JSON box a property without a type, e.g. `{"properties": {"x": {}}}` (red badge on the edge). Clearing a node name does not work: `NameInput` never writes an invalid name.
+- Not done: the node panel's "end node with After actions never hangs up" note is still only in the panel; it could become a warning too.
+
+What #8 built (frontend only; the backend message existed since #1), for reference:
 - `transcript.ts`: a third entry kind, `Transition` (`{role: "transition", from, function, to, args}`), and `parseTransition(data)` for the server message. Transitions go into the same list as the user and bot turns, so the panel shows what was said around each one, and they stay after hang-up until the next call like the rest of the transcript. A transition ends the current user turn (the next final starts a new one); bot progress messages still find their sentence across it.
 - `callStore.ts`: `live: {agentId, node, edge} | null`. Set at bot-ready to the `initial_node` of the agent that was sent, and the editor's `agentId` at the moment it was sent; each transition moves `node` to `to` and sets `edge`. Cleared when the call ends (`finish`) and at the start of a call. `onServerMessage` ignores other message types and messages from a call that is no longer current.
 - Canvas: `toFlowNodes(..., activeNode)` and `toFlowEdges(..., activeEdge)` add `active` to the node and edge data and `animated` to the edge. `Canvas.tsx` passes them only when `live.agentId` is the open agent. Matched by node name: a node renamed mid-call loses its highlight. CSS: the active node has a green outline (so it combines with the blue selection), the edge taken is green and animated, its label green.
@@ -38,9 +49,6 @@ What #7 built (`frontend/src/call/`), for reference:
 - `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`).
 - `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar. Call / Cancel / Hang up, Mute, status with a timer, step list, notice, mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
 - Checked by the user with real calls (edit without saving, mute, transcript, second call, end node) and in the browser pane (missing keys, agent errors, blocked mic, the 15 s timeout against a bot that crashes).
-
-Also prepared by #6, for later:
-- **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
 
 **Pending for the user:** rotate the ElevenLabs key; it appeared in a log during #5 (see section 4, Secrets).
 
@@ -76,7 +84,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 132 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 144 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -115,12 +123,12 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
 - `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list; the "Test call" toggle for the call panel). The read-only `Outline` was removed in #4.
 - `src/call/` (#7, #8): see section 0.
-- `src/validation/` (#6): `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
+- `src/validation/` (#6, #9): `warnings.ts` (client-side warnings, see section 0); `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
 - Problems on the canvas (#6): `statusBadges` in `derive.ts` groups problems by their `node`/`edge` fields into one badge per severity ("2 errors", messages in the tooltip) for node cards and edge labels. `ProblemsList.tsx` is a collapsible strip below the graph; clicking a problem selects its node or edge (or nothing, for agent-level problems, which shows the agent settings) and fits the view to it. `Canvas` is now a column: `.canvas-flow` (React Flow, and the box Add node measures) above the strip.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts` (132 in total). No component tests; the panel and the problems list are checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts`, `warnings.test.ts` (144 in total). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -188,3 +196,4 @@ Recorded so the reasoning is not lost:
 - The call panel is a third column, opened from the toolbar, rather than part of the side panel or the problems strip, so neither the selection editor nor the problems list is hidden during a call (#7). At 1024px wide the canvas gets narrow while it is open; close it to edit.
 - The mic step checks `mediaState.mic` after `initDevices()`, and the step list shows each phase's result, since "checking" is too fast to see against a local backend (#7).
 - Stray `\` after a code fence in `README.md`: fix in #11.
+- Back edges (to a node above the source) are plain curves that cross the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope and `PLAN.md` section 10 during #9.
