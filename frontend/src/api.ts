@@ -61,3 +61,14 @@ export interface Voice {
 export async function listVoices(): Promise<{ voices: Voice[]; error?: string }> {
   return (await request("/voices")).json();
 }
+
+export interface Health {
+  ok: boolean;
+  /** Names of the required keys missing from the backend's environment (never values). */
+  missing_keys: string[];
+}
+
+/** Whether the backend has the keys a call needs. */
+export async function getHealth(): Promise<Health> {
+  return (await request("/health")).json();
+}

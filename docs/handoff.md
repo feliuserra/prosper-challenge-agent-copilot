@@ -17,17 +17,26 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #4 Graph canvas | Merged | #18 |
 | #5 Side panel editors | Merged | #19 |
 | #6 Validation errors | Merged | #20 |
-| **#7 Test call panel** | **Next.** Branch `issue-7-test-call-panel` exists locally, created from `main` at `8040f57`; its only commit is this handoff update | |
+| **#7 Test call panel** | **Built, committed locally** on `issue-7-test-call-panel`, not pushed. Waiting for the user's real-call check | |
 | #8 to #11, #13 | Open | |
 
-**Next step:** build #7 (scope and acceptance criteria in `PLAN.md` section 7 and GitHub issue #7). What already exists for it:
-- `CallButton.tsx` (in the toolbar) is the minimal call #7 replaces: a fresh `PipecatClient` per call with `SmallWebRTCTransport`, the draft sent as `requestData.body`, an `<audio>` element for the bot track, the transport state as status text, transition server messages logged to the console (#8 builds on them) and RTVI errors logged. Real calls with it work (checked by the user after #6).
-- Errors block the call (#6): before connecting, it runs `checkAgent(agent)` (`src/validation/validationStore.ts`), which validates the current draft, publishes the errors to the problems list and returns them; the button is also disabled while the latest check has errors. Keep both in the call panel, after the health check per the plan.
-- `GET /composer/health` (`{ok, missing_keys}`) exists on the backend; `api.ts` has no wrapper for it yet.
-- The "checking" status lasts a few milliseconds against a local backend, so it is never visible; the user asked where it was. The panel's status display should make the phases clear without relying on it.
-- An invalid agent that reaches the bot ends the call with an RTVI error "Invalid agent: ..." (section 3, `bot.py`); missing keys or a bot crash hang at "Connecting", which is what the bot-ready timeout is for (section 4).
-- `@pipecat-ai/client-react` 1.8.2 is compatible but not installed.
-- Layout is undecided: the side panel is the selection editor (360px) and the problems strip sits below the graph. Pick a place for the panel that does not hide either.
+**Next step:** the user checks #7 with a real call (steps below), then push and open the PR (ask first). After that, #8.
+
+What #7 built (`frontend/src/call/`):
+- `callStore.ts`: one call at a time, a fresh `PipecatClient` per call (loaded with a dynamic import, so the WebRTC stack is a separate chunk). `startCall()` runs four steps, each shown in the panel: `backend` (`GET /composer/health`), `agent` (`checkAgent` on the draft, which also fills the problems list), `mic` (`initDevices()`, then `mediaState.mic` must be `granted`), `bot` (`startBotAndConnect` raced against a 15 s bot-ready timeout). `hangUp()` hangs up, or cancels a call still being placed. `setMuted`, `selectMic` (applies now during a call and is remembered for the next one), `listMicsIfAllowed` (fills the mic list before the first call when the browser already allows mic access). Dependencies are injectable with `setCallDeps` for tests.
+- `transcript.ts`: turns from `user-transcription` (partials replaced, finals joined) and `bot-output` (one segment per sentence, showing `spoken_progress.accumulated_text`, so an interrupted sentence stays cut off where the bot stopped).
+- `CallPanel.tsx`: a 320px column right of the side panel, opened with "Test call" in the toolbar (which shows "● In call" while a call is on). Call / Cancel / Hang up, Mute, status with a timer, the step list (while placing a call and after a failed attempt), a notice (how the last call ended, or why it failed), mic picker, transcript. `CallAudio` plays the bot and is mounted in `App`, so closing the panel does not cut the call.
+- `api.ts` has `getHealth`. `CallButton.tsx` is gone.
+- Tests: `transcript.test.ts`, `callStore.test.ts` (fake client: every failure step, timeout, bot hang-up, our hang-up, a second call with a new client, late events from the first call ignored, RTVI error kept as the notice, cancel, mute and mic).
+
+Checked in the browser pane (mic blocked there): the panel, missing keys (health stubbed in the page), an agent error clicked before the debounced check, a blocked mic stopping before the bot step. One real call happened by accident before the blocked-mic fix (about 8 s, greeting only): it showed the transcript filling word by word and a clean hang-up.
+
+**For the user to check with a mic** (`make dev`, Chrome, `http://localhost:5173`, open "Test call"):
+1. Edit the greeting node's task, do not save, press Call: the bot says the new greeting. The transcript shows both sides.
+2. Mute, speak, unmute: the bot does not hear you while muted. Switch microphones during the call if you have two.
+3. Hang up, call again without reloading: the second call works and the transcript starts empty.
+4. Go through to the end node: the bot hangs up, the panel says "The bot ended the call." and Call is enabled again.
+5. Bot crash: stop the backend after the page loaded and press Call ("Cannot reach the backend"); for the timeout, temporarily raise an exception at the top of `bot()` and press Call: after 15 s the panel says the bot did not start and points to the terminal.
 
 Also prepared by #6, for later:
 - **#9:** problems carry a `severity`. Compute the warnings from the agent on the client and merge them in `useProblems()` (`src/validation/problems.ts`); the badges (`statusBadges` in `canvas/derive.ts`) and the problems list already handle the `warning` tone and counts. Warnings must not touch `useValidationStore.errors`, which is what blocks the call.
@@ -66,7 +75,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 103 tests) |
+| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 124 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -91,7 +100,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `tests/`: pytest for validation and the API (TestClient on a bare FastAPI app with a temp dir, no voice stack). Dev deps: `pytest`, `httpx2` (Starlette's TestClient deprecates `httpx`).
 
 ### Frontend (`frontend/`)
-- Vite 8 + React 19 + TypeScript 7, zustand 5 + zundo 2, zod 4, Vitest 5. `@pipecat-ai/client-js` 1.13.1 and `@pipecat-ai/small-webrtc-transport` 1.10.8 pinned exactly. `@pipecat-ai/client-react` 1.8.2 is compatible but not installed (add it in #7 if useful). Node 24 in `.nvmrc`.
+- Vite 8 + React 19 + TypeScript 7, zustand 5 + zundo 2, zod 4, Vitest 5. `@pipecat-ai/client-js` 1.13.1 and `@pipecat-ai/small-webrtc-transport` 1.10.8 pinned exactly. `@pipecat-ai/client-react` 1.8.2 is compatible but not installed; #7 did not need it (the call state lives in a zustand store like the rest). Node 24 in `.nvmrc`.
 - `vite.config.ts`: proxies `/start`, `/sessions`, `/api`, `/composer` to the runner (`RUNNER_URL`, default `http://localhost:7860`).
 - `src/agent/schema.ts`: zod mirror of the dataclasses. Loose objects, actions as opaque records, optional `ui: {x, y}` per node, **no defaults**. `api.getAgent` uses zod only to check the shape and returns the original object, so a load/save round trip keeps values and key order.
 - `src/agent/names.ts`: `FUNCTION_NAME_RE`, `sanitizeFunctionName`, `uniqueName`, `placeholderFunctionName` (`go_to_<target>`, `_2`, `_3`... within 64 chars), `agentIdFor` (slug for new agents). `src/agent/templates.ts`: `blankAgent(name)` (one `start` node at 0,0), `EXAMPLE_AGENT_ID`.
@@ -103,13 +112,14 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `src/store/editSession.ts` (#5): one undo step per focused text field (see section 4).
 - `src/agent/fields.ts`: collected-field operations returning an `EdgePatch` (add, remove, rename in place and in `required`, change spec keys, toggle required) and the JSON parsers for the fallback box and raw actions. `options.ts`: backend defaults (`DEFAULT_VOICE_ID`, `DEFAULT_MODEL`), the model list, field types, task roles. `names.ts` has `nodeNameError` and `functionNameError` for inline errors.
 - `src/panel/` (#5): `Panel` shows the editor for the selection (`AgentPanel` when nothing is selected, `NodePanel`, `EdgePanel`) and has the `nokey` class so React Flow ignores key presses from it. `controls.tsx`: `LiveText` (writes on every keystroke), `NameInput` (identifiers: inline error while typing, written on blur or Enter only if valid, Escape cancels), `JsonField` (written only when it parses; the error stays until fixed), `ChoiceWithCustom`. Save blurs the focused field first, so a name being typed is committed and saved.
-- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list), `CallButton` (minimal test call with the current draft, blocked by errors; #7 replaces it). The read-only `Outline` was removed in #4.
+- `src/components/`: `Toolbar` (agent picker, New blank, New from example, Save, Cmd/Ctrl+S, unsaved indicator, leave-page warning; a rejected save says how many errors and points to the problems list; the "Test call" toggle for the call panel). The read-only `Outline` was removed in #4.
+- `src/call/` (#7): see section 0.
 - `src/validation/` (#6): `validationStore.ts` holds the latest backend errors and a `failure` message (backend unreachable), outside the agent store and its history. `checkAgent(agent, run?)` validates and publishes; save passes `saveAgent` as `run`, since it returns the same records on 422. `watchAgent()`, started in `App`, checks the open agent 400 ms after it stops changing and at once when another agent is opened (dropping the previous agent's errors). `problems.ts`: the `Problem` type (`ValidationIssue` plus `severity`), `useProblems()`, and helpers for the list (what to select, the location label, which nodes to bring into view).
 - Problems on the canvas (#6): `statusBadges` in `derive.ts` groups problems by their `node`/`edge` fields into one badge per severity ("2 errors", messages in the tooltip) for node cards and edge labels. `ProblemsList.tsx` is a collapsible strip below the graph; clicking a problem selects its node or edge (or nothing, for agent-level problems, which shows the agent settings) and fits the view to it. `Canvas` is now a column: `.canvas-flow` (React Flow, and the box Add node measures) above the strip.
 - `src/canvas/` (#4, `@xyflow/react` 12 and `@dagrejs/dagre`, the maintained fork of `dagre`): `Canvas.tsx` (controlled React Flow, remounted per agent id; Add node and Tidy layout panel; minimap, controls; notice panel), `derive.ts` (store to React Flow: `toFlowNodes`, `toFlowEdges`, `edgeId`/`parseEdgeId`, `NodeStatus` type for the badge slot #6 and #9 fill), `changes.ts` (React Flow change lists to store operations: positions, selection, measurements), `NodeCard.tsx`, `FunctionEdge.tsx` (label is a button that selects the edge) with its shapes in `edgePath.ts`: edges between the same two nodes get lanes that bow the curves apart and stack the labels, and a self-loop goes round the right side of its node. A lane-0 edge is exactly React Flow's default bezier (tested).
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts` (103 in total). No component tests; the panel and the problems list are checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts` (124 in total). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -120,7 +130,11 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **The draft must be sent as `requestData.body`.** `startBotAndConnect({endpoint: "/start", requestData: {body: {agent}}})`. The runner keeps only `body` between `/start` and the offer. The agent's loose TS type needs a documented cast to client-js's `Serializable` (see `CallButton.tsx`).
 - Mic requires localhost or HTTPS; browsers block audio playback until a user click.
 - Pipecat renames APIs often. Read the installed package source rather than blog examples.
-- **Missing keys or a bot crash hang the client** at "Connecting" (the runner answers the offer before the bot runs). Check the terminal first. #7 adds a `/composer/health` check before connecting and a bot-ready timeout.
+- **Missing keys or a bot crash hang the client** at "Connecting" (the runner answers the offer before the bot runs). The call panel (#7) checks `/composer/health` first and gives up after 15 s without bot-ready, pointing to the terminal.
+- **A blocked microphone does not make `initDevices()` throw.** The transport's Daily media manager swallows the denial, so the call would go ahead with a bot that hears nothing. client-js records it in `client.mediaState.mic` (`{state: "error", reason: "blocked"}`); the call store requires `granted` before starting the bot. Found when a call from the browser pane (mic blocked) connected anyway.
+- **Bot transcript comes from `bot-output`.** With protocol 2.0 the server sends one `bot-output` per sentence (`spoken_status: "new"`, nothing spoken yet) and then progress messages with `spoken_progress.accumulated_text` as words are spoken (`pipecat/processors/frameworks/rtvi/observer.py:645-760`). Word-level `bot-output` is not sent to 2.0 clients. `bot-transcription` is deprecated.
+- **The call store ignores events from a call that is no longer current** (hung up, failed, replaced): a late `onDisconnected` from the first call must not end the second.
+- **Server messages** (transitions) are logged in `onServerMessage` in `callStore.ts`; #8 replaces the log with state.
 - **Create a fresh Pipecat client per call.** The bot can end the call itself (end node); treat that as a normal hang-up.
 - **Collected args are logged and sent to the browser** (transition events). In production these are PHI. Fine for the demo; say so in the README (#11).
 - **Makefile background jobs** need a single-shell recipe (lines joined with `;` and `\`). make 3.81 ignores `.ONESHELL:`, and `trap 'kill 0' EXIT` then kills make itself. The `dev` target's trap kills only the background runner.
@@ -170,4 +184,6 @@ Recorded so the reasoning is not lost:
 - Collected fields are a two-line list per field (name, type, required, remove; description below) rather than a five-column table, to fit the 360px panel (#5). Keys the list does not show, such as `enum`, are kept and edited in the JSON box.
 - Makefile background jobs use a single-shell recipe; `.ONESHELL:` does not work with make 3.81 (#2).
 - The demo video in #11 is recorded by the user.
+- The call panel is a third column, opened from the toolbar, rather than part of the side panel or the problems strip, so neither the selection editor nor the problems list is hidden during a call (#7). At 1024px wide the canvas gets narrow while it is open; close it to edit.
+- The mic step checks `mediaState.mic` after `initDevices()`, and the step list shows each phase's result, since "checking" is too fast to see against a local backend (#7).
 - Stray `\` after a code fence in `README.md`: fix in #11.

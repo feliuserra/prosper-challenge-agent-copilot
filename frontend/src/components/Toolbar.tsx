@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { getAgent, listAgents, saveAgent, type AgentSummary } from "../api";
 import { agentIdFor } from "../agent/names";
 import { blankAgent, EXAMPLE_AGENT_ID } from "../agent/templates";
+import { setPanelOpen, useCallStore } from "../call/callStore";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
 import { checkAgent } from "../validation/validationStore";
-import { CallButton } from "./CallButton";
 
 export function Toolbar() {
   const agentId = useAgentStore((s) => s.agentId);
@@ -113,7 +113,19 @@ export function Toolbar() {
       <span className={dirty ? "dirty" : "muted"}>{dirty ? "● Unsaved changes" : "All changes saved"}</span>
       <span className="muted">{message}</span>
       <span className="spacer" />
-      <CallButton />
+      <CallToggle />
     </header>
+  );
+}
+
+/** Opens and closes the test call panel, and shows when a call is on. */
+function CallToggle() {
+  const open = useCallStore((s) => s.panelOpen);
+  const phase = useCallStore((s) => s.phase);
+  const label = phase === "in-call" ? "● In call" : phase === "idle" ? "Test call" : "● Connecting…";
+  return (
+    <button onClick={() => setPanelOpen(!open)} aria-pressed={open} className={phase === "in-call" ? "call-live" : undefined}>
+      {label}
+    </button>
   );
 }

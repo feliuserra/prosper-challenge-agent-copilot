@@ -39,11 +39,6 @@ main {
 .dirty {
   color: #9a6700;
 }
-.call {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-}
 .empty {
   padding: 12px;
 }
@@ -351,4 +346,131 @@ details[open] summary {
 }
 .problem-location {
   color: #656d76;
+}
+
+/* Test call panel, right of the side panel */
+.call-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 320px;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-left: 1px solid #d0d7de;
+  background: #fff;
+}
+.call-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.call-panel h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.call-panel .hint {
+  margin-top: -4px;
+}
+.toolbar button[aria-pressed="true"] {
+  border: 1px solid #0969da;
+  border-radius: 4px;
+  background: #ddf4ff;
+}
+button.primary {
+  border: 1px solid #1f883d;
+  border-radius: 4px;
+  background: #1f883d;
+  color: #fff;
+  padding: 3px 14px;
+}
+button.primary:disabled {
+  opacity: 0.5;
+}
+.call-live {
+  color: #1a7f37;
+  font-weight: 600;
+}
+.call-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.call-steps li {
+  display: flex;
+  gap: 8px;
+  padding: 1px 0;
+  color: #656d76;
+}
+.call-steps li.done {
+  color: #1a7f37;
+}
+.call-steps li.running {
+  color: #1f2328;
+  font-weight: 600;
+}
+.call-steps li.failed {
+  color: #cf222e;
+  font-weight: 600;
+}
+.call-step-icon {
+  width: 1em;
+  text-align: center;
+}
+.call-notice {
+  padding: 6px 10px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.call-notice.error {
+  border: 1px solid #ff8182;
+  background: #ffebe9;
+  color: #82071e;
+}
+.call-notice.info {
+  border: 1px solid #d0d7de;
+  background: #f6f8fa;
+}
+.call-mic {
+  margin-bottom: 0;
+}
+.call-mic select {
+  box-sizing: border-box;
+  width: 100%;
+}
+.call-transcript {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.turns {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.turn {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.turn.user {
+  margin-left: 24px;
+  background: #ddf4ff;
+}
+.turn.bot {
+  margin-right: 24px;
+  background: #f6f8fa;
+}
+.turn-role {
+  color: #656d76;
+  font-size: 12px;
+}
+.partial {
+  color: #656d76;
+  font-style: italic;
 }
