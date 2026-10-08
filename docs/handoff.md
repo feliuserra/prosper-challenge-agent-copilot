@@ -1,12 +1,12 @@
 # Handoff: Prosper challenge (Agent Composer), Phase 1 UI
 
-Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
+Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
 
 Working style: the user (Feliu) is a strong Python developer and wants direct answers with explicit reasoning and trade-offs. Explain why each decision is made. Avoid overengineering. In documents written for the repo, keep a plain voice and avoid em-dashes.
 
 ---
 
-## 0. Status (updated 2026-10-05, #10 built)
+## 0. Status (updated 2026-10-08, Phase 2 planned)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -20,10 +20,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #7 Test call panel | Merged | #21 |
 | #8 Live transition events | Merged | #22 |
 | #9 Authoring warnings | Merged | #23 |
-| **#10 Editor polish** | **Built** on branch `issue-10-editor-polish`, committed locally, not pushed yet | |
-| #11, #13 | Open | |
+| #10 Editor polish | Merged | #24 |
+| **Phase 2 plan** (#25 to #35) | **Written** on branch `docs/phase2-plan`: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues on GitHub | |
+| #11, #13, #25 to #35 | Open | |
 
-**Next step:** push #10 and open its PR once the user agrees, then #11 or #13. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** merge the Phase 2 plan once the user agrees, then #13 (reliable caller identity), which #25 depends on, then #25 onwards in the order of `PLAN-phase2.md`. #11 (README and demo video) comes after Phase 2. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
 What #10 built (frontend only), for reference:
 - Back edges (`edgePath.ts`): an edge into a node whose top is above the source's bottom gets a route from `routeBackEdges(boxes, edges)`, computed in `toFlowEdges` (which now takes the measured card sizes) and drawn by `backEdgeGeometry`: out of the bottom of the source, up a column, into the top of the target, label beside the column. The column clears every node in the edge's vertical span that starts left of it, plus self-loops and their labels (label width estimated from the function name). Back edges that share a column and overlap vertically get lanes, shorter spans inside, labels stacked by lane. Forward edges and self-loops are unchanged. Known limits: React Flow's fit view counts nodes only, so a column or label right of the graph can start out of view; the column is not checked against nodes to its right.
@@ -72,7 +73,7 @@ What #7 built (`frontend/src/call/`), for reference:
 Build a UI for creating and editing voice agents, where an agent is a graph of nodes (conversation steps) and edges (transitions). The user must be able to edit the graph and place a test call from the UI, similar to ElevenLabs Agents or Retell AI. Changing the node format or backend is allowed if justified.
 
 - **Phase 1 (now):** graph editor + test call.
-- **Phase 2 (later):** an AI Composer that generates and edits agents from natural language. Phase 1 decisions should keep the agent JSON clean and easy for an LLM to read and write.
+- **Phase 2 (later):** an AI Composer that generates and edits agents from natural language. Phase 1 decisions should keep the agent JSON clean and easy for an LLM to read and write. Now planned as the Agent Copilot in [`PLAN-phase2.md`](../PLAN-phase2.md).
 - Domain: voice AI for healthcare scheduling.
 
 Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/prosper-challenge-agent-copilot`.
@@ -179,8 +180,8 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 
 ## 5. Open items not tracked in an issue yet
 
-- **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. The user was asked whether to open an issue and has not answered.
-- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked).
+- **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. Now part of #25 (turn timing).
+- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked). To be decided in #28.
 - **STT language** is unset, so names come out in other scripts (Cyrillic, Chinese). Tracked in #13.
 - **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
