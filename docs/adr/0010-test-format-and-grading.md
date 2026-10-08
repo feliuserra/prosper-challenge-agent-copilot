@@ -1,6 +1,6 @@
 # ADR 0010: Test format and grading
 
-- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27.
+- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): turn checks graded as rates.
 - **Date:** 2026-10-05
 
 ## Context
@@ -29,6 +29,7 @@
 8. **Cache:** results are stored by a hash of agent, test, model names and runner version, and only tests whose inputs changed are rerun. `--no-cache` for numbers we report.
 9. **Errors are not failures:** API calls are retried with backoff and parallel calls are limited. A test that could not run (rate limit, outage) is reported as `error`, never counted as the agent failing.
 10. **Pinned models** in one config, chosen after listing what the company key actually offers: dated model versions for the agent, the caller and the judge; the agent uses the same parameters in tests as in live calls. A small model plays the caller; the judge model is the cheapest one that reaches the calibration bar in ADR 0011.
+11. **Turn checks** (ADR 0015). A single replayed turn is graded by an expected action (a tool or a transfer called or not, with its arguments) or by one judge rule on the reply. It is sampled 5 times at the agent's live temperature and reported as a rate (4/5), not as pass or fail.
 
 ## Alternatives considered
 

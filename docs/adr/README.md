@@ -18,5 +18,6 @@ Each record explains one decision: the context, what we chose, what we rejected 
 | [0012](0012-copilot-edits-through-operations.md) | The Copilot changes agents through validated operations (Phase 2) | Accepted |
 | [0013](0013-workspaces-versions-and-calls.md) | Workspaces, versions and recorded calls (Phase 2) | Accepted |
 | [0014](0014-copilot-service-and-ui.md) | Copilot service and UI (Phase 2) | Accepted |
+| [0015](0015-debugging-by-cause.md) | Debugging by cause: rule chains, turn replay and what-if forecasts (Phase 2) | Accepted, amends 0002, 0009 to 0013 |
 
 Format: title, status, date, context, decision, alternatives considered, consequences.

@@ -1,6 +1,6 @@
 # ADR 0002: Keep the existing schema; add only optional UI positions
 
-- **Status:** Accepted. Amended by [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (Phase 2): nodes gain an optional `tools` list.
+- **Status:** Accepted. Amended by [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (Phase 2): nodes gain an optional `tools` list. Amended by [ADR 0015](0015-debugging-by-cause.md) (Phase 2): nodes and the agent gain an optional `requirements` list, ignored by the runtime.
 - **Date:** 2026-09-29
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR 0009: Simulated calls with our own text runner
 
-- **Status:** Accepted, 2026-10-05
+- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): per-turn context, turn replay and continuing a recorded call.
 - **Date:** 2026-10-05
 
 ## Context
@@ -23,6 +23,7 @@
 4. **Anchored replay.** A test built from a real call carries the caller's turns as speech-to-text heard them, each with the question it answered. When the agent asks for the same thing, the caller says the recorded words exactly, garbles included; when the agent goes elsewhere (as it will after a fix), the caller improvises. Replaying turns blindly in order would stop making sense as soon as the fixed agent behaves differently.
 5. **It shares code with the runtime:** the tool implementations and the world from `backend/clinic/`. A conformance test checks that the runner offers the same functions per node as `AgentBuilder` on the example and fixture agents.
 6. **One entry point** used by the Copilot, `make eval` and a CLI (`uv run python -m sim run <agent> <tests>`).
+7. **Per-turn context and replay** (ADR 0015). Results record, for each agent turn, the node and the exact messages and functions given to the model, plus the tool results. `replay_turn` samples one turn of a recorded call or test with another agent, on the recorded history. `continue_from` continues a recorded call from a turn with a given caller, reusing the recorded words while the agent asks the same things. The conformance test in (5) also compares a recorded live call's messages with the runner's rebuild of the same turns (#28).
 
 ## Alternatives considered
 
@@ -33,6 +34,6 @@
 ## Consequences
 
 - Tests run in seconds to a minute and can run in the Copilot's loop.
-- The runner can drift from the runtime. Not modelled: Flows' context handling in detail, interruptions, turn-taking and timing. The conformance test limits the drift; the rest is listed in "What the tests don't catch" (`PLAN-phase2.md`).
+- The runner can drift from the runtime. Not modelled: Flows' context handling in detail, interruptions, turn-taking and timing. The conformance tests limit the drift; the rest is listed in "What the tests don't catch" (`PLAN-phase2.md`).
 - Spelled letters are assumed to be heard correctly; only garbles recorded in real calls are replayed.
 - A pass in text does not prove the voice call works. Live calls stay part of each issue's checks (`docs/notes/call-tests.md`).
