@@ -4,11 +4,11 @@
 PROJECT := backend
 FRONTEND := frontend
 
-.PHONY: help install run dev test clean
+.PHONY: help install run dev test clinic-reset clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-13s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install backend (from uv.lock) and frontend (from package-lock.json) dependencies
 	uv sync --directory $(PROJECT)
@@ -27,6 +27,9 @@ dev: ## Run the voice agent and the editor together (then open http://localhost:
 test: ## Run the backend and frontend tests
 	uv run --directory $(PROJECT) pytest
 	npm test --prefix $(FRONTEND)
+
+clinic-reset: ## Restore the live clinic (bookings made in calls) to its seed
+	rm -f $(PROJECT)/clinic/state.json
 
 clean: ## Remove the venv, node_modules and Python caches
 	rm -rf $(PROJECT)/.venv $(FRONTEND)/node_modules

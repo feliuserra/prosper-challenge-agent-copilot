@@ -9,6 +9,8 @@ import type { BotOutputData, TranscriptData } from "@pipecat-ai/client-js";
 //   what was actually spoken, so a sentence cut off by the user stays cut off.
 // - `server-message` of type "transition": an edge the bot took, sent by the
 //   edge handler in backend/agent_builder/builder.py.
+// - `server-message` of type "tool_call": a tool the bot called inside a node,
+//   with the clinic's answer (#25), sent by the tool handler in the same file.
 
 export interface UserTurn {
   role: "user";
@@ -32,22 +34,42 @@ export interface Transition {
   args: Record<string, unknown>;
 }
 
-export type Turn = UserTurn | BotTurn | Transition;
+/** A tool the bot called inside a node, with its arguments and what the clinic answered. */
+export interface ToolCall {
+  role: "tool";
+  node: string;
+  tool: string;
+  args: Record<string, unknown>;
+  result: Record<string, unknown>;
+}
+
+export type Turn = UserTurn | BotTurn | Transition | ToolCall;
 
 const join = (...parts: string[]) => parts.filter(Boolean).join(" ");
 
 export function turnText(turn: Turn): string {
   if (turn.role === "transition") return `${turn.function} -> ${turn.to}`;
+  if (turn.role === "tool") return turn.tool;
   return turn.role === "user" ? join(turn.text, turn.partial) : join(...turn.segments.map((s) => s.text));
 }
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
 /** The transition in a server message, or null for any other message. */
 export function parseTransition(data: unknown): Transition | null {
   if (typeof data !== "object" || data === null) return null;
   const { type, from, function: fn, to, args } = data as Record<string, unknown>;
   if (type !== "transition" || typeof from !== "string" || typeof fn !== "string" || typeof to !== "string") return null;
-  const collected = typeof args === "object" && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
-  return { role: "transition", from, function: fn, to, args: collected };
+  return { role: "transition", from, function: fn, to, args: asRecord(args) };
+}
+
+/** The tool call in a server message, or null for any other message. */
+export function parseToolCall(data: unknown): ToolCall | null {
+  if (typeof data !== "object" || data === null) return null;
+  const { type, node, tool, args, result } = data as Record<string, unknown>;
+  if (type !== "tool_call" || typeof node !== "string" || typeof tool !== "string") return null;
+  return { role: "tool", node, tool, args: asRecord(args), result: asRecord(result) };
 }
 
 export function addUserTranscript(turns: Turn[], data: Pick<TranscriptData, "text" | "final">): Turn[] {

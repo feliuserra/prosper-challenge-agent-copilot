@@ -14,7 +14,7 @@ import {
   type StepName,
   type Steps,
 } from "./callStore";
-import { turnText, type Transition } from "./transcript";
+import { turnText, type ToolCall, type Transition } from "./transcript";
 
 const STEP_LABELS: Record<StepName, string> = {
   backend: "Backend keys",
@@ -171,6 +171,8 @@ function Transcript() {
           {shown.map(({ turn, text }, i) =>
             turn.role === "transition" ? (
               <TransitionRow key={i} transition={turn} />
+            ) : turn.role === "tool" ? (
+              <ToolCallRow key={i} call={turn} />
             ) : (
               <li key={i} className={`turn ${turn.role}`}>
                 <span className="turn-role">{turn.role === "user" ? "You" : "Bot"}</span>
@@ -192,24 +194,50 @@ function Transcript() {
   );
 }
 
-/** An edge the bot took, with what it collected (PHI in a real call). */
+/** Arguments as a key/value list (PHI in a real call). */
+function Args({ args }: { args: Record<string, unknown> }) {
+  const entries = Object.entries(args);
+  if (entries.length === 0) return null;
+  return (
+    <dl className="transition-args">
+      {entries.map(([key, value]) => (
+        <Fragment key={key}>
+          <dt>{key}</dt>
+          <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
+/** An edge the bot took, with what it collected. */
 function TransitionRow({ transition }: { transition: Transition }) {
-  const args = Object.entries(transition.args);
   return (
     <li className="turn transition">
       <span className="turn-role">Transition</span>
       <span className="transition-edge">
         {transition.function} → {transition.to}
       </span>
-      {args.length > 0 && (
-        <dl className="transition-args">
-          {args.map(([key, value]) => (
-            <Fragment key={key}>
-              <dt>{key}</dt>
-              <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
-            </Fragment>
-          ))}
-        </dl>
+      <Args args={transition.args} />
+    </li>
+  );
+}
+
+/** A tool the bot called, with its arguments and the clinic's answer (folded: slot lists are long). */
+function ToolCallRow({ call }: { call: ToolCall }) {
+  const error = typeof call.result.error === "string" ? call.result.error : null;
+  return (
+    <li className={error ? "turn tool refused" : "turn tool"}>
+      <span className="turn-role">{error ? "Tool, refused" : "Tool"}</span>
+      <span className="transition-edge">{call.tool}</span>
+      <Args args={call.args} />
+      {error ? (
+        <div className="tool-error">{error}</div>
+      ) : (
+        <details className="tool-result">
+          <summary>Result</summary>
+          <pre>{JSON.stringify(call.result, null, 2)}</pre>
+        </details>
       )}
     </li>
   );

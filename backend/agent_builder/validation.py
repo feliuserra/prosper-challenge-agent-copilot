@@ -11,6 +11,8 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
+from clinic.catalog import TOOLS
+
 # What the LLM APIs accept as a tool name.
 FUNCTION_NAME_RE = re.compile(r"[a-zA-Z0-9_-]{1,64}")
 JSON_SCHEMA_TYPES = {"string", "number", "integer", "boolean", "array", "object"}
@@ -81,7 +83,7 @@ def _validate_node(node: dict, names: set[str]) -> list[ValidationIssue]:
     name = node.get("name") if _is_text(node.get("name")) else None
     errors: list[ValidationIssue] = []
 
-    for key in ("task_messages", "pre_actions", "post_actions", "edges"):
+    for key in ("task_messages", "pre_actions", "post_actions", "edges", "tools"):
         if key in node and not isinstance(node[key], list):
             errors.append(ValidationIssue(f"'{key}' must be a list.", node=name))
     # Messages and actions are passed to Pipecat Flows as they are; only check the
@@ -122,6 +124,27 @@ def _validate_node(node: dict, names: set[str]) -> list[ValidationIssue]:
         else:
             seen.add(function)
         errors.extend(_validate_edge(edge, names, node=name))
+    errors.extend(_validate_tools(node.get("tools"), seen, node=name))
+    return errors
+
+
+def _validate_tools(tools: Any, functions: set[str], node: Optional[str]) -> list[ValidationIssue]:
+    """Tools come from the catalog, once each, and never share a name with an edge (ADR 0008)."""
+    errors: list[ValidationIssue] = []
+    listed: set[str] = set()
+    for tool in _list(tools):
+        if not isinstance(tool, str):
+            errors.append(ValidationIssue("Each tool must be a tool name.", node=node))
+        elif tool not in TOOLS:
+            errors.append(ValidationIssue(f"Unknown tool '{tool}'. Tools: {', '.join(TOOLS)}.", node=node))
+        elif tool in listed:
+            errors.append(ValidationIssue(f"Tool '{tool}' is listed twice.", node=node))
+        else:
+            listed.add(tool)
+            if tool in functions:
+                errors.append(
+                    ValidationIssue(f"'{tool}' is both a tool and an edge function in this node.", node=node, edge=tool)
+                )
     return errors
 
 

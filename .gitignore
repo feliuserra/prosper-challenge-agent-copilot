@@ -31,3 +31,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# ---- Live clinic state (created from backend/clinic/seed.json) ----
+backend/clinic/state.json

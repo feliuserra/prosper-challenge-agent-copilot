@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from agent_builder import validate_agent
+from clinic import catalog
 
 # Lowercase slug. Rules out path separators and '..', so ids are safe file names.
 AGENT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
@@ -112,6 +113,11 @@ def make_router(agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_
     async def validate(agent: Any = Body(...)):
         # 200 either way: an invalid agent is the answer here, not a failed request.
         return {"errors": [e.to_dict() for e in validate_agent(agent)]}
+
+    @router.get("/tools")
+    async def tools():
+        # The tool catalog for the node panel (ADR 0008). Fixed, so no caching needed.
+        return {"tools": catalog()}
 
     @router.get("/health")
     async def health():

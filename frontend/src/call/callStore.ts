@@ -5,7 +5,7 @@ import { getHealth, type Health, type ValidationIssue } from "../api";
 import type { Agent } from "../agent/schema";
 import { useAgentStore } from "../store/agentStore";
 import { checkAgent } from "../validation/validationStore";
-import { addBotOutput, addUserTranscript, parseTransition, type Turn } from "./transcript";
+import { addBotOutput, addUserTranscript, parseToolCall, parseTransition, type Turn } from "./transcript";
 
 // The test call: one at a time, with a fresh Pipecat client each, so nothing
 // from an earlier call (state, callbacks) can leak into the next one.
@@ -185,12 +185,16 @@ function callbacks(call: Call): RTVIEventCallbacks {
       call.failed = true;
       set({ notice: { tone: "error", text: `The bot reported an error: ${data?.error ?? data?.message ?? "unknown"}` } });
     },
-    // Transitions (the edge handlers in builder.py). Matched by node name: a
-    // node renamed in the editor during the call loses its highlight.
+    // Transitions and tool calls (the edge and tool handlers in builder.py).
+    // Transitions are matched by node name: a node renamed in the editor
+    // during the call loses its highlight. Tool calls do not move the call.
     onServerMessage: (data) => {
-      const transition = parseTransition(data);
       const live = get().live;
-      if (!transition || !live || current !== call) return;
+      if (!live || current !== call) return;
+      const toolCall = parseToolCall(data);
+      if (toolCall) return void set({ transcript: [...get().transcript, toolCall] });
+      const transition = parseTransition(data);
+      if (!transition) return;
       set({
         transcript: [...get().transcript, transition],
         live: { ...live, node: transition.to, edge: { source: transition.from, function: transition.function } },

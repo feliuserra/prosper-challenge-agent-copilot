@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-08, #13 built, Phase 2 planned)
+## 0. Status (updated 2026-10-08, #25 built)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -22,11 +22,22 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #9 Authoring warnings | Merged | #23 |
 | #10 Editor polish | Merged | #24 |
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
-| **#13 Reliable caller identity** | **In review.** Built on `issue-13-caller-identity`, main merged in; the user's test calls passed | |
-| #25 to #35 | Open, in the order of `PLAN-phase2.md`; #25 starts after #13 is merged (both change the example agent) | |
+| #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
+| **#25 Mock tools and turn timing** | **Built** on `issue-25-mock-tools`, not pushed. Waiting for the user's test calls (`docs/notes/call-tests.md`) | |
+| #26 to #35 | Open, in the order of `PLAN-phase2.md` | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** merge #13 once the user says "merge". Then #25 onwards in the order of `PLAN-phase2.md`. #11 comes last.
+**Next step:** the user runs `docs/notes/call-tests.md` against #25 (the real-call acceptance: a one-word answer gets a reply in about a second, and the example agent books a slot that came from `find_slots`), then push, PR and merge. Then #26. #11 comes last.
+
+What #25 built, for reference:
+- `backend/clinic/` (ADR 0008): `catalog.py` is the tool catalog as pure data (`TOOLS`: name, description, parameter schema, `changes_world`, `ends_call`; `catalog()` for the editor). `world.py` is `ClinicWorld`: providers with weekly schedules, patients and appointments from a seed; `now` comes from the seed; open slots are generated from the schedules (ids like `dr-patel-2026-10-12-0900`) and are open when after `now` and not used by a booked appointment. Each tool is a method of the same name; `call(name, args)` checks required args and returns `{"error": ...}` for refusals instead of raising. Names match ignoring case, accents, spaces and punctuation; dates must be YYYY-MM-DD. `live.py` is `LiveClinic`: `state.json` (gitignored), created from `seed.json` on the first change, reread on every call so deleting it resets at once. `make clinic-reset` deletes it.
+- Seed (`clinic/seed.json`): Monday 2026-10-12 08:30; Dr. Priya Patel, Dr. Daniel Okafor, Grace Kim NP; patients Ana Lopez (pat-001), James O'Connor (pat-002, appointment 2.5 h away, inside a 24 h window), Mei Chen (pat-003); a cancelled appointment that frees Patel's 09:00.
+- Schema: optional `tools: [name]` on nodes (dataclass and zod). Validation: tools must be a list of catalog names, no duplicates, no clash with an edge function in the node (that error carries `edge`, so it badges the edge).
+- Builder: `AgentBuilder(config, clinic=None)`; `clinic` is anything with `call(name, args)` and `date_line()`. With a clinic, every node's role message ends with the clinic's date line. Tools come after the edges in the node's functions; the handler calls the clinic, logs `[tool] in node | args | result`, sends RTVI `{type: "tool_call", node, tool, args, result}` and returns `(result, None)`, which keeps the conversation in the node (`pipecat_flows/manager.py:480-520`, `run_llm=True`). `transfer_to_human` returns a one-off node (one line, then `end_conversation`) that is not in the graph, so the UI stays on the node it was called from. Without a clinic a tool answers an error.
+- `bot.py`: one `LiveClinic` for every call. Turn timing: Smart Turn v3's `stop_secs` (the longest silence when it judges a turn unfinished) is `TURN_STOP_SECS = 1.2` instead of Pipecat's 3, set through `UserTurnStrategies(stop=[TurnAnalyzerUserTurnStopStrategy(LocalSmartTurnAnalyzerV3(params=SmartTurnParams(...)))])`. Lower is snappier but cuts off a caller who pauses longer while spelling.
+- `GET /composer/tools`: the catalog. Editor: tool checkboxes in the node panel (catalog order, first sentence of each description as a hint, tools the catalog lacks kept until unchecked), tool names on node cards, "Tool" rows in the call transcript (args, a folded result, refusals in red).
+- Example agent: `greeting -> ask_name -> confirm_name -> verify_patient -> collect_reason -> offer_times -> confirm`. `verify_patient` asks the date of birth and uses `lookup_patient` / `register_patient`; `offer_times` uses `find_slots` and `book_appointment`; the greeting offers `transfer_to_human`. The persona asks for dates spoken naturally, never as numbers.
+- Tests: 105 pytest (every tool on the seed, live state, validation, the builder's tool functions with a fake flow manager, the catalog route), 165 Vitest. Checked in the browser pane: checkboxes, card lines, the clash error, tool rows.
 
 What #13 built, for reference:
 - `bot.py`: speech-to-text language fixed to English (`ElevenLabsRealtimeSTTService.Settings(language=Language.EN)`, sent as `language_code=en`; checked against the installed service).
@@ -106,7 +117,8 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 50 tests) + Vitest (frontend, 160 tests) |
+| `make test` | pytest (backend, 105 tests) + Vitest (frontend, 165 tests) |
+| `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -127,7 +139,8 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `agent_builder/validation.py`: `validate_agent(dict) -> list[ValidationIssue]` with `{message, node, edge}` records (`edge` is the function name). Runs on the raw dict, so missing keys and wrong types are errors, not `KeyError`. Checks: name, nodes, `initial_node`, unique node names, edge targets, function names (`fullmatch [a-zA-Z0-9_-]{1,64}`), unique function names per node, `properties` values are objects with a known `type`, `required` is a list of strings, field types, task messages have a `role`, actions have a `type`. Unknown keys are allowed.
 - `agent_builder/builder.py`: `AgentBuilder.from_dict` validates and raises `ValidationError(ValueError)` carrying all records; the constructor validates `asdict(config)`. Each edge handler updates `flow_manager.state`, logs, and queues an RTVI server message `{type: "transition", from, function, to, args}` (Issue #8 builds the UI on it). Nodes are built lazily on transition.
 - `agent_builder/schema.py`: dataclasses `AgentConfig` (`name`, `initial_node`, `nodes`, `persona`, `voice_id`, `model`), `Node` (`name`, `task_messages`, `role_message`, `edges`, `pre_actions`, `post_actions`, `end`), `Edge` (`function`, `description`, `target`, `properties`, `required`). Unchanged from the starter.
-- `agents/prosper-scheduler.json`: the example and default agent (was `example_flow.json`). Hand-formatted; the first save from the editor reflows its whitespace (values and key order unchanged).
+- `clinic/`: the tool catalog, the fake clinic world and the live state shared by calls (#25, see section 0).
+- `agents/prosper-scheduler.json`: the example and default agent (was `example_flow.json`). Written with indent 2, as the editor saves it (since #25).
 - `tests/`: pytest for validation and the API (TestClient on a bare FastAPI app with a temp dir, no voice stack). Dev deps: `pytest`, `httpx2` (Starlette's TestClient deprecates `httpx`).
 
 ### Frontend (`frontend/`)

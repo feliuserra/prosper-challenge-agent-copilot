@@ -240,12 +240,26 @@ details[open] summary {
   gap: 4px;
   margin-left: auto;
 }
-.node-card-task {
+.node-card-task,
+.node-card-tools {
   margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+}
+.node-card-tools {
+  color: #8250df;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.tool-option {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+.tool-option .hint {
+  margin-left: 20px;
 }
 /* Blue means selected. React Flow also paints an edge blue when a mouse press
    focuses it without selecting it; keep that for keyboard focus only. */
@@ -491,12 +505,34 @@ button.primary:disabled {
   color: #656d76;
   font-size: 12px;
 }
-.turn.transition {
+.turn.transition,
+.turn.tool {
   margin: 0 12px 8px;
   padding: 4px 8px;
   border-left: 3px solid #1a7f37;
   border-radius: 0;
   font-size: 12px;
+}
+.turn.tool {
+  border-left-color: #8250df;
+}
+.turn.tool.refused {
+  border-left-color: #cf222e;
+}
+.tool-error {
+  color: #cf222e;
+}
+.tool-result summary {
+  color: #656d76;
+  cursor: pointer;
+}
+.tool-result pre {
+  max-height: 160px;
+  margin: 2px 0 0;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .transition-edge {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

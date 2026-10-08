@@ -3,9 +3,10 @@
 #
 # Design rule: stay as close to Pipecat Flows' own vocabulary as possible. A node
 # carries Pipecat's native fields (`role_message`, `task_messages`, `pre/post_actions`)
-# verbatim. The ONLY thing we add is `edges`: transitions expressed as DATA (a string
-# `target`) rather than as Python closures — because a Composer can emit a string, not
-# a callable. `AgentBuilder` turns these strings back into the closures Pipecat wants.
+# verbatim. What we add is `edges`: transitions expressed as DATA (a string `target`)
+# rather than as Python closures — because a Composer can emit a string, not a
+# callable. `AgentBuilder` turns these strings back into the closures Pipecat wants.
+# Nodes may also list `tools` by name from the clinic catalog (ADR 0008).
 #
 
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ class Node:
     task_messages: list = field(default_factory=list)   # this node's objectives
     role_message: Optional[str] = None                  # overrides the global persona
     edges: list = field(default_factory=list)           # list[Edge]; transitions out
+    tools: list = field(default_factory=list)           # catalog tool names; stay in the node
     pre_actions: list = field(default_factory=list)
     post_actions: list = field(default_factory=list)
     end: bool = False                                   # terminal -> ends the call
@@ -56,6 +58,7 @@ class Node:
             task_messages=d.get("task_messages", []),
             role_message=d.get("role_message"),
             edges=[Edge.from_dict(e) for e in d.get("edges", [])],
+            tools=d.get("tools", []),
             pre_actions=d.get("pre_actions", []),
             post_actions=d.get("post_actions", []),
             end=d.get("end", False),

@@ -260,6 +260,21 @@ describe("during and after a call", () => {
     expect(state().transcript).toHaveLength(2);
   });
 
+  it("adds tool calls to the transcript without moving the call", async () => {
+    const client = await connected();
+    client.callbacks.onServerMessage?.({
+      type: "tool_call",
+      node: "start",
+      tool: "find_slots",
+      args: {},
+      result: { slots: [], more: false },
+    });
+    expect(state().live).toEqual({ agentId: "a", node: "start", edge: null });
+    expect(state().transcript).toEqual([
+      { role: "tool", node: "start", tool: "find_slots", args: {}, result: { slots: [], more: false } },
+    ]);
+  });
+
   it("keeps the node it was called with when the editor changes during the call", async () => {
     const client = await connected();
     useAgentStore.getState().open("b", { ...blankAgent("B"), initial_node: "elsewhere" });
