@@ -1,12 +1,12 @@
 # Handoff: Prosper challenge (Agent Composer), Phase 1 UI
 
-Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
+Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
 
 Working style: the user (Feliu) is a strong Python developer and wants direct answers with explicit reasoning and trade-offs. Explain why each decision is made. Avoid overengineering. In documents written for the repo, keep a plain voice and avoid em-dashes.
 
 ---
 
-## 0. Status (updated 2026-10-05, after #10 merged)
+## 0. Status (updated 2026-10-08, #13 built, Phase 2 planned)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -21,10 +21,12 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #8 Live transition events | Merged | #22 |
 | #9 Authoring warnings | Merged | #23 |
 | #10 Editor polish | Merged | #24 |
-| **#13 Reliable caller identity** | **Built on `issue-13-caller-identity`, not pushed.** Waiting for the user's test call (`docs/notes/call-tests.md`) | |
+| Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
+| **#13 Reliable caller identity** | **Built on `issue-13-caller-identity`**, main merged in, not pushed. Waiting for the user's test call (`docs/notes/call-tests.md`) | |
+| #25 to #35 | Open, in the order of `PLAN-phase2.md`; #25 starts after #13 is merged (both change the example agent) | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** the user runs `docs/notes/call-tests.md` against #13, then push and PR. After that, plan Phase 2 (the AI Composer); the user is to paste the Phase 2 brief, which is not in the repo. #11 comes last.
+**Next step:** the user runs `docs/notes/call-tests.md` against #13, then push, PR and merge. Then #25 onwards in the order of `PLAN-phase2.md`. #11 comes last.
 
 What #13 built, for reference:
 - `bot.py`: speech-to-text language fixed to English (`ElevenLabsRealtimeSTTService.Settings(language=Language.EN)`, sent as `language_code=en`; checked against the installed service).
@@ -82,7 +84,7 @@ What #7 built (`frontend/src/call/`), for reference:
 Build a UI for creating and editing voice agents, where an agent is a graph of nodes (conversation steps) and edges (transitions). The user must be able to edit the graph and place a test call from the UI, similar to ElevenLabs Agents or Retell AI. Changing the node format or backend is allowed if justified.
 
 - **Phase 1 (now):** graph editor + test call.
-- **Phase 2 (later):** an AI Composer that generates and edits agents from natural language. Phase 1 decisions should keep the agent JSON clean and easy for an LLM to read and write.
+- **Phase 2 (later):** an AI Composer that generates and edits agents from natural language. Phase 1 decisions should keep the agent JSON clean and easy for an LLM to read and write. Now planned as the Agent Copilot in [`PLAN-phase2.md`](../PLAN-phase2.md).
 - Domain: voice AI for healthcare scheduling.
 
 Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/prosper-challenge-agent-copilot`.
@@ -189,8 +191,8 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 
 ## 5. Open items not tracked in an issue yet
 
-- **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. The user was asked whether to open an issue and has not answered.
-- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked).
+- **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. Now part of #25 (turn timing).
+- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked). To be decided in #28.
 - **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
 
