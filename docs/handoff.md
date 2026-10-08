@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-08, Phase 2 planned)
+## 0. Status (updated 2026-10-08, #13 built, Phase 2 planned)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -21,10 +21,22 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #8 Live transition events | Merged | #22 |
 | #9 Authoring warnings | Merged | #23 |
 | #10 Editor polish | Merged | #24 |
-| **Phase 2 plan** (#25 to #35) | **Written** on branch `docs/phase2-plan`: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues on GitHub | |
-| #11, #13, #25 to #35 | Open | |
+| Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
+| **#13 Reliable caller identity** | **In review.** Built on `issue-13-caller-identity`, main merged in; the user's test calls passed | |
+| #25 to #35 | Open, in the order of `PLAN-phase2.md`; #25 starts after #13 is merged (both change the example agent) | |
+| #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** merge the Phase 2 plan once the user agrees, then #13 (reliable caller identity), which #25 depends on, then #25 onwards in the order of `PLAN-phase2.md`. #11 (README and demo video) comes after Phase 2. The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
+**Next step:** merge #13 once the user says "merge". Then #25 onwards in the order of `PLAN-phase2.md`. #11 comes last.
+
+What #13 built, for reference:
+- `bot.py`: speech-to-text language fixed to English (`ElevenLabsRealtimeSTTService.Settings(language=Language.EN)`, sent as `language_code=en`; checked against the installed service).
+- Example agent: `greeting -> ask_name -> confirm_name -> collect_reason -> offer_times -> confirm`. `confirm_name` reads the name back letter by letter; `name_confirmed` saves `full_name` (the value the acceptance criteria check in the log), `correct_spelling` is a self-loop for "no, it's ...", `spell_again` goes back to `ask_name`. Reason is now its own node.
+- Tests no longer use the example agent for editor behaviour: the original four-node example is frozen in `backend/tests/fixtures/linear-agent.json` and both test suites use it. Only "the example is valid", "has no warnings", schema and file round trips still read `prosper-scheduler.json`, so the example can change freely.
+- README: quickstart for `make dev` (Node 24, `.env`), `frontend/` in the layout table, the stray `\` fixed. The full README is still #11.
+- `docs/notes/call-tests.md`: four manual calls (hard name with a correction, common name, off-topic at the read-back, hang up halfway).
+- Checked by the user with real calls on 2026-10-08, all four passed: transcripts in English letters only; "Felu" spelled on purpose, corrected with "No. It's Feliu" (`correct_spelling -> confirm_name`) and read back right; one read-back for a common name; the weather question was declined and the call stayed on `confirm_name`; hang-up left no traceback. Seen in the call: the first question asks for the name and the spelling together, and a caller who gives only the name is asked again to spell it. Fine for now; "one question at a time" goes into the authoring guide (#29).
+
+Earlier notes: The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #24, the first `gh pr merge` was blocked by the permission classifier ("Merge Without Review") after the user said "ok yes"; it went through once they said "merge". The stale `docs/plan-and-adrs` branch (merged as #12) still exists locally and on origin: deleting it was blocked by the classifier, so the user deletes it. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
 What #10 built (frontend only), for reference:
 - Back edges (`edgePath.ts`): an edge into a node whose top is above the source's bottom gets a route from `routeBackEdges(boxes, edges)`, computed in `toFlowEdges` (which now takes the measured card sizes) and drawn by `backEdgeGeometry`: out of the bottom of the source, up a column, into the top of the target, label beside the column. The column clears every node in the edge's vertical span that starts left of it, plus self-loops and their labels (label width estimated from the function name). Back edges that share a column and overlap vertically get lanes, shorter spans inside, labels stacked by lane. Forward edges and self-loops are unchanged. Known limits: React Flow's fit view counts nodes only, so a column or label right of the graph can start out of view; the column is not checked against nodes to its right.
@@ -94,7 +106,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 49 tests) + Vitest (frontend, 160 tests) |
+| `make test` | pytest (backend, 50 tests) + Vitest (frontend, 160 tests) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -182,7 +194,6 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 
 - **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. Now part of #25 (turn timing).
 - **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked). To be decided in #28.
-- **STT language** is unset, so names come out in other scripts (Cyrillic, Chinese). Tracked in #13.
 - **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
 
@@ -208,3 +219,4 @@ Recorded so the reasoning is not lost:
 - Stray `\` after a code fence in `README.md`: fix in #11.
 - Back edges (to a node above the source) were plain curves that crossed the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope during #9 and built in #10.
 - Import opens the file as a new agent instead of replacing the open one (#10), so it cannot overwrite a saved agent by accident.
+- #13 was built before #11, on the existing example agent instead of the demo agent. #11 moved to the end, after Phase 2: one README and one video for both phases, and the full demo agent may come from the Composer. A short `make dev` README fix went in with #13.

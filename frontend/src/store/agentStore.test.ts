@@ -4,14 +4,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Agent } from "../agent/schema";
 import { selectIsDirty, useAgentStore } from "./agentStore";
 
-const exampleText = readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8");
+const exampleText = readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8");
 
 const store = () => useAgentStore.getState();
 const agent = () => store().agent!;
 const node = (name: string) => agent().nodes.find((n) => n.name === name);
 const edgeFns = (name: string) => (node(name)?.edges ?? []).map((e) => e.function);
 
-// Example agent: greeting -choose_intent-> collect_details -record_details-> offer_times -select_time-> confirm (end)
+// Fixture (the original example agent): greeting -choose_intent-> collect_details -record_details-> offer_times -select_time-> confirm (end)
 beforeEach(() => {
   store().open("prosper-scheduler", JSON.parse(exampleText) as Agent);
 });

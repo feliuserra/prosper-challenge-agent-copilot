@@ -9,27 +9,18 @@ Voice AI for healthcare scheduling. An agent is a **graph of nodes** (Pipecat Fl
 browser mic  ->  ElevenLabs STT  ->  OpenAI LLM  ->  ElevenLabs TTS  ->  browser
 ```
 
-Pipecat's dev runner ships a **prebuilt browser client**, so the test-call UI comes for free — no frontend code to write yet.
-
 ## Quickstart
 
-Requires **Python 3.11+** and [**uv**](https://docs.astral.sh/uv/getting-started/installation/) (uv will fetch a matching Python for you if needed). Run from the repo root:
+Requires **Python 3.11+**, [**uv**](https://docs.astral.sh/uv/getting-started/installation/) (it fetches a matching Python if needed) and **Node 24** (`frontend/.nvmrc`). Copy `backend/.env.example` to `backend/.env` and fill in `OPENAI_API_KEY` and `ELEVENLABS_API_KEY`. Then, from the repo root:
 
 ```bash
-make install   # uv sync — creates backend/.venv and installs from uv.lock
-make run       # uv run python bot.py
+make install   # uv sync for the backend, npm ci for the frontend
+make dev       # voice runner on :7860 + editor on :5173
 ```
 
-Open the URL it prints (default `http://localhost:7860/client`), click **Connect**, allow mic access, and talk to the agent. `Ctrl+C` to stop. (`make help` lists all targets.)
+Open `http://localhost:5173`: pick an agent, edit the graph, and press **Test call** in the toolbar, then **Call**. Allow mic access. The call uses the draft as it is in the editor, saved or not. `Ctrl+C` stops both processes. `make test` runs the backend and frontend tests; `make help` lists all targets.
 
-Prefer raw `uv`? The same commands without `make`:
-
-```bash
-uv sync --directory backend            # install dependencies
-uv run --directory backend python bot.py   # run the agent
-```\
-\
-Remember to update the `.env` file accordingly.
+`make run` starts the voice runner alone, with Pipecat's prebuilt client at `http://localhost:7860/client`, which calls the default agent (`backend/agents/prosper-scheduler.json`).
 
 ## Layout
 
@@ -39,3 +30,4 @@ Remember to update the `.env` file accordingly.
 | `backend/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `validation.py` = every problem with an agent, as `{message, node, edge}` records; `builder.py` = `AgentBuilder`, which validates the JSON and compiles it into a Pipecat Flows graph. |
 | `backend/composer_api.py` | The editor's agents API, served by the runner under `/composer` (list, get, save, validate, health). |
 | `backend/agents/` | Agents **as data**, one JSON file each. `prosper-scheduler.json` is the example clinic scheduler and the default agent. |
+| `frontend/` | The graph editor and test-call panel (Vite + React + TypeScript). In development Vite proxies `/composer`, `/start`, `/sessions` and `/api` to the runner. |

@@ -5,7 +5,7 @@ import type { Agent } from "../agent/schema";
 import { useAgentStore } from "./agentStore";
 import { beginEdit, edited, endEdit } from "./editSession";
 
-const exampleText = readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8");
+const exampleText = readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8");
 const store = () => useAgentStore.getState();
 const history = () => useAgentStore.temporal.getState();
 

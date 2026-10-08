@@ -17,7 +17,7 @@
         {
           "function": "choose_intent",
           "description": "Record what the caller wants to do once they say it.",
-          "target": "collect_details",
+          "target": "ask_name",
           "properties": {
             "intent": {
               "type": "string",
@@ -30,23 +30,76 @@
       ]
     },
     {
-      "name": "collect_details",
+      "name": "ask_name",
       "task_messages": [
         {
           "role": "developer",
-          "content": "Collect the caller's full name and the reason for the visit. Ask for whatever is still missing, one question at a time."
+          "content": "Ask for the caller's full name, then ask them to spell it letter by letter. If they have just said the name you read back was wrong, ask them to spell it again, or only the part that was wrong."
         }
       ],
       "edges": [
         {
-          "function": "record_details",
-          "description": "Record the caller's name and reason once both are known.",
+          "function": "record_spelling",
+          "description": "Call once the caller has spelled their full name. Write the name from the letters they spelled, not from how it sounded.",
+          "target": "confirm_name",
+          "properties": {
+            "spelled_name": {"type": "string", "description": "The full name, written exactly as the caller spelled it."}
+          },
+          "required": ["spelled_name"]
+        }
+      ]
+    },
+    {
+      "name": "confirm_name",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Read the name back: say it, then spell it letter by letter with a short pause between letters, like 'F, E, L, I, U'. Ask whether that's right. Do not move on until the caller says it is."
+        }
+      ],
+      "edges": [
+        {
+          "function": "name_confirmed",
+          "description": "Call when the caller says the name you read back is right.",
+          "target": "collect_reason",
+          "properties": {
+            "full_name": {"type": "string", "description": "The confirmed full name, exactly as spelled."}
+          },
+          "required": ["full_name"]
+        },
+        {
+          "function": "correct_spelling",
+          "description": "Call when the caller says the name is wrong and gives the correct spelling in the same answer.",
+          "target": "confirm_name",
+          "properties": {
+            "spelled_name": {"type": "string", "description": "The corrected full name, written exactly as the caller spelled it."}
+          },
+          "required": ["spelled_name"]
+        },
+        {
+          "function": "spell_again",
+          "description": "Call when the caller says the name is wrong but has not given the correct spelling yet.",
+          "target": "ask_name"
+        }
+      ]
+    },
+    {
+      "name": "collect_reason",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Ask briefly what the visit is for."
+        }
+      ],
+      "edges": [
+        {
+          "function": "record_reason",
+          "description": "Record the reason for the visit once the caller says it.",
           "target": "offer_times",
           "properties": {
-            "full_name": {"type": "string", "description": "Caller's full name."},
             "reason": {"type": "string", "description": "Reason for the visit."}
           },
-          "required": ["full_name", "reason"]
+          "required": ["reason"]
         }
       ]
     },

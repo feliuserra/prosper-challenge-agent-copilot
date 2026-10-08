@@ -7,7 +7,7 @@ import { useAgentStore } from "../store/agentStore";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
 import type { AgentFlowNode } from "./derive";
 
-const exampleText = readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8");
+const exampleText = readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8");
 
 const store = () => useAgentStore.getState();
 const history = () => useAgentStore.temporal.getState();
