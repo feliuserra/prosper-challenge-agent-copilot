@@ -22,11 +22,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #9 Authoring warnings | Merged | #23 |
 | #10 Editor polish | Merged | #24 |
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
-| **#13 Reliable caller identity** | **Built on `issue-13-caller-identity`**, main merged in, not pushed. Waiting for the user's test call (`docs/notes/call-tests.md`) | |
+| **#13 Reliable caller identity** | **In review.** Built on `issue-13-caller-identity`, main merged in; the user's test calls passed | |
 | #25 to #35 | Open, in the order of `PLAN-phase2.md`; #25 starts after #13 is merged (both change the example agent) | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** the user runs `docs/notes/call-tests.md` against #13, then push, PR and merge. Then #25 onwards in the order of `PLAN-phase2.md`. #11 comes last.
+**Next step:** merge #13 once the user says "merge". Then #25 onwards in the order of `PLAN-phase2.md`. #11 comes last.
 
 What #13 built, for reference:
 - `bot.py`: speech-to-text language fixed to English (`ElevenLabsRealtimeSTTService.Settings(language=Language.EN)`, sent as `language_code=en`; checked against the installed service).
@@ -34,6 +34,7 @@ What #13 built, for reference:
 - Tests no longer use the example agent for editor behaviour: the original four-node example is frozen in `backend/tests/fixtures/linear-agent.json` and both test suites use it. Only "the example is valid", "has no warnings", schema and file round trips still read `prosper-scheduler.json`, so the example can change freely.
 - README: quickstart for `make dev` (Node 24, `.env`), `frontend/` in the layout table, the stray `\` fixed. The full README is still #11.
 - `docs/notes/call-tests.md`: four manual calls (hard name with a correction, common name, off-topic at the read-back, hang up halfway).
+- Checked by the user with real calls on 2026-10-08, all four passed: transcripts in English letters only; "Felu" spelled on purpose, corrected with "No. It's Feliu" (`correct_spelling -> confirm_name`) and read back right; one read-back for a common name; the weather question was declined and the call stayed on `confirm_name`; hang-up left no traceback. Seen in the call: the first question asks for the name and the spelling together, and a caller who gives only the name is asked again to spell it. Fine for now; "one question at a time" goes into the authoring guide (#29).
 
 Earlier notes: The P2 extras of #10 (editable JSON view, node duplication, post-call summary) were not built. For #24, the first `gh pr merge` was blocked by the permission classifier ("Merge Without Review") after the user said "ok yes"; it went through once they said "merge". The stale `docs/plan-and-adrs` branch (merged as #12) still exists locally and on origin: deleting it was blocked by the classifier, so the user deletes it. For #23, the first `gh pr merge` right after a push failed with "not mergeable" while GitHub recomputed; it went through on retry. Note on merging: a first `gh pr merge` for #22 was blocked by the permission classifier ("Merge Without Review"); it went through once the user said "merge" again after being told. For #22, `gh` did delete the remote branch but did not switch or delete the local one (finished by hand, as for #20 and #21).
 
