@@ -14,7 +14,8 @@ Issues in build order, built on top of the Phase 1 editor ([`PLAN.md`](PLAN.md))
 Coding tools work because code comes with a spec, tests they can run and bug reports with evidence. Voice agents have none of these, which is why both workflows are manual. The Copilot creates them and then works the loop a coding agent works:
 
 ```
-client guidelines --> requirements --> agent graph --> tests
+client guidelines
+  + intake call   --> requirements --> agent graph --> tests
         ^                                  ^             |
 client tickets                        fix (diff)    run / audit
         |                                  |             v
@@ -22,6 +23,7 @@ client tickets                        fix (diff)    run / audit
 ```
 
 - **Requirements are the spec.** The Copilot turns guidelines into numbered, checkable requirements (each with the sentence it came from) plus questions for the client where the guidelines have gaps, each with the default it uses meanwhile. A healthcare baseline (emergency, no medical advice, identity first, a human on request) is always added.
+- **Gaps are found by a checklist, not by luck.** An intake checklist lists the decisions every clinic agent needs (#38); each item ends answered (with its source), assumed from a safe default (and asked), or not applicable. A voice agent generated from the same checklist interviews the clinic manager (#39), and the gaps left become a short follow-up call.
 - **The human reviews tests, not prompts.** Checking 20 one-line tests against the client's guidelines takes minutes; reading every prompt in a graph takes an hour. Tests are approved before the graph exists, and approved tests are locked.
 - **The Copilot loops until the tests pass,** then proposes one diff. You accept or reject it like a pull request; accepting is one undo step and a new version.
 - **Issues are found for you and pinned to the graph.** Every call is checked against the requirements and common failures; issues carry quotes and the node where they happened, and show as badges through the Phase 1 problems list.
@@ -45,6 +47,7 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 - **A blind second clinic.** Claude writes the reference suite and the Copilot's prompts, so neither is blind to the other. The user writes a second clinic's guidelines and about 6 tests and keeps them out of the repo until the final run in #34: the only check nobody tuned toward.
 - **Messy data for the call checker.** The mock production calls mix simulated calls with our real recorded voice calls and hand-roughened ones (hesitations, real speech-to-text garbles from #13), so the checker is not measured only on clean text.
 - **Checking the debugging.** The decisive turn must land in the node where a defect was planted; a turn replay must predict the full rerun; forecasts are compared with the true what-if from the mock calls' hidden callers; the line "N past turns affected" is compared with new calls. A fix is chosen on the flagged call and its numbers are reported on the other calls. Sentence ablation is not measured.
+- **A measured intake.** A model plays clinic-a's manager, who knows the answers the written guidelines leave out; we report how many checklist items the interview gets right compared with the document, and say that the manager knows those answers by construction.
 - **Effort numbers.** Human edits needed after generation, minutes from guidelines to all tests passing, minutes from issue to accepted fix.
 - **Stated limits.** The README says what the tests do not catch (below).
 
@@ -66,18 +69,20 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 | Debugging by cause | Each failure is traced to the broken link in its rule chain and the turn that decided it; candidate fixes are tested by replaying that turn and past turns before a full rerun; what-ifs are forecasts with an observed part and a simulated part | [0015](docs/adr/0015-debugging-by-cause.md) |
 | Flight recorder | Call records and test results keep, per agent turn, the node and the exact messages, functions and tool results the model was given | [0013](docs/adr/0013-workspaces-versions-and-calls.md), [0015](docs/adr/0015-debugging-by-cause.md) |
 | Requirement map | Copilot operations cite requirement ids; nodes and the agent carry an optional `requirements` list that the runtime ignores | [0012](docs/adr/0012-copilot-edits-through-operations.md), [0015](docs/adr/0015-debugging-by-cause.md) |
+| Client intake | A checklist of client decisions with stable ids and safe defaults is the floor for the spec step's coverage; the interview agent is generated from it, so the two never drift; the client is asked only what only the client knows | No ADR; reasoning in #38 and #39 |
 
 ## Time and cuts
 
-About one week plus two days for the debugging tools (ADR 0015), so about two PRs a day to review. If we fall behind, cut in this order: sentence ablation, the win-probability chart, the canvas overlay of affected turns, the second clinic (if there is no time to write it), grouping issues across calls, any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them.
+About one week plus two days for the debugging tools (ADR 0015) and about a day for the client intake (#38, #39), so about two PRs a day to review. If we fall behind, cut in this order: sentence ablation, the win-probability chart, the intake call (#39), the canvas overlay of affected turns, the second clinic (if there is no time to write it), grouping issues across calls, any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them.
 
 ## Prerequisites (user)
 
 - [ ] Review the demo clinic's guidelines and the 20 reference tests (#27).
 - [ ] Review the judge labels: about 30, drafted with a reason each, about 45 minutes (#27).
 - [ ] Add Prosper or industry practice to the authoring guide when reviewing #29.
+- [ ] Review the intake checklist's questions and defaults (#38).
 - [ ] Write clinic B (guidelines and about 6 tests in the same format as #27) and keep it out of the repo until the final run in #34.
-- [ ] Real calls for #25 (tools, turn timing), #33 (the fix) and the rehearsal in #34.
+- [ ] Real calls for #25 (tools, turn timing), #33 (the fix), #39 (an intake, playing the manager) and the rehearsal in #34.
 
 ## Checklist
 
@@ -86,10 +91,12 @@ About one week plus two days for the debugging tools (ADR 0015), so about two PR
 - [ ] [#27](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/27) Demo clinic, reference suite and `make eval`
 - [ ] [#28](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/28) Workspaces, versions and recorded calls
 - [ ] [#29](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/29) Copilot service: edit operations and the spec step
+- [ ] [#38](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/38) Client intake checklist
 - [ ] [#30](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/30) Copilot builds the agent and loops until green
 - [ ] [#31](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/31) Copilot UI
 - [ ] [#32](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/32) Calls inbox and audit
 - [ ] [#33](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/33) Fix from an issue
+- [ ] [#39](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/39) Intake call: an agent that interviews the client
 - [ ] [#35](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/35) Turn inspector and causal views
 - [ ] [#34](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/34) Demo readiness
 
@@ -206,7 +213,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Service under `/copilot` on the runner ([ADR 0014](docs/adr/0014-copilot-service-and-ui.md)), progress streamed to the browser (server-sent events). OpenAI client, pinned models, prompts in their own files. Each request carries the editor's current draft, as test calls do, so the Copilot works on what the user sees, saved or not.
 - Authoring guide (`backend/copilot/prompts/authoring-guide.md`): what makes a good voice agent graph, drafted by Claude from general practice and Phase 1 (short spoken replies, one question at a time, confirm critical details such as #13's spell-and-confirm, how to write edge descriptions, when to use tools, clean endings). The user adds Prosper or industry practice in review. The Copilot's prompts include it; humans can read it too.
 - The conversation is saved in the workspace (`chat.json`), so a reload keeps it.
-- Spec step: guidelines plus the healthcare baseline produce requirements (id, text, the sentence it came from), client questions (question, default used meanwhile) and tests (format from #26, linked to requirements, with a tier). Tests are generated from the requirements only, never from a graph. Stored as drafts in the workspace.
+- Spec step: guidelines plus the healthcare baseline produce requirements (id, text, the sentence it came from), client questions (question, default used meanwhile) and tests (format from #26, linked to requirements, with a tier). Tests are generated from the requirements only, never from a graph. Stored as drafts in the workspace. Coverage against the intake checklist is added right after, in #38.
 - Chat loop with a small toolset: read the workspace, propose or edit the spec ("drop R7", "add a test for a minor"), and later build, run tests, audit and fix. Transcripts and tickets are passed as delimited data, never as instructions.
 - The Copilot's tools can read only its workspace; nothing reaches `backend/eval/`.
 
@@ -216,6 +223,27 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - The shared operation cases pass in pytest and Vitest; an invalid sequence of operations is repaired or reported, never written.
 - Renames and deletes carry a node's requirement list (shared cases).
 - A test shows that no Copilot tool can read `backend/eval/`.
+
+## 38. Client intake checklist
+
+**Goal:** a fixed list of the decisions every clinic scheduling agent needs, so that finding the gaps in a client's guidelines is systematic instead of depending on the model noticing them. The spec step checks any input against it, and whatever is missing or vague goes back to the client as a question, with the default the agent uses meanwhile.
+
+**Depends on:** #27, #29. Built right after #29, before #30.
+
+**Scope:**
+- `backend/copilot/intake-checklist.json`: 29 items in sections (scope, identity, new patients, booking, changes, safety, handoff, facts and tone, priorities). Each has a stable `id` (never reused or renumbered), a `section`, a `question`, an optional `scenario` ("A 16-year-old calls to book for herself") and a safe `default`. The first draft of the items is in the issue; the file is the living version. A loader checks that ids are unique and every item has a question and a default.
+- The client is asked only what only the client knows: conversation design comes from the authoring guide, calendar data from the clinic's system (the world seed here).
+- Coverage in the spec step: each item is `answered` (requirement ids and source sentence), `defaulted` (a requirement from the default, marked `assumed`, plus a client question; a vague answer counts as defaulted and the question quotes it) or `not_applicable` (with a reason). Requirements that match no item are kept: the checklist is a floor.
+- Client questions come from the defaulted items, in checklist order, as one batch.
+- Expected coverage for clinic-a in `backend/eval/clinic-a/coverage.json`, held out.
+- Shown in the Copilot tab (#31) as a coverage card; assumed requirements are marked on their cards.
+- How the list improves: a checklist change is a PR naming the call, test, ticket or client conversation behind it. When a failure is diagnosed as "unclear in the guidelines" (ADR 0015) or an audit issue (#32) traces back to something the client never decided, the PR adds the item that would have caught it. Prosper's real intake questions are merged in if they become known.
+
+**Acceptance criteria:**
+- On clinic-a, the coverage matches `coverage.json` for every item, or the PR lists the differences: every planted gap (minors, double booking, nothing fits) is `defaulted` with a client question, and every item the guidelines answer is `answered` with the right sentence.
+- Every `assumed` requirement has at least one test.
+- The loader rejects a duplicate id and an item without a default (pytest).
+- The user has reviewed the questions and the defaults.
 
 ## 30. Copilot builds the agent and loops until green
 
@@ -248,7 +276,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Scope:**
 - A right-hand column with tabs: Copilot, Tests, Calls (filled in #32) and Test call (the #7 panel, unchanged). It takes the call panel's place instead of adding a fourth column.
-- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
+- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the checklist coverage (#38), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
 - Guidelines: a text area in the workspace to paste the client's document.
 - Requirement map: clicking a requirement outlines the nodes that carry it; the node panel shows a node's requirements as read-only chips; requirements with no node or no test appear in the problems list as warnings.
 - Canvas: while the Copilot builds, its operations appear live; a proposal shows as a diff overlay (added, changed, removed nodes and edges). Accept applies it through a new store operation as one undo step and saves a version; Reject leaves the agent as it was.
@@ -306,6 +334,27 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - The proposal shows the what-if and the past-call line; forecast calibration and the agreement of turn replays with full reruns are reported, whatever they are.
 - The reproduction test is in the suite afterwards and passes on later runs.
 
+## 39. Intake call: an agent that interviews the client
+
+**Goal:** the client explains their rules by talking instead of writing a document. A voice agent generated from the checklist (#38) interviews the clinic manager and asks one follow-up when an answer is vague. Its transcript is an input to the spec step, and the gaps left become a short follow-up call that asks only those items.
+
+**Depends on:** #26, #28, #29, #31, #38. Built after #33; cut after the sentence ablation and the win-probability chart, before the canvas overlay.
+
+**Scope:**
+- `backend/copilot/intake.py`: `build_intake_agent(checklist, items=None)` returns an agent JSON with no model call: one node per section in checklist order (sections with nothing to ask are skipped), a `next_section` edge to the next node, a `stop_early` edge from every node to the wrap-up (a partial interview is fine), and an end node. Persona rules: one question at a time; use the scenario when there is one; one follow-up when an answer names no concrete rule; when the client does not know, read the default and ask whether it is fine (a yes counts as an answer); never suggest an answer before the client has tried; no calendar data. Generated, so the interview and the checklist never drift.
+- Follow-up call: `items` is the defaulted items from the latest coverage; a node quotes the earlier vague answer when there was one.
+- Recording: runs on the existing bot with the agent sent at connect time (ADR 0005), recorded in the workspace of the agent being built with `source: intake`.
+- Spec step: reads intake transcripts next to `guidelines.md`, as delimited data; a requirement from a call cites the client's turn; names heard in a call are flagged for the human to check, since speech-to-text garbles them.
+- Copilot tab: "Interview the client" starts a call with the generated agent in the Test call panel; "Follow-up call" appears when the coverage has defaulted items. In production this would be a phone number or a link sent to the client.
+- Simulated interview with the #26 runner: a model plays clinic-a's manager from `backend/eval/clinic-a/manager.json` (held out): a persona, the full policy including the answers the guidelines leave out, and a few items to answer vaguely.
+
+**Acceptance criteria:**
+- The generated agent passes `validate_agent` for the full checklist and any subset, and a new checklist item appears in the next generated agent (pytest, no model calls).
+- On the simulated interview, coverage from the transcript and from `guidelines.md` are both compared with `manager.json`, including the planted gaps. Reported either way, with the note that the manager knows those answers by construction.
+- Each item answered vaguely gets exactly one follow-up (checked on the transcript).
+- Turns and estimated spoken minutes are reported for a full interview and a follow-up call.
+- A live intake call by the user, playing the manager, produces a call record in the agent's workspace that the spec step reads.
+
 ## 35. Turn inspector and causal views
 
 **Goal:** see why the agent did what it did: what it saw on a turn, which sentences it relied on, where a call was lost, and which past turns a change would touch. Built last; the first to cut.
@@ -333,7 +382,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Scope:**
 - `make demo-reset`: restores the demo workspace (guidelines, the weak agent, mock calls and tickets) and clears caches.
-- `docs/demo.md`: the demo script. Act 1: guidelines, spec, approve tests, build, tests pass, live call. Act 2: calls inbox, audit, issues on the graph with their decisive turn, reproduce, candidate fixes replayed on that turn, the what-if and the past-call line, fix, tests pass, live call. The inspector, chart and ablation from #35 if they were built. Everything runs live, but every long step (spec, build, test runs, audit, fix) can switch to the results cached during the rehearsal, so a slow model call never stalls the demo.
+- `docs/demo.md`: the demo script. Act 1: guidelines (or about a minute of a live intake call, then a recorded one, if #39 was built), spec, approve tests, build, tests pass, live call. Act 2: calls inbox, audit, issues on the graph with their decisive turn, reproduce, candidate fixes replayed on that turn, the what-if and the past-call line, fix, tests pass, live call. The inspector, chart and ablation from #35 if they were built. Everything runs live, but every long step (spec, build, test runs, audit, fix) can switch to the results cached during the rehearsal, so a slow model call never stalls the demo.
 - Two full rehearsals; fix what breaks.
 - Update `docs/notes/call-tests.md` for tools and the new example agent.
 - Numbers in `docs/notes/results.md`: reference pass rate, mutants caught, judge agreement, checker recall and false alarms, blame accuracy, turn replays against full reruns, forecast calibration, the past-call line against new calls, time and cost per run, human edits needed after generation, minutes from guidelines to green and from issue to accepted fix.
