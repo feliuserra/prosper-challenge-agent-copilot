@@ -1,12 +1,12 @@
 # Handoff: Prosper challenge (Agent Composer), Phase 1 UI
 
-Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
+Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35, #38 and #39), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
 
 Working style: the user (Feliu) is a strong Python developer and wants direct answers with explicit reasoning and trade-offs. Explain why each decision is made. Avoid overengineering. In documents written for the repo, keep a plain voice and avoid em-dashes.
 
 ---
 
-## 0. Status (updated 2026-10-08, #25 built)
+## 0. Status (updated 2026-10-12, #25 built, client intake planned)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -24,10 +24,18 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
 | #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
 | **#25 Mock tools and turn timing** | **Built** on `issue-25-mock-tools`, not pushed. Waiting for the user's test calls (`docs/notes/call-tests.md`) | |
-| #26 to #35 | Open, in the order of `PLAN-phase2.md` | |
+| Client intake plan | **In review.** #38 (checklist) and #39 (intake call) created; `PLAN-phase2.md` updated on `docs/intake-plan` | #40 |
+| #26 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** the user runs `docs/notes/call-tests.md` against #25 (the real-call acceptance: a one-word answer gets a reply in about a second, and the example agent books a slot that came from `find_slots`), then push, PR and merge. Then #26. #11 comes last.
+**Next step:** the user runs `docs/notes/call-tests.md` against #25 (the real-call acceptance: a one-word answer gets a reply in about a second, and the example agent books a slot that came from `find_slots`), then push, PR and merge. Merge #40 when the user says so (it only touches `PLAN-phase2.md`, so it does not conflict with #25). Then #26. #11 comes last.
+
+Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
+- The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
+- #38: a checklist of 29 client decisions (stable ids, an optional scenario, a safe default each) in `backend/copilot/intake-checklist.json`. The spec step reports coverage per item: answered, defaulted (an `assumed` requirement plus a client question; vague answers count as defaulted) or not applicable. The checklist is a floor, not a ceiling. It asks only what only the client knows: conversation design is the authoring guide's, calendar data the clinic system's. The first draft of the items and defaults is in the issue body; the user reviews it. It improves through PRs: a failure diagnosed as "unclear in the guidelines" adds the item that would have caught it.
+- #39: a voice agent generated from the checklist (no model call, so it never drifts from it) interviews the clinic manager on the existing bot; its transcript goes into the agent's workspace as `source: intake` and feeds the spec step; gaps left become a short follow-up call. Measured with a simulated manager (#26 runner) who knows the answers the guidelines leave out, which is partly by construction and must be said. Cuttable.
+- Dropped: uploading a recorded kickoff call. The intake call replaces it.
+- Not done: pointers to #38 and #39 inside the bodies of issues #29, #31 and #34 (and a #39 pointer in #38). Editing existing issues with `gh issue edit` was blocked by the permission classifier ("External System Writes"); `PLAN-phase2.md` carries the same pointers. The user can add them or allow the edit.
 
 What #25 built, for reference:
 - `backend/clinic/` (ADR 0008): `catalog.py` is the tool catalog as pure data (`TOOLS`: name, description, parameter schema, `changes_world`, `ends_call`; `catalog()` for the editor). `world.py` is `ClinicWorld`: providers with weekly schedules, patients and appointments from a seed; `now` comes from the seed; open slots are generated from the schedules (ids like `dr-patel-2026-10-12-0900`) and are open when after `now` and not used by a booked appointment. Each tool is a method of the same name; `call(name, args)` checks required args and returns `{"error": ...}` for refusals instead of raising. Names match ignoring case, accents, spaces and punctuation; dates must be YYYY-MM-DD. `live.py` is `LiveClinic`: `state.json` (gitignored), created from `seed.json` on the first change, reread on every call so deleting it resets at once. `make clinic-reset` deletes it.
@@ -233,3 +241,4 @@ Recorded so the reasoning is not lost:
 - Back edges (to a node above the source) were plain curves that crossed the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope during #9 and built in #10.
 - Import opens the file as a new agent instead of replacing the open one (#10), so it cannot overwrite a saved agent by accident.
 - #13 was built before #11, on the existing example agent instead of the demo agent. #11 moved to the end, after Phase 2: one README and one video for both phases, and the full demo agent may come from the Composer. A short `make dev` README fix went in with #13.
+- Two issues were added after the Phase 2 plan, from a brainstorm on what to ask a client: #38 (intake checklist, coverage in the spec step) and #39 (an intake call generated from it). No ADR; the reasoning is in the issues and in section 0. About a day added to the estimate; #39 sits in the cut order after the sentence ablation and the win-probability chart.
