@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-12, #25 merged, client intake planned)
+## 0. Status (updated 2026-10-12, #25 and the client intake plan merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -24,11 +24,11 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
 | #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
 | #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
-| Client intake plan | **In review.** #38 (checklist) and #39 (intake call) created; `PLAN-phase2.md` updated on `docs/intake-plan` | #40 |
+| Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** merge #40 when the user says so (it only touches `PLAN-phase2.md`). Then #26. #11 comes last.
+**Next step:** #26 (text runner and test format) on `issue-26-text-runner`, then the rest in the order of `PLAN-phase2.md`. #11 comes last.
 
 Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
 - The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
