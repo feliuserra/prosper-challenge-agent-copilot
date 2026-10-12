@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-12, #25 built, client intake planned)
+## 0. Status (updated 2026-10-12, #25 merged, client intake planned)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -23,19 +23,19 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #10 Editor polish | Merged | #24 |
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
 | #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
-| **#25 Mock tools and turn timing** | **Built** on `issue-25-mock-tools`, not pushed. Waiting for the user's test calls (`docs/notes/call-tests.md`) | |
+| #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
 | Client intake plan | **In review.** #38 (checklist) and #39 (intake call) created; `PLAN-phase2.md` updated on `docs/intake-plan` | #40 |
 | #26 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** the user runs `docs/notes/call-tests.md` against #25 (the real-call acceptance: a one-word answer gets a reply in about a second, and the example agent books a slot that came from `find_slots`), then push, PR and merge. Merge #40 when the user says so (it only touches `PLAN-phase2.md`, so it does not conflict with #25). Then #26. #11 comes last.
+**Next step:** merge #40 when the user says so (it only touches `PLAN-phase2.md`). Then #26. #11 comes last.
 
 Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
 - The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
 - #38: a checklist of 29 client decisions (stable ids, an optional scenario, a safe default each) in `backend/copilot/intake-checklist.json`. The spec step reports coverage per item: answered, defaulted (an `assumed` requirement plus a client question; vague answers count as defaulted) or not applicable. The checklist is a floor, not a ceiling. It asks only what only the client knows: conversation design is the authoring guide's, calendar data the clinic system's. The first draft of the items and defaults is in the issue body; the user reviews it. It improves through PRs: a failure diagnosed as "unclear in the guidelines" adds the item that would have caught it.
 - #39: a voice agent generated from the checklist (no model call, so it never drifts from it) interviews the clinic manager on the existing bot; its transcript goes into the agent's workspace as `source: intake` and feeds the spec step; gaps left become a short follow-up call. Measured with a simulated manager (#26 runner) who knows the answers the guidelines leave out, which is partly by construction and must be said. Cuttable.
 - Dropped: uploading a recorded kickoff call. The intake call replaces it.
-- Not done: pointers to #38 and #39 inside the bodies of issues #29, #31 and #34 (and a #39 pointer in #38). Editing existing issues with `gh issue edit` was blocked by the permission classifier ("External System Writes"); `PLAN-phase2.md` carries the same pointers. The user can add them or allow the edit.
+- Pointers to #38 and #39 were added to the bodies of issues #29, #31, #34 and #38, matching `PLAN-phase2.md`. The first `gh issue edit` was blocked by the permission classifier ("External System Writes"); it went through once the user allowed it.
 
 What #25 built, for reference:
 - `backend/clinic/` (ADR 0008): `catalog.py` is the tool catalog as pure data (`TOOLS`: name, description, parameter schema, `changes_world`, `ends_call`; `catalog()` for the editor). `world.py` is `ClinicWorld`: providers with weekly schedules, patients and appointments from a seed; `now` comes from the seed; open slots are generated from the schedules (ids like `dr-patel-2026-10-12-0900`) and are open when after `now` and not used by a booked appointment. Each tool is a method of the same name; `call(name, args)` checks required args and returns `{"error": ...}` for refusals instead of raising. Names match ignoring case, accents, spaces and punctuation; dates must be YYYY-MM-DD. `live.py` is `LiveClinic`: `state.json` (gitignored), created from `seed.json` on the first change, reread on every call so deleting it resets at once. `make clinic-reset` deletes it.
@@ -46,6 +46,7 @@ What #25 built, for reference:
 - `GET /composer/tools`: the catalog. Editor: tool checkboxes in the node panel (catalog order, first sentence of each description as a hint, tools the catalog lacks kept until unchecked), tool names on node cards, "Tool" rows in the call transcript (args, a folded result, refusals in red).
 - Example agent: `greeting -> ask_name -> confirm_name -> verify_patient -> collect_reason -> offer_times -> confirm`. `verify_patient` asks the date of birth and uses `lookup_patient` / `register_patient`; `offer_times` uses `find_slots` and `book_appointment`; the greeting offers `transfer_to_human`. The persona asks for dates spoken naturally, never as numbers.
 - Tests: 105 pytest (every tool on the seed, live state, validation, the builder's tool functions with a fake flow manager, the catalog route), 165 Vitest. Checked in the browser pane: checkboxes, card lines, the clash error, tool rows.
+- Checked by the user with real calls on 2026-10-12 (`docs/notes/call-tests.md`): all passed, including the one-word answer in about a second and a booking from a `find_slots` slot.
 
 What #13 built, for reference:
 - `bot.py`: speech-to-text language fixed to English (`ElevenLabsRealtimeSTTService.Settings(language=Language.EN)`, sent as `language_code=en`; checked against the installed service).
