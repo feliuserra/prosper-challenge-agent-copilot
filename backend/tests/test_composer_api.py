@@ -153,3 +153,10 @@ def test_unexpected_voice_errors_report_only_the_type(agents_dir, monkeypatch):
 
     error = voices_client(agents_dir, fetch).get("/composer/voices").json()["error"]
     assert "secret-key" not in error and "RuntimeError" in error
+
+
+def test_tools_catalog(client):
+    tools = client.get("/composer/tools").json()["tools"]
+    assert [t["name"] for t in tools][:3] == ["lookup_patient", "register_patient", "find_slots"]
+    assert tools[0]["required"] == ["full_name", "date_of_birth"]
+    assert "date_of_birth" in tools[0]["properties"]

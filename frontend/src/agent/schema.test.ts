@@ -34,6 +34,13 @@ describe("Agent schema", () => {
     expect(Agent.safeParse({ name: "a", initial_node: "s", nodes: [{ name: 1 }] }).success).toBe(false);
   });
 
+  it("reads node tools as a list of names", () => {
+    const agent = JSON.parse(exampleText);
+    expect(Agent.parse(agent).nodes.find((n) => n.name === "offer_times")?.tools).toEqual(["find_slots", "book_appointment"]);
+    agent.nodes[0].tools = "find_slots";
+    expect(Agent.safeParse(agent).success).toBe(false);
+  });
+
   it("accepts a blank agent", () => {
     expect(Agent.safeParse(blankAgent("New")).success).toBe(true);
   });

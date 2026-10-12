@@ -2,7 +2,7 @@
   "name": "Prosper Scheduler",
   "voice_id": "21m00Tcm4TlvDq8ikWAM",
   "model": "gpt-4o",
-  "persona": "You are a warm, efficient scheduling assistant for a healthcare clinic. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Keep replies to one or two short sentences. Always use an available function to move the conversation forward.",
+  "persona": "You are a warm, efficient scheduling assistant for a healthcare clinic. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Always use an available function to move the conversation forward.",
   "initial_node": "greeting",
   "nodes": [
     {
@@ -10,7 +10,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Greet the caller, say you're the clinic's scheduling assistant, and ask whether they'd like to book, reschedule, or cancel an appointment."
+          "content": "Greet the caller, say you're the clinic's scheduling assistant, and ask whether they'd like to book, reschedule, or cancel an appointment. If the caller asks to speak to a person, call transfer_to_human."
         }
       ],
       "edges": [
@@ -21,12 +21,21 @@
           "properties": {
             "intent": {
               "type": "string",
-              "enum": ["book", "reschedule", "cancel"],
+              "enum": [
+                "book",
+                "reschedule",
+                "cancel"
+              ],
               "description": "What the caller wants to do."
             }
           },
-          "required": ["intent"]
+          "required": [
+            "intent"
+          ]
         }
+      ],
+      "tools": [
+        "transfer_to_human"
       ]
     },
     {
@@ -43,9 +52,14 @@
           "description": "Call once the caller has spelled their full name. Write the name from the letters they spelled, not from how it sounded.",
           "target": "confirm_name",
           "properties": {
-            "spelled_name": {"type": "string", "description": "The full name, written exactly as the caller spelled it."}
+            "spelled_name": {
+              "type": "string",
+              "description": "The full name, written exactly as the caller spelled it."
+            }
           },
-          "required": ["spelled_name"]
+          "required": [
+            "spelled_name"
+          ]
         }
       ]
     },
@@ -61,26 +75,65 @@
         {
           "function": "name_confirmed",
           "description": "Call when the caller says the name you read back is right.",
-          "target": "collect_reason",
+          "target": "verify_patient",
           "properties": {
-            "full_name": {"type": "string", "description": "The confirmed full name, exactly as spelled."}
+            "full_name": {
+              "type": "string",
+              "description": "The confirmed full name, exactly as spelled."
+            }
           },
-          "required": ["full_name"]
+          "required": [
+            "full_name"
+          ]
         },
         {
           "function": "correct_spelling",
           "description": "Call when the caller says the name is wrong and gives the correct spelling in the same answer.",
           "target": "confirm_name",
           "properties": {
-            "spelled_name": {"type": "string", "description": "The corrected full name, written exactly as the caller spelled it."}
+            "spelled_name": {
+              "type": "string",
+              "description": "The corrected full name, written exactly as the caller spelled it."
+            }
           },
-          "required": ["spelled_name"]
+          "required": [
+            "spelled_name"
+          ]
         },
         {
           "function": "spell_again",
           "description": "Call when the caller says the name is wrong but has not given the correct spelling yet.",
           "target": "ask_name"
         }
+      ]
+    },
+    {
+      "name": "verify_patient",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is found, call patient_identified with their patient_id. If not, say you could not find a record and ask whether they are new to the clinic. If they are new, ask for a phone number, call register_patient, then call patient_identified with the new patient_id. If they say they are already a patient, check the date of birth with them and look them up once more."
+        }
+      ],
+      "edges": [
+        {
+          "function": "patient_identified",
+          "description": "Call once lookup_patient found the caller or register_patient registered them.",
+          "target": "collect_reason",
+          "properties": {
+            "patient_id": {
+              "type": "string",
+              "description": "The patient_id the tool returned."
+            }
+          },
+          "required": [
+            "patient_id"
+          ]
+        }
+      ],
+      "tools": [
+        "lookup_patient",
+        "register_patient"
       ]
     },
     {
@@ -97,9 +150,14 @@
           "description": "Record the reason for the visit once the caller says it.",
           "target": "offer_times",
           "properties": {
-            "reason": {"type": "string", "description": "Reason for the visit."}
+            "reason": {
+              "type": "string",
+              "description": "Reason for the visit."
+            }
           },
-          "required": ["reason"]
+          "required": [
+            "reason"
+          ]
         }
       ]
     },
@@ -108,23 +166,28 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Offer exactly two options: Tuesday at 10 AM, or Thursday at 2 PM. Ask which one works for them."
+          "content": "Call find_slots to get open times; if the caller has said a day, a time of day or a provider they prefer, pass it. Offer two of the slots it returns, with the day, time and provider, and ask which one works. Never offer a time that find_slots did not return. If neither suits, ask what would and call find_slots again. When the caller picks one, call book_appointment with the patient_id, that slot_id and the reason for the visit. When it succeeds, call appointment_booked. If the slot was taken, apologise and offer others."
         }
       ],
       "edges": [
         {
-          "function": "select_time",
-          "description": "Record the slot the caller picks.",
+          "function": "appointment_booked",
+          "description": "Call once book_appointment has succeeded.",
           "target": "confirm",
           "properties": {
-            "slot": {
+            "appointment_id": {
               "type": "string",
-              "enum": ["Tuesday 10 AM", "Thursday 2 PM"],
-              "description": "The chosen appointment slot."
+              "description": "The appointment_id book_appointment returned."
             }
           },
-          "required": ["slot"]
+          "required": [
+            "appointment_id"
+          ]
         }
+      ],
+      "tools": [
+        "find_slots",
+        "book_appointment"
       ]
     },
     {
@@ -132,7 +195,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Confirm the appointment back to the caller, including their name and the chosen time, thank them, and say goodbye."
+          "content": "Confirm the booked appointment back to the caller: their name, the day, the time and the provider. Thank them and say goodbye."
         }
       ],
       "end": true

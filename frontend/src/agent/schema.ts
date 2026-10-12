@@ -32,6 +32,8 @@ export const Node = z.looseObject({
   pre_actions: z.array(Action).optional(),
   post_actions: z.array(Action).optional(),
   end: z.boolean().optional(),
+  // Tools from the clinic catalog this node may call (ADR 0008).
+  tools: z.array(z.string()).optional(),
   // Editor-only canvas position; the backend ignores it.
   ui: Position.optional(),
 });

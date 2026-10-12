@@ -1,0 +1,54 @@
+{
+  "clinic": {
+    "name": "Riverside Family Clinic",
+    "now": "2026-10-12T08:30",
+    "days_ahead": 28
+  },
+  "providers": [
+    {
+      "id": "dr-patel",
+      "name": "Dr. Priya Patel",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "mon": ["09:00-12:00", "13:00-17:00"],
+        "tue": ["09:00-12:00", "13:00-17:00"],
+        "wed": ["09:00-12:00", "13:00-17:00"],
+        "thu": ["09:00-12:00", "13:00-17:00"],
+        "fri": ["09:00-12:00"]
+      }
+    },
+    {
+      "id": "dr-okafor",
+      "name": "Dr. Daniel Okafor",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "mon": ["08:00-12:00"],
+        "wed": ["08:00-12:00"],
+        "fri": ["08:00-12:00"]
+      }
+    },
+    {
+      "id": "np-kim",
+      "name": "Grace Kim",
+      "specialty": "Nurse practitioner",
+      "slot_minutes": 20,
+      "schedule": {
+        "tue": ["12:00-18:00"],
+        "thu": ["12:00-18:00"]
+      }
+    }
+  ],
+  "patients": [
+    {"id": "pat-001", "full_name": "Ana Lopez", "date_of_birth": "1984-03-12", "phone": "555-010-1234"},
+    {"id": "pat-002", "full_name": "James O'Connor", "date_of_birth": "1957-11-02", "phone": "555-010-5678"},
+    {"id": "pat-003", "full_name": "Mei Chen", "date_of_birth": "1992-06-30", "phone": "555-010-9012"}
+  ],
+  "appointments": [
+    {"id": "appt-0001", "patient_id": "pat-001", "provider_id": "dr-patel", "start": "2026-10-14T10:00", "reason": "Annual check-up", "status": "booked"},
+    {"id": "appt-0002", "patient_id": "pat-002", "provider_id": "dr-okafor", "start": "2026-10-12T11:00", "reason": "Blood pressure follow-up", "status": "booked"},
+    {"id": "appt-0003", "patient_id": "pat-003", "provider_id": "np-kim", "start": "2026-10-13T14:00", "reason": "Flu vaccine", "status": "booked"},
+    {"id": "appt-0004", "patient_id": "pat-003", "provider_id": "dr-patel", "start": "2026-10-12T09:00", "reason": "Sore throat", "status": "cancelled"}
+  ]
+}

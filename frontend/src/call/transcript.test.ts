@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BotOutputData } from "@pipecat-ai/client-js";
 
-import { addBotOutput, addUserTranscript, parseTransition, turnText, type Turn } from "./transcript";
+import { addBotOutput, addUserTranscript, parseToolCall, parseTransition, turnText, type Turn } from "./transcript";
 
 const user = (turns: Turn[], text: string, final = true) => addUserTranscript(turns, { text, final });
 const texts = (turns: Turn[]) => turns.map((t) => `${t.role}: ${turnText(t)}`);
@@ -106,5 +106,39 @@ describe("parseTransition", () => {
     turns = addUserTranscript(turns, { text: "Tuesday", final: true });
     expect(turns.map((t) => t.role)).toEqual(["user", "transition", "user"]);
     expect(turnText(turns[1])).toBe("f -> b");
+  });
+});
+
+describe("parseToolCall", () => {
+  it("reads the tool handler's message", () => {
+    const data = {
+      type: "tool_call",
+      node: "offer_times",
+      tool: "find_slots",
+      args: { time_of_day: "morning" },
+      result: { slots: [], more: false },
+    };
+    expect(parseToolCall(data)).toEqual({
+      role: "tool",
+      node: "offer_times",
+      tool: "find_slots",
+      args: { time_of_day: "morning" },
+      result: { slots: [], more: false },
+    });
+  });
+
+  it("ignores other server messages and tolerates missing args and result", () => {
+    expect(parseToolCall({ type: "transition", from: "a", function: "f", to: "b" })).toBeNull();
+    expect(parseToolCall({ type: "tool_call", node: "a" })).toBeNull();
+    expect(parseToolCall({ type: "tool_call", node: "a", tool: "find_slots" })).toMatchObject({ args: {}, result: {} });
+    expect(parseTransition({ type: "tool_call", node: "a", tool: "find_slots" })).toBeNull();
+  });
+
+  it("starts a new user turn after a tool call", () => {
+    let turns: Turn[] = addUserTranscript([], { text: "Mornings are best.", final: true });
+    turns = [...turns, parseToolCall({ type: "tool_call", node: "a", tool: "find_slots", args: {}, result: {} })!];
+    turns = addUserTranscript(turns, { text: "The first one", final: true });
+    expect(turns.map((t) => t.role)).toEqual(["user", "tool", "user"]);
+    expect(turnText(turns[1])).toBe("find_slots");
   });
 });

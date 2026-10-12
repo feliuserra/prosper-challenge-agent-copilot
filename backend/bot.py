@@ -12,6 +12,10 @@
 # none is sent, the default agent in agents/. This file also mounts the editor's
 # agents API (composer_api.py) on the runner, so everything runs on one port.
 #
+# Tools run against the live clinic (clinic/state.json, created from
+# clinic/seed.json on the first change; delete it or `make clinic-reset` to
+# start over), shared by every call so a booking survives into the next one.
+#
 # Run:  python bot.py   then open http://localhost:7860/client
 #
 
@@ -21,6 +25,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
+from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.frames.frames import EndFrame
 from pipecat.pipeline.pipeline import Pipeline
@@ -38,10 +44,13 @@ from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder, ValidationError, ValidationIssue
+from clinic import LiveClinic
 from composer_api import make_router
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
@@ -52,6 +61,15 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 # without sending an agent (e.g. the prebuilt client at /client).
 AGENTS_DIR = Path(__file__).parent / "agents"
 DEFAULT_AGENT = AGENTS_DIR / "prosper-scheduler.json"
+
+CLINIC_DIR = Path(__file__).parent / "clinic"
+CLINIC = LiveClinic(seed_path=CLINIC_DIR / "seed.json", state_path=CLINIC_DIR / "state.json")
+
+# Longest silence before a turn ends when Smart Turn judges it unfinished.
+# Pipecat's default is 3 s, so one-word answers ("Book.") waited 3 s for a
+# reply. Lower is snappier, but a caller who pauses longer than this while
+# spelling a name gets cut off mid-name (#25).
+TURN_STOP_SECS = 1.2
 
 app.include_router(make_router(AGENTS_DIR))
 
@@ -85,7 +103,16 @@ async def run_bot(
     context = LLMContext()
     context_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+            user_turn_strategies=UserTurnStrategies(
+                stop=[
+                    TurnAnalyzerUserTurnStopStrategy(
+                        turn_analyzer=LocalSmartTurnAnalyzerV3(params=SmartTurnParams(stop_secs=TURN_STOP_SECS))
+                    )
+                ]
+            ),
+        ),
     )
 
     pipeline = Pipeline(
@@ -163,8 +190,8 @@ def load_agent(body) -> AgentBuilder:
     agent = body.get("agent") if isinstance(body, dict) else None
     if agent is None:
         logger.info(f"No agent in the request; using {DEFAULT_AGENT.name}")
-        return AgentBuilder.from_json(DEFAULT_AGENT)
-    return AgentBuilder.from_dict(agent)
+        return AgentBuilder.from_json(DEFAULT_AGENT, CLINIC)
+    return AgentBuilder.from_dict(agent, CLINIC)
 
 
 async def bot(runner_args: RunnerArguments):

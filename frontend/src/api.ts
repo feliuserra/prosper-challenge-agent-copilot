@@ -72,3 +72,15 @@ export interface Health {
 export async function getHealth(): Promise<Health> {
   return (await request("/health")).json();
 }
+
+export interface ToolInfo {
+  name: string;
+  description: string;
+  properties: Record<string, unknown>;
+  required: string[];
+}
+
+/** The tool catalog a node can pick from (ADR 0008). */
+export async function listTools(): Promise<ToolInfo[]> {
+  return (await (await request("/tools")).json()).tools;
+}

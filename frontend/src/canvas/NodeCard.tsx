@@ -33,6 +33,11 @@ export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<Age
       <div className={task ? "node-card-task" : "node-card-task muted"} title={task}>
         {task || "No task yet"}
       </div>
+      {node.tools && node.tools.length > 0 && (
+        <div className="node-card-tools" title={`Tools: ${node.tools.join(", ")}`}>
+          {node.tools.join(", ")}
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} />
     </div>
   );

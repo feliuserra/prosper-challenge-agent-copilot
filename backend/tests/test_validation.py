@@ -150,3 +150,29 @@ def test_constructor_validates_config_too(agent):
     config.initial_node = "nowhere"
     with pytest.raises(ValidationError):
         AgentBuilder(config)
+
+
+def test_tools_from_the_catalog_are_valid(agent):
+    agent["nodes"][0]["tools"] = ["lookup_patient", "find_slots"]
+    assert problems(agent) == []
+
+
+def test_unknown_and_duplicate_tools(agent):
+    agent["nodes"][0]["tools"] = ["find_slots", "find_slots", "fly_to_mars", 3]
+    messages = [(node, m) for node, _, m in problems(agent)]
+    assert ("greeting", "Tool 'find_slots' is listed twice.") in messages
+    assert any(node == "greeting" and m.startswith("Unknown tool 'fly_to_mars'.") for node, m in messages)
+    assert ("greeting", "Each tool must be a tool name.") in messages
+
+
+def test_tool_with_the_name_of_an_edge_function(agent):
+    edge(agent)["function"] = "find_slots"
+    agent["nodes"][0]["tools"] = ["find_slots"]
+    assert problems(agent) == [
+        ("greeting", "find_slots", "'find_slots' is both a tool and an edge function in this node.")
+    ]
+
+
+def test_tools_must_be_a_list(agent):
+    agent["nodes"][0]["tools"] = "find_slots"
+    assert problems(agent) == [("greeting", None, "'tools' must be a list.")]

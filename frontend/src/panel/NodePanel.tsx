@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { listTools, type ToolInfo } from "../api";
 import { parseAction } from "../agent/fields";
 import { nodeNameError } from "../agent/names";
 import { TASK_ROLES } from "../agent/options";
@@ -8,6 +9,26 @@ import { useAgentStore } from "../store/agentStore";
 import { Field, JsonField, LiveText, NameInput } from "./controls";
 
 const store = () => useAgentStore.getState();
+
+// Fetched once per page load: the catalog is fixed in the backend.
+let toolsRequest: Promise<{ tools: ToolInfo[]; error?: string }> | null = null;
+
+function useTools() {
+  const [state, setState] = useState<{ tools: ToolInfo[]; error?: string } | null>(null);
+  useEffect(() => {
+    toolsRequest ??= listTools()
+      .then((tools) => ({ tools }))
+      .catch((error) => {
+        toolsRequest = null; // try again next time the panel opens
+        return { tools: [], error: `Could not load the tools: ${String(error)}` };
+      });
+    void toolsRequest.then(setState);
+  }, []);
+  return state;
+}
+
+/** First sentence of a tool description, for the checkbox hint. */
+const firstSentence = (text: string) => text.split(/(?<=\.)\s/)[0];
 
 /** `list` with item `i` replaced, removed (`undefined`), or moved up one place. */
 function replaceAt<T>(list: T[], i: number, item: T | undefined): T[] {
@@ -69,6 +90,8 @@ export function NodePanel({ node, agent }: { node: Node; agent: Agent }) {
       )}
 
       <TaskMessages node={node} />
+
+      <Tools node={node} />
 
       <Field label="Role" hint="Replaces the agent persona for this node only. Leave empty to use the persona.">
         <LiveText
@@ -163,6 +186,43 @@ function TaskMessages({ node }: { node: Node }) {
       <button className="small" onClick={() => write([...messages, { role: "developer", content: "" }])}>
         + Task message
       </button>
+    </Field>
+  );
+}
+
+/** Catalog tools as checkboxes, kept in catalog order; tools the catalog lacks stay until unchecked. */
+function Tools({ node }: { node: Node }) {
+  const catalog = useTools();
+  const listed = node.tools ?? [];
+  const write = (next: string[]) => store().updateNode(node.name, { tools: next.length ? next : undefined });
+  const names = catalog?.tools.map((t) => t.name) ?? [];
+  const unknown = listed.filter((t) => !names.includes(t));
+  const toggle = (name: string, on: boolean) =>
+    write([...names.filter((n) => (n === name ? on : listed.includes(n))), ...unknown.filter((n) => n !== name || on)]);
+
+  return (
+    <Field
+      label="Tools"
+      hint="The bot can call these during this step to look things up or act. The conversation stays in this node; transitions still move it on."
+    >
+      {!catalog && <div className="muted">Loading…</div>}
+      {catalog?.error && <div className="field-error">{catalog.error}</div>}
+      {catalog?.tools.map((tool) => (
+        <div className="tool-option" key={tool.name}>
+          <label className="check" title={tool.description}>
+            <input type="checkbox" checked={listed.includes(tool.name)} onChange={(e) => toggle(tool.name, e.target.checked)} />
+            <span className="mono">{tool.name}</span>
+          </label>
+          <div className="hint">{firstSentence(tool.description)}</div>
+        </div>
+      ))}
+      {catalog &&
+        unknown.map((name) => (
+          <label className="check" key={name}>
+            <input type="checkbox" checked onChange={() => toggle(name, false)} />
+            <span className="mono">{name}</span> <span className="muted">(not in the catalog)</span>
+          </label>
+        ))}
     </Field>
   );
 }

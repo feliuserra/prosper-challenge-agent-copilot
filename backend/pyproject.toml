@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.uv]
-# This is an application (flat modules: bot.py + agent_builder/), not a
+# This is an application (flat modules: bot.py + agent_builder/ + clinic/), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
 # Intel (x86_64) macOS: these packages no longer ship wheels for it, so pin
