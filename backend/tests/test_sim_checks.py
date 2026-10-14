@@ -6,7 +6,7 @@ import pytest
 
 import simfakes
 from simfakes import TEST, verdict
-from sim.checks import EXACT, args_match, grade, grade_turn, judge_transcript
+from sim.checks import EXACT, args_match, grade, grade_turn, render_transcript
 from sim.llm import Usage
 from sim.testfile import load_tests, resolve_world, validate_test, validate_tests
 
@@ -170,10 +170,20 @@ def test_a_judged_turn_names_the_turn_and_marks_calls_not_run():
     assert "[5] Assistant tool call: find_slots({}) (not run)" in request["messages"][1]["content"]
 
 
-def test_judge_transcript_numbers_turns():
-    text = judge_transcript(record([LOOKUP])["turns"])
+def test_the_transcript_numbers_turns():
+    text = render_transcript(record([LOOKUP])["turns"])
     assert text.splitlines()[0] == "[1] Caller: Hi"
     assert text.splitlines()[-1] == "[4] Assistant: Goodbye!"
+
+
+def test_the_internal_transcript_shows_what_the_judge_does_not_see():
+    r = record([EDGE, LOOKUP])
+    r["turns"][0]["replayed"] = 0
+    r["turns"][1]["calls"][0]["to"] = "ask_name"
+    judge, internal = render_transcript(r["turns"]), render_transcript(r["turns"], internal=True)
+    assert "choose_intent" not in judge and "(recorded)" not in judge
+    assert '[2] Assistant moves on: choose_intent({"intent": "book"}) -> ask_name' in internal
+    assert "[1] Caller (recorded): Hi" in internal
 
 
 # ---- the test format ----------------------------------------------------------------------

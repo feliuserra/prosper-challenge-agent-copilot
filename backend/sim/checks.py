@@ -84,18 +84,28 @@ def caller_turns(record: dict) -> int:
     return sum(1 for turn in record["turns"] if turn["speaker"] == "caller")
 
 
-def judge_transcript(turns: list[dict]) -> str:
+def render_transcript(turns: list[dict], internal: bool = False) -> str:
+    """The numbered transcript the judge reads: words and catalog tool calls with their
+    results. `internal` adds what only a person debugging needs, and the judge must not
+    see: edge transitions, calls that did not run, and which caller lines were recorded."""
     lines = []
     for turn in turns:
+        n = turn["turn"]
         if turn["speaker"] == "caller":
-            lines.append(f"[{turn['turn']}] Caller: {turn['text']}")
+            recorded = " (recorded)" if internal and "replayed" in turn else ""
+            lines.append(f"[{n}] Caller{recorded}: {turn['text']}")
             continue
         if turn["text"]:
-            lines.append(f"[{turn['turn']}] Assistant: {turn['text']}")
+            lines.append(f"[{n}] Assistant: {turn['text']}")
         for call in turn.get("calls", []):
             if call["kind"] == "tool":
                 result = render_call(call, with_result=True) if "result" in call else render_call(call) + " (not run)"
-                lines.append(f"[{turn['turn']}] Assistant tool call: {result}")
+                lines.append(f"[{n}] Assistant tool call: {result}")
+            elif internal and call["kind"] == "edge":
+                target = f" -> {call['to']}" if "to" in call else ""
+                lines.append(f"[{n}] Assistant moves on: {render_call(call)}{target}")
+            elif internal:
+                lines.append(f"[{n}] Assistant {call['kind']} call: {call['name']} ({call.get('result') or 'arguments were not JSON'})")
     return "\n".join(lines)
 
 
@@ -214,7 +224,7 @@ async def judge_rule(turns: list[dict], check: dict, judge: ChatModel, usage: Us
         config.JUDGE_MODEL,
         [
             {"role": "system", "content": prompt},
-            {"role": "user", "content": f"Rule: {check['rule']}\n\nTranscript:\n{judge_transcript(turns)}"},
+            {"role": "user", "content": f"Rule: {check['rule']}\n\nTranscript:\n{render_transcript(turns)}"},
         ],
         "judgement",
         JUDGE_SCHEMA,

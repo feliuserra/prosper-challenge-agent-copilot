@@ -240,6 +240,7 @@ def test_recorded_answers_are_said_word_for_word(example):
     record, models = booking(example, callers=callers, test=test)
     spoken = [t for t in record["turns"] if t["speaker"] == "caller"]
     assert spoken[1] == {"turn": spoken[1]["turn"], "speaker": "caller", "text": "Anna Low pest.", "replayed": 0}
+    assert record["replay"] == {"recorded": 1, "used": [0]}
     # Offered while unused, then no longer.
     assert "Anna Low pest." in models.caller.requests[1]["messages"][0]["content"]
     assert "Anna Low pest." not in models.caller.requests[2]["messages"][0]["content"]

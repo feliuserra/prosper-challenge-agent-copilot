@@ -47,6 +47,9 @@ async def simulate(agent: dict, test: dict, models: Models) -> dict:
     await conversation.start()
     await talk(conversation, caller, test.get("max_turns", config.DEFAULT_MAX_TURNS))
     record = conversation.record()
+    if caller.replay:
+        # A test whose recorded answers were not used did not replay the real call.
+        record["replay"] = {"recorded": len(caller.replay), "used": sorted(caller.used)}
     record["usage"] = conversation.usage.data
     record["seconds"] = round(time.monotonic() - started, 1)
     return record

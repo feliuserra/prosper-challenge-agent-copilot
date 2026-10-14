@@ -21,7 +21,7 @@ from loguru import logger
 from agent_builder import validate_agent
 
 from . import config
-from .checks import judge_transcript
+from .checks import render_transcript
 from .llm import Usage, models
 from .runner import blocking, run_suite
 from .testfile import load_tests, validate_tests
@@ -62,12 +62,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{agent['name']} ({agent.get('model', 'gpt-4o')}), caller {config.CALLER_MODEL}, judge {config.JUDGE_MODEL}\n")
     print(table(results))
     for result in results:
-        details = failure_details(result)
+        details = notes(result)
         if details:
             print(f"\n{result['test_id']} ({result['status']}):\n{details}")
         if args.transcripts:
             for n, run_ in enumerate(result.get("runs", []), 1):
-                print(f"\n--- {result['test_id']}, run {n} (ended by {run_['end_reason']}) ---\n{judge_transcript(run_['turns'])}")
+                print(f"\n--- {result['test_id']}, run {n} (ended by {run_['end_reason']}) ---\n{render_transcript(run_['turns'], internal=True)}")
     print("\n" + summary(results, seconds))
     if args.out:
         args.out.write_text(json.dumps(results, indent=1, ensure_ascii=False) + "\n")
@@ -95,11 +95,18 @@ def table(results: list[dict]) -> str:
     return "\n".join("  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip() for row in rows)
 
 
-def failure_details(result: dict) -> str:
+def notes(result: dict) -> str:
+    """The evidence for every failed check, and recorded answers a run did not use."""
     if result["status"] == "error":
         return f"  error: {result['error']}"
     lines = []
     for n, run_ in enumerate(result["runs"], 1):
+        replay = run_.get("replay")
+        if replay and len(replay["used"]) < replay["recorded"]:
+            lines.append(
+                f"  run {n}: used {len(replay['used'])} of {replay['recorded']} recorded answers, "
+                "so it did not fully replay the real call"
+            )
         for check in run_["checks"]:
             if check["pass"]:
                 continue

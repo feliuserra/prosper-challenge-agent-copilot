@@ -108,10 +108,12 @@ class Caller:
             parts.append(
                 "Recorded answers. In the real call this comes from, you answered these questions with "
                 f"these exact words:\n{recorded}\n"
-                "If the assistant's latest message asks for the same thing as one of these questions, and the "
-                "recorded answer still fits what it just said (a time you pick was among those it offered, a "
-                "yes confirms what it read back), set use_recorded to its number: your words are then replaced "
-                "by that answer exactly. Otherwise set use_recorded to null and answer yourself."
+                "If the assistant's latest message asks for the same thing as one of these questions, set "
+                "use_recorded to its number: your words are then replaced by that answer exactly, as the real "
+                "caller said it. Use it even when the recorded answer covers only part of what the assistant "
+                "asked, as real callers often do; the assistant will ask again for the rest. Do not use it when "
+                "it no longer makes sense: a time you pick must be among the times just offered, and a yes or "
+                "no must answer what was just read back. Otherwise set use_recorded to null and answer yourself."
             )
         else:
             parts.append("Set use_recorded to null.")

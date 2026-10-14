@@ -18,7 +18,7 @@ JUDGE_MODEL = "gpt-4.1-2025-04-14"
 
 # Bump when the runner changes how it runs or grades a call: cached results
 # from an older runner are then ignored.
-RUNNER_VERSION = "26.1"
+RUNNER_VERSION = "26.2"
 
 # Default for a test without `max_turns`: the most caller turns before the runner
 # stops the call.
