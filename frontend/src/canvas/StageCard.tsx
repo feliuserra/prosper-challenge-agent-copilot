@@ -5,6 +5,7 @@ import { NODE_WIDTH } from "../agent/layout";
 import { displayName } from "../agent/names";
 import { useAgentStore } from "../store/agentStore";
 import type { StageFlowNode } from "./derive";
+import { HeatLines, heatStyle } from "./NodeCard";
 
 /** A chevron pointing right (collapsed) or down (expanded). */
 export function Chevron({ open }: { open: boolean }) {
@@ -28,15 +29,23 @@ export function Chevron({ open }: { open: boolean }) {
  * expands it; dragging it moves all its nodes.
  */
 export const StageCard = memo(function StageCard({ data, selected }: NodeProps<StageFlowNode>) {
-  const { stage, status = [], activeStep } = data;
-  const className = ["node-card", "stage-card", `tone-${stage.tone}`, selected && "selected", activeStep && "active"]
+  const { stage, status = [], activeStep, heat } = data;
+  const look = heatStyle(heat);
+  const className = [
+    "node-card",
+    "stage-card",
+    `tone-${stage.tone}`,
+    selected && "selected",
+    activeStep && "active",
+    look.className,
+  ]
     .filter(Boolean)
     .join(" ");
   const steps = stage.nodes.length;
   return (
     <div
       className={className}
-      style={{ width: NODE_WIDTH }}
+      style={{ width: NODE_WIDTH, ...look.style }}
       title={activeStep ? `The test call is in ${displayName(activeStep)}` : undefined}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
@@ -64,14 +73,18 @@ export const StageCard = memo(function StageCard({ data, selected }: NodeProps<S
             ))}
           </span>
         </div>
-        <div className="node-card-task" title={stage.nodes.join(", ")}>
-          {stage.nodes.map((name, i) => (
-            <Fragment key={name}>
-              {i > 0 && " · "}
-              <span className={name === activeStep ? "stage-card-active-step" : undefined}>{displayName(name)}</span>
-            </Fragment>
-          ))}
-        </div>
+        {heat ? (
+          <HeatLines heat={heat} />
+        ) : (
+          <div className="node-card-task" title={stage.nodes.join(", ")}>
+            {stage.nodes.map((name, i) => (
+              <Fragment key={name}>
+                {i > 0 && " · "}
+                <span className={name === activeStep ? "stage-card-active-step" : undefined}>{displayName(name)}</span>
+              </Fragment>
+            ))}
+          </div>
+        )}
       </div>
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>

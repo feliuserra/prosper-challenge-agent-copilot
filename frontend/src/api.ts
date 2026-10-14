@@ -1,4 +1,5 @@
 import { Agent } from "./agent/schema";
+import type { DetectionResponse } from "./detection/types";
 
 // Client for the agents API on the runner (backend/composer_api.py), reached
 // through the Vite proxy.
@@ -104,4 +105,9 @@ export interface ClinicProblem {
 /** A clinic file as it is (null when it is not JSON) and every problem the backend loader finds in it. */
 export async function getClinic(id: string): Promise<{ id: string; clinic: unknown; problems: ClinicProblem[] }> {
   return (await request(`/clinics/${encodeURIComponent(id)}`)).json();
+}
+
+/** The ranked issues and per-node numbers from the call logs (#58), for the call heatmap (#59). */
+export async function getDetection(): Promise<DetectionResponse> {
+  return (await request("/detection")).json();
 }
