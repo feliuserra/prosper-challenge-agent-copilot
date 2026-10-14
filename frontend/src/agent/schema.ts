@@ -47,6 +47,8 @@ export const Agent = z.looseObject({
   persona: z.string().optional(),
   voice_id: z.string().optional(),
   model: z.string().optional(),
+  // The clinic the agent's tools run against (ADR 0016); absent means the default clinic.
+  clinic: z.string().optional(),
 });
 
 export type Action = z.infer<typeof Action>;

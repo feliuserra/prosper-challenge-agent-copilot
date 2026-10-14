@@ -36,7 +36,8 @@ def test_the_rebuild_brings_the_clinic_to_that_turn(example, booked):
     last = model_turns(booked)[-1]
     conversation = Conversation.rebuild(booked, example, last["turn"], simfakes.models())
     # Patel's 9:00 was booked earlier in the call, so it is taken now.
-    assert conversation.world.call("book_appointment", {"patient_id": "pat-001", "slot_id": "dr-patel-2026-10-12-0900", "reason": "x"}) == {
+    args = {"patient_id": "pat-001", "slot_id": "dr-patel-2026-10-12-0900", "reason": "x", "appointment_type": "checkup", "interpreter": "none"}
+    assert conversation.world.call("book_appointment", args) == {
         "error": "That slot is no longer free. Call find_slots again."
     }
 

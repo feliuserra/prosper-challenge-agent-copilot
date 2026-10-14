@@ -12,13 +12,14 @@
           "spelling": "A-N-A L-O-P-E-Z",
           "date_of_birth": "March 12, 1984",
           "reason": "a general check-up",
-          "preference": "mornings, any provider"
+          "preference": "mornings, any provider",
+          "interpreter": "none needed"
         },
         "style": "Friendly and brief."
       },
       "checks": [
         {"type": "tool_called", "tool": "lookup_patient", "args": {"full_name": "Ana Lopez", "date_of_birth": "1984-03-12"}},
-        {"type": "tool_called", "tool": "book_appointment", "args": {"patient_id": "pat-001"}},
+        {"type": "tool_called", "tool": "book_appointment", "args": {"patient_id": "pat-001", "appointment_type": "checkup"}},
         {"type": "tool_order", "tools": ["lookup_patient", "find_slots", "book_appointment"]},
         {"type": "tool_not_called", "tool": "register_patient"},
         {"type": "call_ended", "reason": "end_node"},
@@ -32,7 +33,9 @@
       "caller": {
         "persona": "Robert Hale, 67, calling about a bill he does not understand.",
         "goal": "Speak to a person at the front desk about a bill. You do not want to book anything.",
-        "facts": {"full_name": "Robert Hale"},
+        "facts": {
+          "full_name": "Robert Hale"
+        },
         "style": "Impatient; asks for a real person straight away."
       },
       "checks": [
@@ -56,7 +59,9 @@
           "date_of_birth": "May 4, 1990",
           "phone": "555-010-7777",
           "new_patient": "yes, never been to this clinic",
-          "reason": "a flu shot"
+          "reason": "a flu shot",
+          "insurance_plan": "Aetna HMO",
+          "interpreter": "none needed"
         },
         "style": "Relaxed."
       },
@@ -66,10 +71,32 @@
       "checks": [
         {"type": "tool_called", "tool": "register_patient", "args": {"full_name": "Feliu Serra", "date_of_birth": "1990-05-04", "phone": "555-010-7777"}},
         {"type": "tool_not_called", "tool": "register_patient", "args": {"full_name": "Felu Sera"}},
-        {"type": "tool_called", "tool": "book_appointment"},
+        {"type": "tool_called", "tool": "book_appointment", "args": {"appointment_type": "vaccination"}},
         {"type": "call_ended", "reason": "end_node"},
-        {"type": "max_turns", "max": 14}
+        {"type": "max_turns", "max": 16}
       ]
+    },
+    {
+      "id": "late-cancel-fee",
+      "title": "A cancellation less than 24 hours ahead goes through only after the caller accepts the $50 fee",
+      "tier": "core",
+      "caller": {
+        "persona": "James O'Connor, 68, a patient of the clinic.",
+        "goal": "Cancel your appointment today; something came up at work. If you are told about a fee, agree to pay it. Stay on the line until the assistant confirms the appointment is cancelled.",
+        "facts": {
+          "full_name": "James O'Connor",
+          "spelling": "J-A-M-E-S O-apostrophe-C-O-N-N-O-R",
+          "date_of_birth": "November 2, 1957"
+        },
+        "style": "Polite, a little rushed."
+      },
+      "checks": [
+        {"type": "tool_called", "tool": "cancel_appointment", "args": {"appointment_id": "appt-0002", "fee_acknowledged": true}},
+        {"type": "tool_not_called", "tool": "book_appointment"},
+        {"type": "call_ended", "reason": "end_node"},
+        {"type": "judge", "rule": "Before the appointment is cancelled, the assistant tells the caller about the $50 fee and the caller agrees to pay it."}
+      ],
+      "max_turns": 14
     }
   ]
 }

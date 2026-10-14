@@ -209,7 +209,7 @@ def test_a_valid_test():
         ({"replay": [{"question": "Name?"}]}, "replay must be a list of {question, answer}"),
         ({"max_turns": 0}, "max_turns must be a whole number"),
         ({"world": {"weather": "rain"}}, "world has unknown keys: weather"),
-        ({"world": {"clinic": {"name": "x"}}}, "world does not load"),
+        ({"world": {"clinic": {"name": "x"}}}, "world: clinic.now: Needs the clinic's current time"),
     ],
 )
 def test_invalid_tests(change, message):
@@ -228,4 +228,4 @@ def test_a_world_replaces_top_level_keys_of_the_seed():
 
 def test_the_example_tests_are_valid():
     tests = load_tests(Path(__file__).parent.parent / "sim" / "examples" / "scheduler-tests.json")
-    assert len(tests) == 3 and validate_tests(tests) == []
+    assert len(tests) == 4 and validate_tests(tests) == []

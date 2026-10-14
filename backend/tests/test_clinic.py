@@ -6,7 +6,8 @@ import pytest
 from clinic import TOOLS, ClinicWorld, LiveClinic, catalog
 from clinic.world import MAX_SLOTS
 
-SEED = Path(__file__).parent.parent / "clinic" / "seed.json"
+# The #25 clinic, without configuration (ADR 0016): every tool must behave as it did then.
+SEED = Path(__file__).parent / "fixtures" / "clinic-plain.json"
 
 
 @pytest.fixture
@@ -26,10 +27,13 @@ def test_catalog_lists_every_tool_with_its_schema():
     assert names == [
         "lookup_patient",
         "register_patient",
+        "list_appointment_types",
+        "check_coverage",
         "find_slots",
         "book_appointment",
         "reschedule_appointment",
         "cancel_appointment",
+        "get_clinic_info",
         "transfer_to_human",
     ]
     for spec in TOOLS.values():
@@ -43,7 +47,9 @@ def test_every_tool_is_a_world_method():
 
 
 def test_date_line(world):
-    assert world.date_line().startswith("Today is Monday, 2026-10-12, and the time at the clinic is 08:30.")
+    assert world.date_line().startswith(
+        "You answer the phone for Riverside Family Clinic. Today is Monday, 2026-10-12, and the time at the clinic is 08:30."
+    )
 
 
 # ---- lookup and register -------------------------------------------------------

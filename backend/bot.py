@@ -12,13 +12,14 @@
 # none is sent, the default agent in agents/. This file also mounts the editor's
 # agents API (composer_api.py) on the runner, so everything runs on one port.
 #
-# Tools run against the live clinic (clinic/state.json, created from
-# clinic/seed.json on the first change; delete it or `make clinic-reset` to
-# start over), shared by every call so a booking survives into the next one.
+# Tools run against the live state of the agent's clinic (clinic/state/<id>.json,
+# created from clinic/clinics/<id>.json on the first change; `make clinic-reset`
+# starts over), shared by every call so a booking survives into the next one.
 #
 # Run:  python bot.py   then open http://localhost:7860/client
 #
 
+import json
 import os
 from pathlib import Path
 
@@ -50,7 +51,7 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder, ValidationError, ValidationIssue
-from clinic import LiveClinic
+from clinic import LiveClinic, clinic_ids, clinic_of
 from composer_api import make_router
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
@@ -62,8 +63,8 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 AGENTS_DIR = Path(__file__).parent / "agents"
 DEFAULT_AGENT = AGENTS_DIR / "prosper-scheduler.json"
 
-CLINIC_DIR = Path(__file__).parent / "clinic"
-CLINIC = LiveClinic(seed_path=CLINIC_DIR / "seed.json", state_path=CLINIC_DIR / "state.json")
+# Live state per clinic (ADR 0016), gitignored.
+CLINIC_STATE_DIR = Path(__file__).parent / "clinic" / "state"
 
 # Longest silence before a turn ends when Smart Turn judges it unfinished.
 # Pipecat's default is 3 s, so one-word answers ("Book.") waited 3 s for a
@@ -190,8 +191,15 @@ def load_agent(body) -> AgentBuilder:
     agent = body.get("agent") if isinstance(body, dict) else None
     if agent is None:
         logger.info(f"No agent in the request; using {DEFAULT_AGENT.name}")
-        return AgentBuilder.from_json(DEFAULT_AGENT, CLINIC)
-    return AgentBuilder.from_dict(agent, CLINIC)
+        agent = json.loads(DEFAULT_AGENT.read_text())
+    return AgentBuilder.from_dict(agent, live_clinic(agent))
+
+
+def live_clinic(agent) -> LiveClinic | None:
+    """The live state of the agent's clinic. None for an unknown clinic, which
+    validation then rejects with the list of clinics."""
+    clinic_id = clinic_of(agent)
+    return LiveClinic.for_clinic(clinic_id, CLINIC_STATE_DIR) if clinic_id in clinic_ids() else None
 
 
 async def bot(runner_args: RunnerArguments):

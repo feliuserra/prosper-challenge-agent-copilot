@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 from agent_builder.schema import DEFAULT_MODEL
-from clinic import ClinicWorld
+from clinic import ClinicWorld, clinic_of
 
 from . import config
 from .caller import Caller
@@ -40,9 +40,10 @@ async def talk(conversation: Conversation, caller: Caller, max_turns: int) -> No
 
 
 async def simulate(agent: dict, test: dict, models: Models) -> dict:
-    """One call of `agent` with the test's caller, from the test's world. Returns its record."""
+    """One call of `agent` with the test's caller, from the test's world in the agent's
+    clinic. Returns its record."""
     started = time.monotonic()
-    conversation = Conversation(agent, ClinicWorld(resolve_world(test)), models)
+    conversation = Conversation(agent, ClinicWorld(resolve_world(test, clinic_of(agent))), models)
     caller = Caller(test["caller"], models.caller, replay=test.get("replay"))
     await conversation.start()
     await talk(conversation, caller, test.get("max_turns", config.DEFAULT_MAX_TURNS))
@@ -121,7 +122,7 @@ def cache_key(agent: dict, test: dict) -> str:
     inputs = {
         "agent": agent,
         "test": test,
-        "world": resolve_world(test),
+        "world": resolve_world(test, clinic_of(agent)),
         "models": [agent.get("model", DEFAULT_MODEL), config.CALLER_MODEL, config.JUDGE_MODEL],
         "runner": config.RUNNER_VERSION,
     }

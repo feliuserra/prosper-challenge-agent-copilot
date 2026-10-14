@@ -57,7 +57,8 @@ def models(agent=(), caller=(), judge=()) -> Models:
 
 API_DOWN = ModelError("RateLimitError 429: slow down")
 
-# A whole booking with the example agent: Ana Lopez books Dr. Patel's 9:00.
+# A whole booking with the example agent at Riverside: Ana Lopez books a check-up
+# at Dr. Patel's 9:00 (the clinic's types and its interpreter field, ADR 0016).
 BOOKING_AGENT = [
     say("Hello, this is the clinic's scheduling assistant. Would you like to book, reschedule or cancel?"),
     call("choose_intent", intent="book"),
@@ -69,10 +70,17 @@ BOOKING_AGENT = [
     call("lookup_patient", full_name="Ana Lopez", date_of_birth="1984-03-12"),
     call("patient_identified", patient_id="pat-001"),
     say("What is the visit for?"),
-    call("record_reason", reason="Check-up"),
-    call("find_slots"),
+    call("record_reason", reason="Check-up", appointment_type="checkup"),
+    call("find_slots", appointment_type="checkup"),
     say("I have Monday the 12th at 9 AM or 9:30 AM with Dr. Patel. Which works?"),
-    call("book_appointment", patient_id="pat-001", slot_id="dr-patel-2026-10-12-0900", reason="Check-up"),
+    call(
+        "book_appointment",
+        patient_id="pat-001",
+        slot_id="dr-patel-2026-10-12-0900",
+        reason="Check-up",
+        appointment_type="checkup",
+        interpreter="none",
+    ),
     call("appointment_booked", appointment_id="appt-0005"),
     say("You're booked with Dr. Patel on Monday the 12th at 9 AM, Ana. Goodbye!"),
 ]

@@ -5,8 +5,11 @@
 # methods of the same name on ClinicWorld (world.py).
 #
 # Every parameter is a string in a strict format (dates YYYY-MM-DD, ids as the
-# tools return them), so tests can compare arguments exactly. Clinic policies
-# (fees, new-patient rules) are not here: they belong in the agent's prompts.
+# tools return them), so tests can compare arguments exactly; `fee_acknowledged`
+# is the one boolean. These are the base specs, for validation and the editor.
+# What a model sees is built per clinic from its configuration (ADR 0016,
+# ClinicWorld.tool_spec): its appointment types as an enum, its registration and
+# booking fields as parameters, and parameters for rules it does not have removed.
 #
 
 from dataclasses import dataclass, field
@@ -31,6 +34,11 @@ DATE_OF_BIRTH = _text("Date of birth as YYYY-MM-DD.")
 PATIENT_ID = _text("The patient_id from lookup_patient or register_patient.")
 SLOT_ID = _text("A slot_id from find_slots.")
 APPOINTMENT_ID = _text("An appointment_id from lookup_patient or book_appointment.")
+APPOINTMENT_TYPE = _text("An appointment_type from list_appointment_types.")
+FEE_ACKNOWLEDGED = {
+    "type": "boolean",
+    "description": "True only after the caller has agreed to the late-change fee this tool told you about.",
+}
 
 TOOLS: dict[str, ToolSpec] = {
     spec.name: spec
@@ -56,12 +64,32 @@ TOOLS: dict[str, ToolSpec] = {
             changes_world=True,
         ),
         ToolSpec(
+            "list_appointment_types",
+            "List the clinic's appointment types: what each is for, who may book it (new or existing "
+            "patients) and the providers who do it. Use it to match the caller's reason for the visit to "
+            "an appointment_type.",
+        ),
+        ToolSpec(
+            "check_coverage",
+            "Check whether the clinic accepts the caller's insurance plan and, given an appointment_type, "
+            "whether the plan covers that visit. A plan the clinic does not accept comes back with the "
+            "plans it does accept.",
+            {
+                "insurance_plan": _text("The insurance plan as the caller names it."),
+                "appointment_type": APPOINTMENT_TYPE,
+            },
+            ("insurance_plan",),
+        ),
+        ToolSpec(
             "find_slots",
             "List open appointment slots, earliest first, at most 6. Every filter is optional: by default, "
             "the next 7 days with any provider. Offer the caller only slots returned here.",
             {
                 "date_from": _text("First day to search, YYYY-MM-DD. Defaults to today."),
                 "date_to": _text("Last day to search, YYYY-MM-DD. Defaults to 6 days after date_from."),
+                "appointment_type": _text(
+                    "An appointment_type from list_appointment_types. Only providers who do it are returned."
+                ),
                 "provider": _text("A provider's name or provider_id, when the caller asks for someone."),
                 "time_of_day": {
                     "type": "string",
@@ -78,6 +106,7 @@ TOOLS: dict[str, ToolSpec] = {
                 "patient_id": PATIENT_ID,
                 "slot_id": SLOT_ID,
                 "reason": _text("The reason for the visit, in a few words."),
+                "appointment_type": APPOINTMENT_TYPE,
             },
             ("patient_id", "slot_id", "reason"),
             changes_world=True,
@@ -85,16 +114,21 @@ TOOLS: dict[str, ToolSpec] = {
         ToolSpec(
             "reschedule_appointment",
             "Move a booked appointment to another open slot from find_slots, once the caller has agreed to it.",
-            {"appointment_id": APPOINTMENT_ID, "new_slot_id": SLOT_ID},
+            {"appointment_id": APPOINTMENT_ID, "new_slot_id": SLOT_ID, "fee_acknowledged": FEE_ACKNOWLEDGED},
             ("appointment_id", "new_slot_id"),
             changes_world=True,
         ),
         ToolSpec(
             "cancel_appointment",
             "Cancel a booked appointment, once the caller has confirmed which one.",
-            {"appointment_id": APPOINTMENT_ID},
+            {"appointment_id": APPOINTMENT_ID, "fee_acknowledged": FEE_ACKNOWLEDGED},
             ("appointment_id",),
             changes_world=True,
+        ),
+        ToolSpec(
+            "get_clinic_info",
+            "The clinic's fixed facts: address, opening hours, parking, phone. Answer questions about the "
+            "clinic only from what this returns; never guess.",
         ),
         ToolSpec(
             "transfer_to_human",

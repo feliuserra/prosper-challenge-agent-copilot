@@ -5,23 +5,27 @@
 #   tier               "safety" (a failure blocks a change) or "core" (scored)
 #   requirements       requirement ids it covers (optional)
 #   caller             persona, goal, facts {name: value}, style (optional)
-#   world              optional; top-level keys replace the seed's (clinic, providers,
-#                      patients, appointments), so a test only writes what differs
+#   world              optional; top-level keys replace those of the agent's clinic
+#                      (clinic, providers, patients, appointments, and the configuration
+#                      keys of ADR 0016), so a test only writes what differs
 #   replay             optional caller turns from a real call: [{question, answer}]
 #   max_turns          optional, most caller turns before the runner stops the call
 #   checks             what must hold; see CHECKS
 #
 # Checks never name nodes or edge functions, so a test runs on any agent that
-# uses the tool catalog.
+# uses the tool catalog. Tool arguments are checked against the tools as the
+# test's clinic offers them (its own fields included).
 #
 
 import json
 import re
 from pathlib import Path
 
-from clinic import TOOLS, ClinicWorld
+from clinic import CONFIG_KEYS, DEFAULT_CLINIC, TOOLS, ClinicWorld, load_seed, validate_clinic
 
 from . import config
+
+WORLD_KEYS = ("clinic", "providers", "patients", "appointments") + CONFIG_KEYS
 
 TIERS = ("safety", "core")
 END_REASONS = ("end_node", "transfer", "caller_hung_up", "max_turns", "agent_loop")
@@ -45,31 +49,32 @@ def load_tests(path) -> list[dict]:
     return data["tests"] if isinstance(data, dict) and "tests" in data else data
 
 
-def resolve_world(test: dict) -> dict:
-    """The clinic a test starts from: the seed with the test's top-level keys replaced."""
-    world = json.loads(config.SEED.read_text())
+def resolve_world(test: dict, clinic: str = DEFAULT_CLINIC) -> dict:
+    """The clinic a test starts from: the clinic's seed with the test's top-level keys replaced."""
+    world = load_seed(clinic)
     world.update(test.get("world") or {})
     return world
 
 
-def validate_tests(tests) -> list[str]:
-    """Every problem with a list of tests. Empty means valid."""
+def validate_tests(tests, clinic: str = DEFAULT_CLINIC) -> list[str]:
+    """Every problem with a list of tests for an agent of `clinic`. Empty means valid."""
     if not isinstance(tests, list):
         return ["Tests must be a list."]
     errors, seen = [], set()
     for i, test in enumerate(tests):
         label = test.get("id") if isinstance(test, dict) and isinstance(test.get("id"), str) else f"#{i + 1}"
-        errors += [f"{label}: {e}" for e in validate_test(test)]
+        errors += [f"{label}: {e}" for e in validate_test(test, clinic)]
         if isinstance(test, dict) and test.get("id") in seen:
             errors.append(f"{label}: duplicate id.")
         seen.add(test.get("id") if isinstance(test, dict) else None)
     return errors
 
 
-def validate_test(test) -> list[str]:
+def validate_test(test, clinic: str = DEFAULT_CLINIC) -> list[str]:
     if not isinstance(test, dict):
         return ["a test must be an object."]
     errors = []
+    world = None  # the test's clinic, once it loads: tool arguments are checked against it
     if not isinstance(test.get("id"), str) or not ID_RE.fullmatch(test["id"]):
         errors.append("id must be a lowercase slug (a-z, 0-9, - and _).")
     if not _text(test.get("title")):
@@ -92,16 +97,18 @@ def validate_test(test) -> list[str]:
         if not isinstance(caller.get("style", ""), str):
             errors.append("caller.style must be a string.")
 
-    world = test.get("world")
-    if world is not None and not isinstance(world, dict):
+    overrides = test.get("world")
+    if overrides is not None and not isinstance(overrides, dict):
         errors.append("world must be an object.")
-    elif world:
-        unknown = set(world) - {"clinic", "providers", "patients", "appointments"}
-        if unknown:
-            errors.append(f"world has unknown keys: {', '.join(sorted(unknown))}.")
-        else:
+    elif overrides and set(overrides) - set(WORLD_KEYS):
+        errors.append(f"world has unknown keys: {', '.join(sorted(set(overrides) - set(WORLD_KEYS)))}.")
+    else:
+        data = resolve_world(test, clinic)
+        problems = validate_clinic(data)
+        errors += [f"world: {p.path}: {p.message}" for p in problems]
+        if not problems:
             try:
-                ClinicWorld(resolve_world(test))
+                world = ClinicWorld(data)
             except Exception as error:
                 errors.append(f"world does not load: {type(error).__name__}: {error}.")
 
@@ -120,11 +127,11 @@ def validate_test(test) -> list[str]:
         errors.append("checks must be a non-empty list.")
     else:
         for n, check in enumerate(checks, 1):
-            errors += [f"check {n}: {e}" for e in validate_check(check)]
+            errors += [f"check {n}: {e}" for e in validate_check(check, world)]
     return errors
 
 
-def validate_check(check) -> list[str]:
+def validate_check(check, world: ClinicWorld | None = None) -> list[str]:
     if not isinstance(check, dict) or check.get("type") not in CHECKS:
         return [f"type must be one of {', '.join(CHECKS)}."]
     kind, params = check["type"], CHECKS[check["type"]]
@@ -139,9 +146,8 @@ def validate_check(check) -> list[str]:
             if not isinstance(check["args"], dict):
                 errors.append("args must be an object.")
             else:
-                errors += [
-                    f"{check['tool']} has no parameter '{a}'." for a in check["args"] if a not in TOOLS[check["tool"]].properties
-                ]
+                spec = world.tool_spec(check["tool"]) if world is not None else TOOLS[check["tool"]]
+                errors += [f"{check['tool']} has no parameter '{a}'." for a in check["args"] if a not in spec.properties]
     if kind == "tool_order":
         tools = check["tools"]
         if not isinstance(tools, list) or len(tools) < 2:

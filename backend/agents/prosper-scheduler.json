@@ -2,7 +2,7 @@
   "name": "Prosper Scheduler",
   "voice_id": "21m00Tcm4TlvDq8ikWAM",
   "model": "gpt-4o",
-  "persona": "You are a warm, efficient scheduling assistant for a healthcare clinic. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Always use an available function to move the conversation forward.",
+  "persona": "You are a warm, efficient scheduling assistant for a healthcare clinic. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call; if the caller asks before you know, say you will check once you have found their record. Always use an available function to move the conversation forward.",
   "initial_node": "greeting",
   "nodes": [
     {
@@ -11,7 +11,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Greet the caller, say you're the clinic's scheduling assistant, and ask whether they'd like to book, reschedule, or cancel an appointment. If the caller asks to speak to a person, call transfer_to_human."
+          "content": "Greet the caller with the clinic's name, say you're its scheduling assistant, and ask whether they'd like to book, reschedule, or cancel an appointment. If they ask about the clinic itself, such as the address, opening hours or parking, call get_clinic_info and answer only from what it returns. If the caller asks to speak to a person, call transfer_to_human."
         }
       ],
       "edges": [
@@ -36,7 +36,8 @@
         }
       ],
       "tools": [
-        "transfer_to_human"
+        "transfer_to_human",
+        "get_clinic_info"
       ]
     },
     {
@@ -116,14 +117,28 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is found, call patient_identified with their patient_id. If not, say you could not find a record and ask whether they are new to the clinic. If they are new, ask for a phone number, call register_patient, then call patient_identified with the new patient_id. If they say they are already a patient, check the date of birth with them and look them up once more."
+          "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
         }
       ],
       "edges": [
         {
           "function": "patient_identified",
-          "description": "Call once lookup_patient found the caller or register_patient registered them.",
+          "description": "Call once lookup_patient found the caller or register_patient registered them, and the caller wants to book a new appointment.",
           "target": "collect_reason",
+          "properties": {
+            "patient_id": {
+              "type": "string",
+              "description": "The patient_id the tool returned."
+            }
+          },
+          "required": [
+            "patient_id"
+          ]
+        },
+        {
+          "function": "change_appointment",
+          "description": "Call once lookup_patient found the caller and they want to reschedule or cancel an appointment.",
+          "target": "manage_appointment",
           "properties": {
             "patient_id": {
               "type": "string",
@@ -146,24 +161,32 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Ask briefly what the visit is for."
+          "content": "Ask briefly what the visit is for. Call list_appointment_types and choose the type whose description fits the reason and the patient: some types are only for new patients or only for existing ones, and lookup_patient or register_patient told you which this caller is. If two types could fit, ask the caller which. If the caller mentions insurance, call check_coverage with their plan and the type, and tell them plainly what it says; if their plan does not cover the visit, ask whether they still want to book. Then call record_reason."
         }
       ],
       "edges": [
         {
           "function": "record_reason",
-          "description": "Record the reason for the visit once the caller says it.",
+          "description": "Record the reason for the visit and its appointment type once both are clear.",
           "target": "offer_times",
           "properties": {
             "reason": {
               "type": "string",
               "description": "Reason for the visit."
+            },
+            "appointment_type": {
+              "type": "string",
+              "description": "The appointment_type chosen from list_appointment_types, when the clinic has types."
             }
           },
           "required": [
             "reason"
           ]
         }
+      ],
+      "tools": [
+        "list_appointment_types",
+        "check_coverage"
       ]
     },
     {
@@ -172,7 +195,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Call find_slots to get open times; if the caller has said a day, a time of day or a provider they prefer, pass it. Offer two of the slots it returns, with the day, time and provider, and ask which one works. Never offer a time that find_slots did not return. If neither suits, ask what would and call find_slots again. When the caller picks one, call book_appointment with the patient_id, that slot_id and the reason for the visit. When it succeeds, call appointment_booked. If the slot was taken, apologise and offer others."
+          "content": "Call find_slots with the appointment_type; if the caller has said a day, a time of day or a provider they prefer, pass it too. Offer two of the slots it returns, with the day, time and provider, and ask which one works. Never offer a time that find_slots did not return. If neither suits, ask what would and call find_slots again. When the caller picks one, ask one at a time for anything else book_appointment needs that you do not know yet (its parameters say what). Then call book_appointment with the patient_id, that slot_id, the reason, the appointment_type and those answers. When it succeeds, call appointment_booked. If it is refused, tell the caller why in plain words and do what the refusal suggests; if the slot was taken, apologise and offer others."
         }
       ],
       "edges": [
@@ -203,6 +226,58 @@
         {
           "role": "developer",
           "content": "Confirm the booked appointment back to the caller: their name, the day, the time and the provider. Thank them and say goodbye."
+        }
+      ],
+      "end": true
+    },
+    {
+      "name": "manage_appointment",
+      "stage": "Change appointment",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+        }
+      ],
+      "edges": [
+        {
+          "function": "change_done",
+          "description": "Call once the appointment was cancelled or moved, or the caller decided to keep it as it was.",
+          "target": "change_confirmed",
+          "properties": {
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "cancelled",
+                "rescheduled",
+                "kept"
+              ],
+              "description": "What happened to the appointment."
+            }
+          },
+          "required": [
+            "outcome"
+          ]
+        },
+        {
+          "function": "book_instead",
+          "description": "Call when the caller has no appointment to change and wants to book a new one instead.",
+          "target": "collect_reason"
+        }
+      ],
+      "tools": [
+        "find_slots",
+        "reschedule_appointment",
+        "cancel_appointment"
+      ]
+    },
+    {
+      "name": "change_confirmed",
+      "stage": "Change appointment",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Tell the caller in one or two sentences what happened: the appointment is cancelled, moved to its new day and time, or stays as it was, and any fee they agreed to. Thank them and say goodbye."
         }
       ],
       "end": true

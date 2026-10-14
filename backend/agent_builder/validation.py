@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
 from clinic.catalog import TOOLS
+from clinic.clinics import clinic_ids
 
 # What the LLM APIs accept as a tool name.
 FUNCTION_NAME_RE = re.compile(r"[a-zA-Z0-9_-]{1,64}")
@@ -47,6 +48,10 @@ def validate_agent(data: Any) -> list[ValidationIssue]:
     for key in ("persona", "voice_id", "model"):
         if key in data and not isinstance(data[key], str):
             errors.append(ValidationIssue(f"'{key}' must be a string."))
+    # The clinic the agent's tools run against (ADR 0016); None or absent is the default.
+    clinic = data.get("clinic")
+    if clinic is not None and clinic not in clinic_ids():
+        errors.append(ValidationIssue(f"Unknown clinic '{clinic}'. Clinics: {', '.join(clinic_ids())}."))
 
     nodes = data.get("nodes")
     if not isinstance(nodes, list) or not nodes:

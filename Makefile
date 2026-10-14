@@ -29,8 +29,8 @@ test: ## Run the backend and frontend tests
 	uv run --directory $(PROJECT) pytest
 	npm test --prefix $(FRONTEND)
 
-clinic-reset: ## Restore the live clinic (bookings made in calls) to its seed
-	rm -f $(PROJECT)/clinic/state.json
+clinic-reset: ## Restore the live clinics (bookings made in calls) to their seeds
+	rm -rf $(PROJECT)/clinic/state $(PROJECT)/clinic/state.json
 
 memo: ## Build docs/memo/memo.pdf (Tectonic; pass TECTONIC=/path/to/tectonic if it is not on PATH)
 	$(TECTONIC) docs/memo/memo.tex

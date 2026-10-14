@@ -18,7 +18,7 @@ JUDGE_MODEL = "gpt-4.1-2025-04-14"
 
 # Bump when the runner changes how it runs or grades a call: cached results
 # from an older runner are then ignored.
-RUNNER_VERSION = "26.2"
+RUNNER_VERSION = "43.2"
 
 # Default for a test without `max_turns`: the most caller turns before the runner
 # stops the call.
@@ -33,7 +33,6 @@ MAX_RETRIES = 5
 REQUEST_TIMEOUT_SECS = 60
 MAX_PARALLEL_REQUESTS = 16
 
-SEED = Path(__file__).parent.parent / "clinic" / "seed.json"
 CACHE_DIR = Path(__file__).parent.parent / ".sim-cache"
 
 # USD per million tokens (input, output), list prices, for the cost estimate the

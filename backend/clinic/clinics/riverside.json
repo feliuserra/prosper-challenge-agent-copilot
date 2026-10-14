@@ -1,0 +1,238 @@
+{
+  "clinic": {
+    "name": "Riverside Family Clinic",
+    "now": "2026-10-12T08:30",
+    "days_ahead": 28
+  },
+  "providers": [
+    {
+      "id": "dr-patel",
+      "name": "Dr. Priya Patel",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "mon": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "tue": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "wed": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "thu": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "fri": [
+          "09:00-12:00"
+        ]
+      }
+    },
+    {
+      "id": "dr-okafor",
+      "name": "Dr. Daniel Okafor",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "mon": [
+          "08:00-12:00"
+        ],
+        "wed": [
+          "08:00-12:00"
+        ],
+        "fri": [
+          "08:00-12:00"
+        ]
+      }
+    },
+    {
+      "id": "np-kim",
+      "name": "Grace Kim",
+      "specialty": "Nurse practitioner",
+      "slot_minutes": 20,
+      "schedule": {
+        "tue": [
+          "12:00-18:00"
+        ],
+        "thu": [
+          "12:00-18:00"
+        ]
+      }
+    }
+  ],
+  "patients": [
+    {
+      "id": "pat-001",
+      "full_name": "Ana Lopez",
+      "date_of_birth": "1984-03-12",
+      "phone": "555-010-1234",
+      "insurance_plan": "blue-shield-ppo",
+      "last_visit": "2025-10-20"
+    },
+    {
+      "id": "pat-002",
+      "full_name": "James O'Connor",
+      "date_of_birth": "1957-11-02",
+      "phone": "555-010-5678",
+      "insurance_plan": "medicare",
+      "last_visit": "2026-09-28"
+    },
+    {
+      "id": "pat-003",
+      "full_name": "Mei Chen",
+      "date_of_birth": "1992-06-30",
+      "phone": "555-010-9012",
+      "insurance_plan": "aetna-hmo",
+      "last_visit": "2026-02-11"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "appt-0001",
+      "patient_id": "pat-001",
+      "provider_id": "dr-patel",
+      "start": "2026-10-14T10:00",
+      "reason": "Annual check-up",
+      "status": "booked",
+      "appointment_type": "checkup"
+    },
+    {
+      "id": "appt-0002",
+      "patient_id": "pat-002",
+      "provider_id": "dr-okafor",
+      "start": "2026-10-12T11:00",
+      "reason": "Blood pressure follow-up",
+      "status": "booked",
+      "appointment_type": "follow_up"
+    },
+    {
+      "id": "appt-0003",
+      "patient_id": "pat-003",
+      "provider_id": "np-kim",
+      "start": "2026-10-13T14:00",
+      "reason": "Flu vaccine",
+      "status": "booked",
+      "appointment_type": "vaccination"
+    },
+    {
+      "id": "appt-0004",
+      "patient_id": "pat-003",
+      "provider_id": "dr-patel",
+      "start": "2026-10-12T09:00",
+      "reason": "Sore throat",
+      "status": "cancelled",
+      "appointment_type": "sick_visit"
+    }
+  ],
+  "appointment_types": [
+    {
+      "id": "checkup",
+      "name": "Annual check-up",
+      "description": "A yearly physical or wellness exam, with no new problem to look at.",
+      "patients": "any",
+      "providers": [
+        "dr-patel",
+        "dr-okafor"
+      ]
+    },
+    {
+      "id": "new_patient",
+      "name": "New patient visit",
+      "description": "A first, longer visit for someone who has never been seen here: history, medications and a physical.",
+      "patients": "new",
+      "providers": [
+        "dr-patel"
+      ]
+    },
+    {
+      "id": "sick_visit",
+      "name": "Sick visit",
+      "description": "A new illness or symptom: fever, cough, sore throat, rash, pain, an infection.",
+      "patients": "any",
+      "providers": [
+        "dr-patel",
+        "dr-okafor",
+        "np-kim"
+      ]
+    },
+    {
+      "id": "follow_up",
+      "name": "Follow-up",
+      "description": "A follow-up on a known condition or a recent visit, such as blood pressure, diabetes or test results.",
+      "patients": "existing",
+      "providers": [
+        "dr-patel",
+        "dr-okafor"
+      ]
+    },
+    {
+      "id": "vaccination",
+      "name": "Vaccination",
+      "description": "A flu shot or a routine vaccine, with no other problem to look at.",
+      "patients": "any",
+      "providers": [
+        "np-kim"
+      ]
+    }
+  ],
+  "insurance_plans": [
+    {
+      "id": "blue-shield-ppo",
+      "name": "Blue Shield PPO",
+      "covers": [
+        "checkup",
+        "new_patient",
+        "sick_visit",
+        "follow_up",
+        "vaccination"
+      ]
+    },
+    {
+      "id": "aetna-hmo",
+      "name": "Aetna HMO",
+      "covers": [
+        "sick_visit",
+        "follow_up",
+        "vaccination"
+      ]
+    },
+    {
+      "id": "medicare",
+      "name": "Medicare",
+      "covers": [
+        "checkup",
+        "sick_visit",
+        "follow_up",
+        "vaccination"
+      ]
+    }
+  ],
+  "registration_fields": [
+    {
+      "name": "insurance_plan",
+      "description": "The caller's insurance plan as they name it, or 'self-pay' if they have none.",
+      "required": true
+    }
+  ],
+  "booking_fields": [
+    {
+      "name": "interpreter",
+      "description": "The language the patient needs an interpreter in for this visit, or 'none'.",
+      "required": true
+    }
+  ],
+  "cancellation": {
+    "window_hours": 24,
+    "fee": 50
+  },
+  "facts": {
+    "address": "200 River Road, Suite 3, next to the pharmacy.",
+    "hours": "Monday to Friday, 8 AM to 6 PM. Closed on weekends.",
+    "parking": "Free parking behind the building.",
+    "phone": "(555) 010-0000"
+  }
+}

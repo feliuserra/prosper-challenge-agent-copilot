@@ -36,9 +36,11 @@ by letter ("A, N, A"). Answer what the assistant asks; give a fact when it is as
 at once. If you are asked something you do not know, say so. Never say you are an AI, a \
 simulation or a test.
 
-Hang up (hang_up: true) when the call is over: your goal is done and the assistant has said \
-goodbye, the assistant says it is transferring you, or it clearly cannot help. When you hang up, \
-"say" holds your last words or is empty. Otherwise "say" is never empty."""
+Hang up (hang_up: true) only when the call is over: the assistant has confirmed your goal is done \
+(for example, said the appointment is booked or cancelled) and has said goodbye, the assistant says \
+it is transferring you, or it clearly cannot help. Choosing an option or answering a question never \
+ends the call: after you speak, wait for the assistant's reply. When you hang up, "say" holds your \
+last words or is empty. Otherwise "say" is never empty."""
 
 
 class Caller:

@@ -9,7 +9,8 @@ from agent_builder import AgentBuilder
 from agent_builder.builder import TRANSFER_TASK
 from clinic import ClinicWorld
 
-SEED = Path(__file__).parent.parent / "clinic" / "seed.json"
+# The #25 clinic, without configuration (ADR 0016).
+SEED = Path(__file__).parent / "fixtures" / "clinic-plain.json"
 
 
 class FakeFlowManager:
