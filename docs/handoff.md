@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14: #43's first PR merged, PR #61; its second, the Clinic tab, in review)
+## 0. Status (updated 2026-10-14: #43 merged; #57 in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -27,18 +27,19 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
 | Clinic configuration plan | Merged: #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
-| #43 Clinic configuration | First PR (backend) merged; the second (the Clinic tab) **in review**. Scope narrowed on 2026-10-14 (see below) | #61, Clinic tab PR |
+| #43 Clinic configuration | Merged in two PRs (backend, then the Clinic tab). Scope narrowed on 2026-10-14 (see below) | #61, #62 |
 | #45 Canvas polish: edge label pills, quiet edges, dotted background | Merged; checked by the user | #48 |
 | #46 Canvas polish: node card redesign | Merged; checked by the user | #49 |
 | #50 Canvas: stages, frames around groups of nodes | Merged; checked by the user | #52 |
 | #51 Canvas: collapse a stage into one card | Merged; checked by the user | #53 |
 | #47 Canvas polish: Start and End as terminal nodes | Merged (see "What #47 built") | #55 |
 | #56 Hand-in memo (draft) and plan update | Merged: `docs/memo/memo.tex`; #57 to #59 created, #32 rewritten, #33 and #35 trimmed, #38 and #39 closed as cut (see "Hand-in memo and detection") | #60 |
-| #57 to #59, #27 to #35 | Open, in the order of `PLAN-phase2.md`: #57, #58 and #59 (detection, no model calls), then #27 | |
+| #57 Synthetic call logs with planted defects | **In review** (see "What #57 built") | #57's PR |
+| #58, #59, #27 to #35 | Open, in the order of `PLAN-phase2.md`: #58 and #59 (detection, no model calls), then #27 | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** once the user has checked the Clinic tab PR and it merges (it closes #43), #57, #58 and #59 (detection, no model calls), then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** the user checks #57's PR (`make synth`), then #58 and #59 (detection, no model calls), then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -47,6 +48,15 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #57 built (backend only, no model calls), for reference:
+- `backend/detect/summary.py`: the call summary that every source reduces to (one JSON line: id, source, clinic, version, start, end, caller, `path` as `[node, turns, via]` per visit, `tools` as `[node, tool, ok]`, `ended` in completed / hang_up / transfer / error). `from_sim_record` reduces a text-runner record (turns in the transfer node are not counted; `max_turns` reads as a hang-up, `agent_loop` as an error). Live records (#28) will get the same.
+- `backend/detect/synth.py` (`make synth`, `python -m detect synth [--seed N]`): walks each clinic version's graph (the template plus `add_tools` customizations, `graph_for`) with a chance per outcome at each node (`NODES`: hang-up, transfer where the node has `transfer_to_human`, error, re-entry through the loop edges, forward edges by weight), tools per visit, and clinic records: patients (the existing ones are written when first identified, with `created: null`), bookings, and changes (by a call or the front desk). Callbacks are new calls from the same person within 48 hours, by how the call ended. Each clinic draws from its own seeded stream (`random.Random(f"{seed}:{clinic}")`) and its rates are the fleet's times a fixed jitter of up to 10%, so clinics differ a little.
+- The scenario (`scenario()`): Riverside at 11,500 calls a week (about 50,000 a month, the interviewer's number, so the minimum effect matters), Linden Grove at 1,500, Maple Street at 150; 2 or 3 versions each from 2026-08-31 to 2026-10-11 (Riverside's clock is Monday 2026-10-12). 85,495 calls and 134,823 records in about 5 s; `backend/.synth/` (gitignored, about 65 MB).
+- Planted (`labels.json`): re-entries in Confirm name 1.9% to 9% (Riverside v3), book_appointment errors 0.8% to 4% (Riverside v2 and v3), hang-ups in Offer times 3.1% to 8% in every Linden Grove version (only other clinics show it), transfers from Verify patient 0 to 4% (Linden Grove v2, which adds the tool), duplicate charts 0.3% to 2.5% (Linden Grove v1), callbacks after booking 3.1% to 15% (Maple Street v2). Must not be flagged: hang-ups in Manage appointment (about 25% everywhere: callers hang up once cancelled), anything else at Maple Street, and Riverside's greeting hang-ups from 8.6% to 9.6% (significant at that volume, below the minimum effect). A re-entry is counted where the loop starts: the node the call went back from (to itself or an earlier node), so Confirm name's `spell_again` counts at Confirm name, not at Ask name.
+- `measure` and `check` recount each planted rate on the logs (an independent count, not #58's) and `make synth` prints them; all within four standard errors. `sweep_scenario(calls_per_week, excess)` is one clinic over four weeks whose version 2 adds `excess` to Confirm name's re-entries, for #58's recall by rate (`SWEEP_EXCESS`, 0.5% to 5%) and volume (`SWEEP_VOLUMES`, 150 to 11,500 a week).
+- A shape the issue did not list: `error` for tool errors (the issue's shapes are stall, leak, detour, silent).
+- Tests: 247 pytest (14 new in `tests/test_detect_synth.py`, about 7 s: the demo scenario is generated once per module).
 
 What #43's second PR built (the Clinic tab), for reference:
 - `GET /composer/clinics` (id and name of each clinic, read on every request; an unreadable file is listed with no name) and `GET /composer/clinics/{id}` (the file as it is, `null` when it is not JSON, and `validate_clinic`'s problems; 404 for an unknown id). `DEFAULT_CLINIC` is mirrored in `frontend/src/agent/options.ts`.
