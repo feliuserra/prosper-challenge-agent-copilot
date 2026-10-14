@@ -27,4 +27,10 @@ The limits are far above what a test suite needs (a 20-test suite is a few hundr
 
 ## Cost of a run
 
-The first real run of the 3 example tests (`backend/sim/examples/scheduler-tests.json`) against the example agent: 3 of 3 passed in 24 s, about $0.22 at list prices (41 `gpt-4o` agent requests, 80k tokens in; 17 caller and 2 judge requests). Almost all of the cost is the agent model reading the history each turn. Prices are in `sim/config.py` (`PRICES`), so the CLI's estimate ignores cached-input discounts and is an upper bound.
+The first real run of the 3 example tests (`backend/sim/examples/scheduler-tests.json`) against the example agent: 3 of 3 passed in 24 s, about $0.22 at list prices (41 `gpt-4o` agent requests, 80k tokens in; 17 caller and 2 judge requests). Almost all of the cost is the agent model reading the history each turn. That estimate ignored cached input, so it was an upper bound.
+
+Since #27, prices in `sim/config.py` (`PRICES`) include the cached-input rate (half the input price for `gpt-4o` and `gpt-4o-mini`, a quarter for the `gpt-4.1` family), and the runner records cached tokens (`usage.prompt_tokens_details.cached_tokens`), so estimates are no longer an upper bound. OpenAI caches a repeated prompt prefix of 1,024 tokens or more, and each agent turn resends the whole history, so much of a call's agent input comes back cached. The first run with cached tokens (2026-10-15, the 4 example tests, `--no-cache`): 4 of 4 passed in 31 s for $0.27; 75,776 of the 132,870 `gpt-4o` input tokens (57%) were cached, and the old estimate would have said $0.36.
+
+## Spend log
+
+The company keys cannot read usage or billing (above), so we keep our own estimate. The model client (`sim/llm.py`) appends one line per request to `backend/.spend/ledger.jsonl` (gitignored): time, source (`test`, `eval`, `replay`, `copilot`; `call` from #28), model version, and input, cached and output tokens. A result served from the runner's cache makes no request and adds nothing; a failed request adds nothing either. `make spend` prints the estimated dollars by day and by source, and the total (`SINCE=2026-10-01` for the total since a date). It is an estimate at list prices from the day the log started (2026-10-15); spend before that (about $1.01 in #26) is not in it. Billed amounts are only in Prosper's OpenAI and ElevenLabs dashboards.

@@ -1,15 +1,17 @@
 #
 # The one door to the models. The agent, the caller and the judge all send an
 # OpenAI chat request (a dict) and get a Completion back, so unit tests swap in a
-# scripted model and `make test` never touches the network.
+# scripted model and `make test` never touches the network. The real client adds
+# every request it makes to the spend log (sim/spend.py).
 #
 
 import asyncio
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Protocol
 
-from . import config
+from . import config, spend
 
 
 @dataclass
@@ -24,7 +26,8 @@ class Completion:
     text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     model: str = ""  # the dated version that answered
-    input_tokens: int = 0
+    input_tokens: int = 0  # the whole prompt, cached tokens included (as the API counts them)
+    cached_tokens: int = 0
     output_tokens: int = 0
 
 
@@ -47,7 +50,16 @@ class Models:
 
 
 class OpenAIChat:
-    def __init__(self, client=None, max_parallel: int = config.MAX_PARALLEL_REQUESTS):
+    """`source` names what the requests are for in the spend log (`test`, `eval`,
+    `replay`, `copilot`); `ledger=None` logs nothing."""
+
+    def __init__(
+        self,
+        source: str,
+        client=None,
+        max_parallel: int = config.MAX_PARALLEL_REQUESTS,
+        ledger: Path | None = config.SPEND_LEDGER,
+    ):
         if client is None:
             from openai import AsyncOpenAI
 
@@ -55,6 +67,8 @@ class OpenAIChat:
             client = AsyncOpenAI(max_retries=config.MAX_RETRIES, timeout=config.REQUEST_TIMEOUT_SECS)
         self._client = client
         self._limit = asyncio.Semaphore(max_parallel)
+        self._source = source
+        self._ledger = ledger
 
     async def complete(self, request: dict) -> Completion:
         import openai
@@ -68,20 +82,26 @@ class OpenAIChat:
                 status = getattr(error, "status_code", None)
                 raise ModelError(f"{type(error).__name__}{f' {status}' if status else ''}: {error.message}") from None
         message = response.choices[0].message
-        return Completion(
+        usage = response.usage
+        completion = Completion(
             text=message.content or "",
             tool_calls=[
                 ToolCall(id=call.id, name=call.function.name, arguments=call.function.arguments)
                 for call in message.tool_calls or []
             ],
             model=response.model,
-            input_tokens=response.usage.prompt_tokens if response.usage else 0,
-            output_tokens=response.usage.completion_tokens if response.usage else 0,
+            input_tokens=usage.prompt_tokens if usage else 0,
+            cached_tokens=getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", None) or 0,
+            output_tokens=usage.completion_tokens if usage else 0,
         )
+        if self._ledger is not None:
+            spend.log(self._ledger, self._source, completion)
+        return completion
 
 
-def models() -> Models:
-    chat = OpenAIChat()
+def models(source: str) -> Models:
+    """One real client for all three roles; its requests go in the spend log under `source`."""
+    chat = OpenAIChat(source)
     return Models(agent=chat, caller=chat, judge=chat)
 
 
@@ -106,17 +126,19 @@ class Usage:
     """Tokens and requests per model version, for the time and cost report."""
 
     def __init__(self, data: dict | None = None):
-        self.data: dict[str, dict] = {k: dict(v) for k, v in (data or {}).items()}
+        # Results cached before #27 have no "cached" key: none of their tokens count as cached.
+        self.data: dict[str, dict] = {k: {**_empty(), **v} for k, v in (data or {}).items()}
 
     def add(self, completion: Completion) -> None:
-        entry = self.data.setdefault(completion.model or "unknown", {"requests": 0, "input": 0, "output": 0})
+        entry = self.data.setdefault(completion.model or "unknown", _empty())
         entry["requests"] += 1
         entry["input"] += completion.input_tokens
+        entry["cached"] += completion.cached_tokens
         entry["output"] += completion.output_tokens
 
     def merge(self, other: "Usage | dict") -> None:
         for model, entry in (other.data if isinstance(other, Usage) else other).items():
-            mine = self.data.setdefault(model, {"requests": 0, "input": 0, "output": 0})
+            mine = self.data.setdefault(model, _empty())
             for key in mine:
                 mine[key] += entry.get(key, 0)
 
@@ -124,8 +146,12 @@ class Usage:
         """Estimated USD, or None when a model has no price in config.PRICES."""
         total = 0.0
         for model, entry in self.data.items():
-            prices = config.price(model)
-            if prices is None:
+            usd = config.cost(model, entry["input"], entry["cached"], entry["output"])
+            if usd is None:
                 return None
-            total += (entry["input"] * prices[0] + entry["output"] * prices[1]) / 1_000_000
+            total += usd
         return total
+
+
+def _empty() -> dict:
+    return {"requests": 0, "input": 0, "cached": 0, "output": 0}

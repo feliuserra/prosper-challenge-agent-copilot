@@ -1,10 +1,12 @@
 #
 # CLI:  uv run python -m sim run <agent.json> <tests.json> [--no-cache] [--only ID]
 #                                [--out results.json] [--transcripts]
+#       uv run python -m sim spend [--since YYYY-MM-DD]
 #
-# Prints a pass/fail table, the evidence for every failed check, and the time,
+# `run` prints a pass/fail table, the evidence for every failed check, and the time,
 # tokens and estimated cost. Exits 1 when a result blocks a change (a failure,
 # an error or a flaky safety test), 2 when the agent or the tests are invalid.
+# `spend` prints the estimated spend from the spend log (sim/spend.py).
 #
 
 import argparse
@@ -13,6 +15,7 @@ import json
 import os
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -21,7 +24,7 @@ from loguru import logger
 from agent_builder import validate_agent
 from clinic import clinic_of
 
-from . import config
+from . import config, spend
 from .checks import render_transcript
 from .llm import Usage, models
 from .runner import blocking, run_suite
@@ -38,7 +41,13 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--only", action="append", metavar="ID", help="run only this test id (repeatable)")
     run.add_argument("--out", type=Path, help="write the full results as JSON")
     run.add_argument("--transcripts", action="store_true", help="print every run's transcript")
+    spend_ = commands.add_parser("spend", help="print the estimated model spend by day and source")
+    spend_.add_argument("--since", type=date.fromisoformat, metavar="YYYY-MM-DD", help="only requests from this day on")
     args = parser.parse_args(argv)
+
+    if args.command == "spend":
+        print(spend.report(spend.load(config.SPEND_LEDGER), args.since))
+        return 0
 
     load_dotenv(Path(__file__).parent.parent / ".env", override=True)
     logger.disable("agent_builder")  # the builder logs every transition and tool call
@@ -58,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     started = time.monotonic()
-    results = asyncio.run(run_suite(agent, tests, models(), use_cache=not args.no_cache))
+    results = asyncio.run(run_suite(agent, tests, models("test"), use_cache=not args.no_cache))
     seconds = time.monotonic() - started
 
     print(f"{agent['name']} ({agent.get('model', 'gpt-4o')}), caller {config.CALLER_MODEL}, judge {config.JUDGE_MODEL}\n")
@@ -132,7 +141,10 @@ def summary(results: list[dict], seconds: float) -> str:
     if usage.data:
         cost = usage.cost()
         parts.append(f"Estimated cost ${cost:.3f}:" if cost is not None else "Cost unknown (a model has no price in sim/config.py):")
-        parts += [f"  {m}: {u['requests']} requests, {u['input']} tokens in, {u['output']} out" for m, u in sorted(usage.data.items())]
+        parts += [
+            f"  {m}: {u['requests']} requests, {u['input']} tokens in ({u['cached']} cached), {u['output']} out"
+            for m, u in sorted(usage.data.items())
+        ]
     return "\n".join(parts)
 
 

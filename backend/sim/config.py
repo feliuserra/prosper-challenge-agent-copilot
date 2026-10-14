@@ -35,18 +35,32 @@ MAX_PARALLEL_REQUESTS = 16
 
 CACHE_DIR = Path(__file__).parent.parent / ".sim-cache"
 
-# USD per million tokens (input, output), list prices, for the cost estimate the
-# CLI prints. Cached-input discounts are ignored, so the estimate is an upper bound.
+# The spend log (#27): one line per model request, written by the model client.
+SPEND_LEDGER = Path(__file__).parent.parent / ".spend" / "ledger.jsonl"
+
+# USD per million tokens (input, cached input, output), OpenAI's list prices, for
+# the cost estimates. Cached input is the part of the prompt OpenAI served from its
+# prompt cache (a repeated prefix of 1,024 tokens or more), billed at the lower rate.
 # Matched by the longest prefix of the model name the API reports.
 PRICES = {
-    "gpt-4o-mini": (0.15, 0.60),
-    "gpt-4o": (2.50, 10.00),
-    "gpt-4.1-nano": (0.10, 0.40),
-    "gpt-4.1-mini": (0.40, 1.60),
-    "gpt-4.1": (2.00, 8.00),
+    "gpt-4o-mini": (0.15, 0.075, 0.60),
+    "gpt-4o": (2.50, 1.25, 10.00),
+    "gpt-4.1-nano": (0.10, 0.025, 0.40),
+    "gpt-4.1-mini": (0.40, 0.10, 1.60),
+    "gpt-4.1": (2.00, 0.50, 8.00),
 }
 
 
-def price(model: str) -> tuple[float, float] | None:
+def price(model: str) -> tuple[float, float, float] | None:
     matches = [prefix for prefix in PRICES if model.startswith(prefix)]
     return PRICES[max(matches, key=len)] if matches else None
+
+
+def cost(model: str, input_tokens: int, cached_tokens: int, output_tokens: int) -> float | None:
+    """Estimated USD for one model's tokens, or None when it has no price. `input_tokens`
+    counts the cached ones too, as the API does."""
+    prices = price(model)
+    if prices is None:
+        return None
+    uncached = input_tokens - cached_tokens
+    return (uncached * prices[0] + cached_tokens * prices[1] + output_tokens * prices[2]) / 1_000_000
