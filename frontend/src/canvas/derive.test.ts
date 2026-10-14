@@ -5,7 +5,20 @@ import { readFileSync } from "node:fs";
 import { autoLayout, cardHeight, NODE_WIDTH } from "../agent/layout";
 import type { Agent } from "../agent/schema";
 import type { Problem } from "../validation/problems";
-import { edgeId, FRAME_LABEL, FRAME_PAD, parseEdgeId, stageFrames, statusBadges, toFlowEdges, toFlowNodes } from "./derive";
+import {
+  edgeId,
+  FRAME_LABEL,
+  FRAME_PAD,
+  parseEdgeId,
+  stageFrames,
+  statusBadges,
+  toFlowEdges,
+  toFlowNodes,
+  type AgentFlowNode,
+} from "./derive";
+
+/** The node cards among derived nodes (no stage is collapsed in these tests unless said). */
+const nodeCards = (nodes: ReturnType<typeof toFlowNodes>) => nodes.filter((n): n is AgentFlowNode => n.type === "agent");
 
 const agent: Agent = {
   name: "a",
@@ -26,7 +39,7 @@ const agent: Agent = {
 
 describe("toFlowNodes", () => {
   it("uses the name as id and the stored position, and marks start and selection", () => {
-    const nodes = toFlowNodes(agent, { kind: "node", name: "next" }, { next: { width: 240, height: 60 } });
+    const nodes = nodeCards(toFlowNodes(agent, { kind: "node", name: "next" }, { next: { width: 240, height: 60 } }));
     expect(nodes.map((n) => [n.id, n.position, n.data.isStart, n.selected])).toEqual([
       ["start", { x: 10, y: 20 }, true, false],
       ["next", { x: 0, y: 200 }, false, true],
@@ -122,7 +135,7 @@ describe("statusBadges", () => {
 
 describe("a test call's position", () => {
   it("marks the active node and animates the edge taken", () => {
-    const nodes = toFlowNodes(agent, null, {}, new Map(), "next");
+    const nodes = nodeCards(toFlowNodes(agent, null, {}, new Map(), "next"));
     expect(nodes.map((n) => n.data.active)).toEqual([false, true]);
     const edges = toFlowEdges(agent, null, new Map(), edgeId("start", "cancel"));
     expect(edges.map((e) => [e.animated, e.data!.active])).toEqual([
@@ -132,8 +145,8 @@ describe("a test call's position", () => {
   });
 
   it("marks nothing outside a call or for a node that is gone", () => {
-    expect(toFlowNodes(agent, null).some((n) => n.data.active)).toBe(false);
-    expect(toFlowNodes(agent, null, {}, new Map(), "renamed").some((n) => n.data.active)).toBe(false);
+    expect(nodeCards(toFlowNodes(agent, null)).some((n) => n.data.active)).toBe(false);
+    expect(nodeCards(toFlowNodes(agent, null, {}, new Map(), "renamed")).some((n) => n.data.active)).toBe(false);
     expect(toFlowEdges(agent, null).some((e) => e.animated)).toBe(false);
   });
 });

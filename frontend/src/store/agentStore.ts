@@ -4,7 +4,7 @@ import { temporal } from "zundo";
 import { autoLayout, placeMissing, withPositions } from "../agent/layout";
 import { placeholderFunctionName, uniqueName } from "../agent/names";
 import type { Agent, Edge, Node, Position } from "../agent/schema";
-import { stageOf } from "../agent/stages";
+import { stageOf, stagesOf } from "../agent/stages";
 
 // One agent document plus editor state. Every change to the agent goes through a
 // named operation below (ADR 0001), so the canvas, the side panel and later the
@@ -31,10 +31,17 @@ interface AgentState {
   /** JSON of the agent as last loaded or saved, to detect unsaved changes. */
   savedJson: string | null;
   selection: Selection;
+  /** Collapsed stages (#51): what the canvas shows, not part of the agent or of undo history. */
+  collapsed: string[];
 
   open(agentId: string, agent: Agent, saved?: boolean): void;
   markSaved(): void;
+  /** Select something; a node or an edge inside a collapsed stage expands the stage. */
   select(selection: Selection): void;
+  /** Collapse or expand a stage. Collapsing it with one of its nodes or edges selected selects the stage. */
+  setCollapsed(stage: string, collapsed: boolean): void;
+  /** Collapse every stage, or expand them all. */
+  setAllCollapsed(collapsed: boolean): void;
 
   addNode(position?: Position): string;
   deleteNode(name: string): Result;
@@ -51,6 +58,8 @@ interface AgentState {
   renameStage(stage: string, newName: string): Result;
   /** Take every node out of a stage; the nodes stay. */
   ungroupStage(stage: string): void;
+  /** Move every node of a stage by the same offset, in one step. */
+  moveStage(stage: string, offset: Position): void;
   tidyLayout(): void;
   updateAgent(patch: AgentPatch): void;
 }
@@ -77,6 +86,21 @@ function merge<T extends object>(base: T, patch: object): T {
   return next as T;
 }
 
+/** The stage a selected node or edge is inside of, or null (an edge is inside when both ends are). */
+function stageOfSelection(agent: Agent, selection: Selection): string | null {
+  if (selection?.kind === "node") {
+    const node = findNode(agent, selection.name);
+    return node ? stageOf(node) : null;
+  }
+  if (selection?.kind === "edge") {
+    const source = findNode(agent, selection.source);
+    const target = source && findNode(agent, edgesOf(source).find((e) => e.function === selection.function)?.target ?? "");
+    const stage = source ? stageOf(source) : null;
+    return target && stageOf(target) === stage ? stage : null;
+  }
+  return null;
+}
+
 /** `node` in `stage`, or in none (the key is removed, as in a patch). */
 const withStage = (node: Node, stage: string | null): Node => merge(node, { stage: stage?.trim() || undefined });
 
@@ -99,6 +123,7 @@ export const useAgentStore = create<AgentState>()(
         agentId: null,
         savedJson: null,
         selection: null,
+        collapsed: [],
 
         open(agentId, loaded, saved = true) {
           // Fill in missing canvas positions. They are derived from the agent
@@ -109,6 +134,7 @@ export const useAgentStore = create<AgentState>()(
             agentId,
             savedJson: saved ? JSON.stringify(agent) : null,
             selection: null,
+            collapsed: [],
           });
           // A different document: undo must not go back into the previous one.
           useAgentStore.temporal.getState().clear();
@@ -119,7 +145,29 @@ export const useAgentStore = create<AgentState>()(
         },
 
         select(selection) {
-          set({ selection });
+          const { agent, collapsed } = get();
+          const stage = agent && stageOfSelection(agent, selection);
+          set({ selection, collapsed: stage ? collapsed.filter((s) => s !== stage) : collapsed });
+        },
+
+        setCollapsed(stage, collapse) {
+          const { agent, collapsed, selection } = get();
+          if (!collapse) return set({ collapsed: collapsed.filter((s) => s !== stage) });
+          const hidesSelection = agent !== null && stageOfSelection(agent, selection) === stage;
+          set({
+            collapsed: collapsed.includes(stage) ? collapsed : [...collapsed, stage],
+            selection: hidesSelection ? { kind: "stage", name: stage } : selection,
+          });
+        },
+
+        setAllCollapsed(collapse) {
+          const { agent, selection } = get();
+          if (!agent || !collapse) return set({ collapsed: [] });
+          const stage = stageOfSelection(agent, selection);
+          set({
+            collapsed: stagesOf(agent).map((s) => s.name),
+            selection: stage ? { kind: "stage", name: stage } : selection,
+          });
         },
 
         addNode(position) {
@@ -266,7 +314,9 @@ export const useAgentStore = create<AgentState>()(
           const nodes = agent.nodes.map((n) => (stageOf(n) === stage ? withStage(n, next) : n));
           let { selection } = get();
           if (selection?.kind === "stage" && selection.name === stage) selection = { kind: "stage", name: next };
-          set({ agent: { ...agent, nodes }, selection });
+          // A collapsed stage stays collapsed under its new name (merged, the result is collapsed if either was).
+          const collapsed = [...new Set(get().collapsed.map((s) => (s === stage ? next : s)))];
+          set({ agent: { ...agent, nodes }, selection, collapsed });
           return ok;
         },
 
@@ -274,7 +324,20 @@ export const useAgentStore = create<AgentState>()(
           const { agent, selection } = get();
           if (!agent) return;
           const next = { ...agent, nodes: agent.nodes.map((n) => (stageOf(n) === stage ? withStage(n, null) : n)) };
-          set({ agent: next, selection: selectionExists(next, selection) ? selection : null });
+          set({
+            agent: next,
+            selection: selectionExists(next, selection) ? selection : null,
+            collapsed: get().collapsed.filter((s) => s !== stage),
+          });
+        },
+
+        moveStage(stage, { x, y }) {
+          change((agent) => ({
+            ...agent,
+            nodes: agent.nodes.map((n) =>
+              stageOf(n) === stage ? { ...n, ui: { ...n.ui, x: (n.ui?.x ?? 0) + x, y: (n.ui?.y ?? 0) + y } } : n,
+            ),
+          }));
         },
 
         tidyLayout() {

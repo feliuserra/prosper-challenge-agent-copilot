@@ -1,7 +1,7 @@
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
 
 import { useAgentStore } from "../store/agentStore";
-import type { AgentFlowEdge } from "./derive";
+import { parseEdgeId, type AgentFlowEdge } from "./derive";
 import { backEdgeGeometry, edgeGeometry, selfLoopGeometry } from "./edgePath";
 
 /** An arrow turning right, for the edge label. */
@@ -61,7 +61,8 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
             transform: `translate(${labelAlign === "start" ? "0" : "-50%"}, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
           title={label === fn ? fn : `${fn}: ${label}`}
-          onClick={() => useAgentStore.getState().select({ kind: "edge", source, function: fn })}
+          // By the edge's id: `source` is a collapsed stage's card when the edge leaves one.
+          onClick={() => useAgentStore.getState().select({ kind: "edge", ...parseEdgeId(id) })}
         >
           <BranchIcon />
           <span className="edge-label-text">{label}</span>
