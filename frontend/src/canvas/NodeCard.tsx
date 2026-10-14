@@ -34,7 +34,7 @@ function WrenchIcon() {
 }
 
 export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<AgentFlowNode>) {
-  const { node, isStart, status = [], active } = data;
+  const { node, status = [], active } = data;
   const task = taskSummary(node.task_messages?.[0]?.content);
   const tools = node.tools ?? [];
   const className = ["node-card", selected && "selected", active && "active"].filter(Boolean).join(" ");
@@ -47,8 +47,6 @@ export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<Age
           <span className="node-card-name" title={node.name}>
             {displayName(node.name)}
           </span>
-          {isStart && <span className="badge start">Start</span>}
-          {node.end && <span className="badge end">End</span>}
           <span className="node-card-status">
             {status.map((s) => (
               <span key={s.tone} className={`badge ${s.tone}`} title={s.title}>

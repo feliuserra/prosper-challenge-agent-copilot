@@ -20,15 +20,14 @@ import { stagesOf } from "../agent/stages";
 import { useCallStore } from "../call/callStore";
 import { useAgentStore } from "../store/agentStore";
 import { useProblems } from "../validation/problems";
-import { handleEdgeChanges, handleNodeChanges } from "./changes";
+import { connectNodes, deleteElements, handleEdgeChanges, handleNodeChanges, reconnectEdge } from "./changes";
 import {
   edgeId,
-  parseEdgeId,
   stageFrames,
   statusBadges,
   toFlowEdges,
   toFlowNodes,
-  type AgentFlowEdge,
+  type CanvasFlowEdge,
   type CanvasFlowNode,
   type Dimensions,
 } from "./derive";
@@ -37,9 +36,10 @@ import { NodeCard } from "./NodeCard";
 import { ProblemsList } from "./ProblemsList";
 import { StageCard } from "./StageCard";
 import { StageFrames } from "./StageFrames";
+import { TerminalNode } from "./TerminalNode";
 import { canvasView } from "./view";
 
-const nodeTypes = { agent: NodeCard, stage: StageCard };
+const nodeTypes = { agent: NodeCard, stage: StageCard, terminal: TerminalNode };
 const edgeTypes = { function: FunctionEdge };
 // Fit small agents at 100% instead of blowing up a single card. Room at the top for
 // the buttons over the canvas and a stage frame's header, which fitting does not count.
@@ -115,22 +115,17 @@ function Flow() {
       handleNodeChanges(changes, (id, size) => setMeasured((m) => ({ ...m, [id]: size })), viewRef.current),
     [],
   );
-  const onEdgesChange = useCallback((changes: EdgeChange<AgentFlowEdge>[]) => handleEdgeChanges(changes), []);
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange<CanvasFlowEdge>[]) => handleEdgeChanges(changes, viewRef.current),
+    [],
+  );
+  const onConnect = useCallback((connection: Connection) => connectNodes(connection, viewRef.current), []);
+  const onReconnect = useCallback(
+    (edge: CanvasFlowEdge, connection: Connection) => reconnectEdge(edge, connection, viewRef.current),
+    [],
+  );
 
-  // Edges join nodes, never a collapsed stage's card (its handles do not connect; this is a guard).
-  const isCard = (id: string) => viewRef.current.cardStage.has(id);
-
-  const onConnect = useCallback(({ source, target }: Connection) => {
-    if (!isCard(source) && !isCard(target)) store().connect(source, target);
-  }, []);
-
-  const onReconnect = useCallback((edge: AgentFlowEdge, { source, target }: Connection) => {
-    if (source !== edge.source || target === edge.target || isCard(target) || !edge.data) return;
-    // By the edge's id: `edge.source` is a card when the edge leaves a collapsed stage.
-    store().updateEdge(parseEdgeId(edge.id).source, edge.data.function, { target });
-  }, []);
-
-  const onBeforeDelete: OnBeforeDelete<CanvasFlowNode, AgentFlowEdge> = useCallback(async ({ nodes }) => {
+  const onBeforeDelete: OnBeforeDelete<CanvasFlowNode, CanvasFlowEdge> = useCallback(async ({ nodes }) => {
     const start = store().agent?.initial_node;
     if (nodes.some((n) => n.id === start)) {
       setNotice(`'${start}' is the start node. Choose another start node before deleting it.`);
@@ -139,18 +134,9 @@ function Flow() {
     return true;
   }, []);
 
-  const onDelete: OnDelete<CanvasFlowNode, AgentFlowEdge> = useCallback(({ nodes, edges }) => {
-    // Stage cards are not deletable, so these are nodes.
-    const deleted = new Set(nodes.map((n) => n.id));
-    for (const node of nodes) {
-      const result = store().deleteNode(node.id);
-      if (!result.ok) setNotice(result.error);
-    }
-    // Edges into or out of a deleted node went with it (deleteNode cascades).
-    for (const edge of edges) {
-      const { source, function: fn } = parseEdgeId(edge.id);
-      if (!deleted.has(source) && !deleted.has(edge.target)) store().deleteEdge(source, fn);
-    }
+  const onDelete: OnDelete<CanvasFlowNode, CanvasFlowEdge> = useCallback((deleted) => {
+    const [error] = deleteElements(deleted);
+    if (error) setNotice(error);
   }, []);
 
   // At the centre of the view, or the nearest free spot that is still in view.
@@ -186,7 +172,7 @@ function Flow() {
   return (
     <div className="canvas">
       <div className={connecting ? "canvas-flow connecting" : "canvas-flow"} ref={wrapper}>
-        <ReactFlow<CanvasFlowNode, AgentFlowEdge>
+        <ReactFlow<CanvasFlowNode, CanvasFlowEdge>
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}

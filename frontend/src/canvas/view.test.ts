@@ -74,6 +74,28 @@ describe("canvasView", () => {
     expect(view.shown(at("e")).y).toBe(side.y + NODE_HEIGHT + (872 - (654 + NODE_HEIGHT)));
   });
 
+  it("names a Start pill on the start node and an End pill on each end node, or on their collapsed stage's card", () => {
+    const ends: Agent = {
+      ...agent,
+      nodes: agent.nodes.map((n) => (n.name === "c" || n.name === "d" || n.name === "e" ? { ...n, end: true } : n)),
+    };
+    const pills = (view: ReturnType<typeof canvasView>) => [...view.terminals.values()].map((t) => [t.kind, t.at]);
+    expect(pills(canvasView(ends, []))).toEqual([
+      ["start", "a"],
+      ["end", "c"],
+      ["end", "d"],
+      ["end", "e"],
+    ]);
+    // c and d are both in S: one End pill on its card.
+    const view = canvasView({ ...ends, initial_node: "b" }, ["S"]);
+    const card = view.cards.get("S")!.id;
+    expect(pills(view)).toEqual([
+      ["start", card],
+      ["end", card],
+      ["end", "e"],
+    ]);
+  });
+
   it("gives a card an id no node has, and ignores stages that do not exist", () => {
     const clash: Agent = { ...agent, nodes: [...agent.nodes, { name: "stage::S", ui: { x: 900, y: 0 } }] };
     const view = canvasView(clash, ["S", "Gone"]);

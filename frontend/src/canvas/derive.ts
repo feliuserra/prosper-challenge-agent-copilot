@@ -1,36 +1,43 @@
 import { MarkerType, type Edge as FlowEdge, type Node as FlowNode } from "@xyflow/react";
 
-import { cardHeight, edgeLabel, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
+import {
+  cardHeight,
+  edgeLabel,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  TERMINAL_GAP,
+  TERMINAL_HEIGHT,
+  TERMINAL_WIDTH,
+} from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
-import { stagesOf, type Stage } from "../agent/stages";
+import { stageOf, stagesOf, type Stage } from "../agent/stages";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
 import { routeBackEdges, type BackRoute, type Box } from "./edgePath";
-import { canvasView, type CanvasView, type Dimensions } from "./view";
+import { canvasView, type CanvasView, type Dimensions, type Terminal } from "./view";
 
 // React Flow nodes and edges are derived from the agent on every change (ADR 0001).
 // Node id = node name; edge id = `${source}::${function}` (unique: the store never
 // holds two edges with the same function name in one node). With collapsed stages
 // (#51, view.ts), a stage's card stands in for its nodes: edges into and out of the
-// stage end at the card, and edges inside it are not drawn.
+// stage end at the card, and edges inside it are not drawn. The Start and End pills
+// (#47) and their plain edges are derived too, and never reach the store.
 
 /** A badge on a node card or an edge label: validation errors (#6), warnings (#9). */
 export type StatusBadge = { tone: Severity; label: string; title: string };
 
 /** `active`: the node a test call is in (#8). */
-export type AgentNodeData = { node: Node; isStart: boolean; status?: StatusBadge[]; active?: boolean };
+export type AgentNodeData = { node: Node; status?: StatusBadge[]; active?: boolean };
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /** A collapsed stage's card. `activeStep`: the node in it a test call is in. */
-export type StageCardData = {
-  stage: Stage;
-  status?: StatusBadge[];
-  isStart: boolean;
-  isEnd: boolean;
-  activeStep: string | null;
-};
+export type StageCardData = { stage: Stage; status?: StatusBadge[]; activeStep: string | null };
 export type StageFlowNode = FlowNode<StageCardData, "stage">;
-export type CanvasFlowNode = AgentFlowNode | StageFlowNode;
+
+/** A Start or End pill (#47): where a call starts, and where it can end. */
+export type TerminalData = { kind: Terminal["kind"] };
+export type TerminalFlowNode = FlowNode<TerminalData, "terminal">;
+export type CanvasFlowNode = AgentFlowNode | StageFlowNode | TerminalFlowNode;
 
 /**
  * `label`: what the edge's label says (`edgeLabel`).
@@ -47,6 +54,9 @@ export type FunctionEdgeData = {
   active?: boolean;
 };
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
+/** The plain edge from the Start pill to its card, or from a card to its End pill. */
+export type TerminalFlowEdge = FlowEdge<Record<string, never>, "default">;
+export type CanvasFlowEdge = AgentFlowEdge | TerminalFlowEdge;
 
 export type { Dimensions };
 
@@ -127,7 +137,8 @@ function toBadges(problems: Problem[]): StatusBadge[] {
 /**
  * `measured` holds the card sizes React Flow reported. They are DOM measurements,
  * not graph state, but a controlled React Flow needs them back on its nodes.
- * Nodes in collapsed stages are left out; each collapsed stage is one card.
+ * Nodes in collapsed stages are left out; each collapsed stage is one card. The
+ * Start and End pills come last.
  */
 export function toFlowNodes(
   agent: Agent,
@@ -144,16 +155,10 @@ export function toFlowNodes(
       type: "agent",
       // The store gives every node a position (open, addNode); 0,0 is only a guard.
       position: view.shown(node),
-      data: {
-        node,
-        isStart: node.name === agent.initial_node,
-        status: status.get(node.name),
-        active: node.name === activeNode,
-      },
+      data: { node, status: status.get(node.name), active: node.name === activeNode },
       selected: selection?.kind === "node" && selection.name === node.name,
       measured: measured[node.name],
     }));
-  const byName = new Map(agent.nodes.map((n) => [n.name, n]));
   const cards: CanvasFlowNode[] = [...view.cards.values()].map(({ id, stage, position }) => ({
     id,
     type: "stage",
@@ -161,8 +166,6 @@ export function toFlowNodes(
     data: {
       stage,
       status: status.get(id),
-      isStart: stage.nodes.includes(agent.initial_node),
-      isEnd: stage.nodes.some((name) => byName.get(name)?.end),
       activeStep: activeNode !== null && stage.nodes.includes(activeNode) ? activeNode : null,
     },
     selected: selection?.kind === "stage" && selection.name === stage.name,
@@ -171,7 +174,20 @@ export function toFlowNodes(
     connectable: false,
     deletable: false,
   }));
-  return [...nodes, ...cards];
+  // Pills only show where a call starts and ends: nothing can be done with them.
+  const pills: CanvasFlowNode[] = terminalPills(agent, measured, view).map(({ id, kind, x, y }) => ({
+    id,
+    type: "terminal",
+    position: { x, y },
+    data: { kind },
+    measured: measured[id],
+    selectable: false,
+    draggable: false,
+    deletable: false,
+    connectable: false,
+    focusable: false,
+  }));
+  return [...nodes, ...cards, ...pills];
 }
 
 export function toFlowEdges(
@@ -181,16 +197,14 @@ export function toFlowEdges(
   activeEdge: string | null = null,
   measured: Record<string, Dimensions> = {},
   view: CanvasView = canvasView(agent, [], measured),
-): AgentFlowEdge[] {
+): CanvasFlowEdge[] {
   // Edges to a missing node cannot be drawn; validation reports them on their node.
   const drawn = drawnEdges(agent, view);
   const end = view.endOf;
 
-  const cardSize = (id: string) => measured[id] ?? { width: NODE_WIDTH, height: NODE_HEIGHT };
-  const boxes = new Map<string, Box>([
-    ...agent.nodes.filter((n) => !view.hiddenIn.has(n.name)).map((n) => [n.name, cardBox(n, measured, view)] as const),
-    ...[...view.cards.values()].map((card) => [card.id, { ...card.position, ...cardSize(card.id) }] as const),
-  ]);
+  // Back edges route around the cards and the pills.
+  const pills = terminalPills(agent, measured, view);
+  const boxes = new Map<string, Box>([...shownBoxes(agent, measured, view), ...pills.map((p) => [p.id, p] as const)]);
   const routes = routeBackEdges(
     boxes,
     drawn.map(({ source, edge }) => ({
@@ -208,7 +222,7 @@ export function toFlowEdges(
   }
   const pairIndex = new Map<string, number>();
 
-  return drawn.map(({ source, edge }) => {
+  const functionEdges = drawn.map(({ source, edge }): AgentFlowEdge => {
     const pair = `${end(source)}->${end(edge.target)}`;
     const index = pairIndex.get(pair) ?? 0;
     pairIndex.set(pair, index + 1);
@@ -240,6 +254,21 @@ export function toFlowEdges(
       },
     };
   });
+  // Plain and unlabelled: React Flow's own curve, straight when the pill is centred on its card.
+  const pillEdges = pills.map(
+    ({ id, edgeId, kind, at }): TerminalFlowEdge => ({
+      id: edgeId,
+      type: "default",
+      source: kind === "start" ? id : at,
+      target: kind === "start" ? at : id,
+      selectable: false,
+      deletable: false,
+      focusable: false,
+      reconnectable: false,
+      markerEnd: { type: MarkerType.Arrow, color: EDGE_STROKE },
+    }),
+  );
+  return [...functionEdges, ...pillEdges];
 }
 
 /** A node's card where it is shown, with its measured size or the size it is laid out with. */
@@ -249,6 +278,67 @@ function cardBox(node: Node, measured: Record<string, Dimensions>, view: CanvasV
     width: measured[node.name]?.width ?? NODE_WIDTH,
     height: measured[node.name]?.height ?? cardHeight(node),
   };
+}
+
+/** Every card shown, by id: the nodes not in a collapsed stage, and the collapsed stages' cards. */
+function shownBoxes(agent: Agent, measured: Record<string, Dimensions>, view: CanvasView): Map<string, Box> {
+  const cardSize = (id: string) => measured[id] ?? { width: NODE_WIDTH, height: NODE_HEIGHT };
+  return new Map<string, Box>([
+    ...agent.nodes.filter((n) => !view.hiddenIn.has(n.name)).map((n) => [n.name, cardBox(n, measured, view)] as const),
+    ...[...view.cards.values()].map((card) => [card.id, { ...card.position, ...cardSize(card.id) }] as const),
+  ]);
+}
+
+export type TerminalPill = Terminal & Box;
+
+/**
+ * The Start and End pills where they are shown: the Start pill above its card and
+ * End pills below. A pill is centred on its card, except when an edge from above
+ * also joins the card at the top (for Start), or one leaves it downwards (for
+ * End): that edge runs where the pill would be, and its label sits halfway to the
+ * other card. The pill then moves to the card's left or right edge, away from the
+ * other cards, which clears even the widest label; with the other card straight
+ * above or below, to the left, since back edges come in from the right. A card in
+ * a stage frame keeps its pill inside the frame only where there is room;
+ * otherwise the pill goes outside the frame, so it never lands in the frame's header.
+ */
+export function terminalPills(
+  agent: Agent,
+  measured: Record<string, Dimensions> = {},
+  view: CanvasView = canvasView(agent, [], measured),
+): TerminalPill[] {
+  const boxes = shownBoxes(agent, measured, view);
+  const byName = new Map(agent.nodes.map((n) => [n.name, n]));
+  const frames = new Map(stageFrames(agent, measured, view).map((f) => [f.name, f]));
+  // Edges between two cards, one below the other. Back edges and self-loops join
+  // a card from the side (edgePath.ts), clear of a centred pill.
+  const downward = drawnEdges(agent, view)
+    .map(({ source, edge }) => ({ from: view.endOf(source), to: view.endOf(edge.target) }))
+    .filter(({ from, to }) => boxes.get(to)!.y >= boxes.get(from)!.y + boxes.get(from)!.height);
+  const centre = (box: Box) => box.x + box.width / 2;
+  return [...view.terminals.values()].map((terminal) => {
+    const card = boxes.get(terminal.at)!;
+    // A collapsed stage's card is in no frame; a node shown is in its expanded stage's.
+    const node = byName.get(terminal.at);
+    const stage = node && stageOf(node);
+    const frame = stage ? frames.get(stage) : undefined;
+    const start = terminal.kind === "start";
+    let y: number;
+    if (start) {
+      y = card.y - TERMINAL_GAP - TERMINAL_HEIGHT;
+      if (frame && y < frame.y + FRAME_LABEL) y = frame.y - TERMINAL_GAP - TERMINAL_HEIGHT;
+    } else {
+      y = card.y + card.height + TERMINAL_GAP;
+      if (frame && y + TERMINAL_HEIGHT > frame.y + frame.height - FRAME_PAD) y = frame.y + frame.height + TERMINAL_GAP;
+    }
+    // The cards at the other end of the downward edges on the pill's side of its card.
+    const others = downward
+      .filter(({ from, to }) => (start ? to : from) === terminal.at)
+      .map(({ from, to }) => boxes.get(start ? from : to)!);
+    const lean = others.reduce((sum, box) => sum + centre(box) - centre(card), 0);
+    const x = (others.length === 0 ? centre(card) : lean < 0 ? card.x + card.width : card.x) - TERMINAL_WIDTH / 2;
+    return { ...terminal, x, y, width: TERMINAL_WIDTH, height: TERMINAL_HEIGHT };
+  });
 }
 
 // Room around a stage's cards inside its frame (#50), and above them for the label.
