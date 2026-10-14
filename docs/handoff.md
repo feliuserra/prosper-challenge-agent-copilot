@@ -29,7 +29,15 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** #27 (demo clinic, reference suite, `make eval`, now with the spend log) on `issue-27-reference-suite`, then the rest in the order of `PLAN-phase2.md`. #11 comes last.
+**Next step:** #27 (demo clinic, reference suite, `make eval`, now with the spend log) on `issue-27-reference-suite` (created locally from `main` after the #42 merge, not pushed; this handoff commit is its only commit), then the rest in the order of `PLAN-phase2.md`. #11 comes last.
+
+Starting #27, for the next session:
+- Read the issue body first (`gh issue view 27 --repo feliuserra/prosper-challenge-agent-copilot`): it now includes the spend log (cached tokens priced at the cached rate, `backend/.spend/ledger.jsonl` written by `sim/llm.py`, `make spend`).
+- Suggested order, offered to the user at the end of the last session: draft `backend/eval/clinic-a/guidelines.md` and a one-line list of the 20 tests (tier, persona, what it checks) for the user to review before writing any test JSON or the reference agent. The user's review of the guidelines, the tests and about 30 judge labels (about 45 minutes) is a prerequisite in `PLAN-phase2.md`.
+- Build on #26: the test format is `backend/sim/testfile.py` (with `validate_tests`), examples in `backend/sim/examples/scheduler-tests.json`; `run_suite`, `blocking` and the CLI's table are reusable for `make eval`. Mutants are agent dicts, so `run_suite(mutant, tests, models)` per mutant; the cache keeps reruns free.
+- Cost to expect at list prices: about $0.06 to $0.08 per booking-length test, so one uncached run of 20 tests is about $1.20 to $1.60 plus reruns of failures, and one pass over 8 mutants about $10. Prefer cached runs and the cheap probes below while iterating; use `--no-cache` for numbers that go in the PR.
+- Judge calibration: label transcripts from real runs (the CLI's `--out` writes them). To compare judge models, call `judge_rule` directly on the labelled turns, as the caller probe did in #26, instead of rerunning calls.
+- Leftover from the user's broken-agent check: `backend/agents/broken-transfer.json` (untracked). The user was told to delete it; check before committing anything in `backend/agents/`.
 
 Spend log, for reference (decided 2026-10-13): the company keys cannot read spend (OpenAI: missing `api.usage.read`; ElevenLabs: no `user_read`, and its character stats cover the whole account since 2026-09-12, not just us), so only Prosper's dashboards show billed amounts. Added to #27 (cached tokens, a ledger written by the model client, `make spend`) and #28 (usage per call record, one ledger line per call), in the issue bodies and `PLAN-phase2.md`. Spend before the ledger is not covered; #26 spent about $1.01.
 
