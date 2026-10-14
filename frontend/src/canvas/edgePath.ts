@@ -1,4 +1,4 @@
-import { NODE_WIDTH } from "../agent/layout";
+import { LABEL_HEIGHT, labelWidth, NODE_WIDTH } from "../agent/layout";
 
 // Edge shapes. Edges always leave the bottom handle of a node and enter the top
 // handle of their target (NodeCard), so only that case is handled here.
@@ -10,7 +10,7 @@ import { NODE_WIDTH } from "../agent/layout";
 
 const LANE_BOW = 40;
 /** Vertical distance between stacked labels: a label's height plus a gap. */
-export const LABEL_STACK = 26;
+export const LABEL_STACK = LABEL_HEIGHT + 6;
 // How far a self-loop reaches past the right side of its node, and per lane.
 const LOOP_OUT = 50;
 const LOOP_LANE = 40;
@@ -62,9 +62,6 @@ export function selfLoopGeometry({ sourceX, sourceY, targetX, targetY, lane }: E
 // retry or "go back"). A plain curve would run through the nodes in between, so
 // it goes like a self-loop instead: out of the bottom, up a column right of
 // every node it passes, into the top of the target.
-
-/** A label's approximate width: 12px monospace text plus padding and border. */
-const labelWidth = (text: string) => text.length * 7.3 + 14;
 
 export type Box = { x: number; y: number; width: number; height: number };
 

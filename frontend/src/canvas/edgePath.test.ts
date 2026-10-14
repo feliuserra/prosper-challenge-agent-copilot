@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { getBezierPath, Position } from "@xyflow/react";
 import { describe, expect, it } from "vitest";
 
-import { NODE_HEIGHT, NODE_WIDTH, withPositions } from "../agent/layout";
+import { autoLayout, LABEL_HEIGHT, labelWidth, NODE_HEIGHT, NODE_WIDTH, withPositions } from "../agent/layout";
 import type { Agent } from "../agent/schema";
 import { toFlowEdges } from "./derive";
 import {
@@ -14,9 +14,6 @@ import {
   type Box,
   type RoutedEdge,
 } from "./edgePath";
-
-// A rendered label is about 20px tall (12px text, padding and border).
-const LABEL_HEIGHT = 20;
 
 const bezier = (sourceX: number, sourceY: number, targetX: number, targetY: number) =>
   getBezierPath({ sourceX, sourceY, sourcePosition: Position.Bottom, targetX, targetY, targetPosition: Position.Top });
@@ -48,6 +45,39 @@ describe("edgeGeometry", () => {
     expect(a.path).not.toBe(b.path);
     expect(b.labelY - a.labelY).toBe(LABEL_STACK);
     expect(LABEL_STACK).toBeGreaterThan(LABEL_HEIGHT);
+  });
+});
+
+describe("labels after autoLayout", () => {
+  it("of edges branching out of one node sit side by side, clear of each other and the cards", () => {
+    const description = "Call when the caller asks for something this branch handles, in so many words.";
+    const branches = ["book", "cancel", "reschedule"];
+    const agent = autoLayout({
+      name: "branching",
+      initial_node: "triage",
+      nodes: [
+        { name: "triage", edges: branches.map((b) => ({ function: `to_${b}`, description, target: b })) },
+        ...branches.map((name) => ({ name })),
+      ],
+    });
+    const at = Object.fromEntries(agent.nodes.map((n) => [n.name, n.ui!]));
+    const width = labelWidth(description);
+    const labels = branches.map((b) => {
+      const { labelX, labelY } = edgeGeometry({
+        sourceX: at.triage.x + NODE_WIDTH / 2,
+        sourceY: at.triage.y + NODE_HEIGHT,
+        targetX: at[b].x + NODE_WIDTH / 2,
+        targetY: at[b].y,
+        lane: 0,
+      });
+      return { x: labelX - width / 2, y: labelY - LABEL_HEIGHT / 2, width, height: LABEL_HEIGHT };
+    });
+    const overlaps = (a: Box, b: Box) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    for (const [i, a] of labels.entries()) {
+      for (const b of labels.slice(i + 1)) expect(overlaps(a, b)).toBe(false);
+      for (const card of Object.values(at)) expect(overlaps(a, { ...card, width: NODE_WIDTH, height: NODE_HEIGHT })).toBe(false);
+    }
   });
 });
 

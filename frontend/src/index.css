@@ -190,7 +190,10 @@ details[open] summary {
   inset: 0;
   display: flex;
   flex-direction: column;
+  /* Edge colours; derive.ts colours the arrowheads to match. */
+  --xy-edge-stroke: #b6bcc4;
   --xy-edge-stroke-selected: #0969da;
+  --xy-background-color: #fafafa;
 }
 .canvas-flow {
   position: relative;
@@ -261,6 +264,22 @@ details[open] summary {
 .tool-option .hint {
   margin-left: 20px;
 }
+/* Handles show on a hovered or selected card, and on every card while a
+   connection is dragged; they still work while hidden. */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #8c959f;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle,
+.react-flow__node:focus-visible .react-flow__handle,
+.canvas-flow.connecting .react-flow__handle {
+  opacity: 1;
+}
 /* Blue means selected. React Flow also paints an edge blue when a mouse press
    focuses it without selecting it; keep that for keyboard focus only. */
 .react-flow__edge.selectable:not(.selected):focus:not(:focus-visible) .react-flow__edge-path {
@@ -272,26 +291,51 @@ details[open] summary {
   stroke: #0969da;
   stroke-width: 1.5;
 }
+/* Edge labels: a dark pill. Its height and widest width are LABEL_HEIGHT and
+   LABEL_MAX_WIDTH in layout.ts, which spaces the layout around them. */
 .edge-label {
   position: absolute;
   pointer-events: all;
-  padding: 1px 6px;
-  border: 1px solid #d0d7de;
-  border-radius: 4px;
-  background: #fff;
-  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 260px;
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 12px;
+  background: #24292f;
+  color: #fff;
+  font: 12px system-ui, sans-serif;
   cursor: pointer;
 }
-.edge-label.selected {
-  border-color: #0969da;
-  color: #0969da;
+.edge-label:hover {
+  background: #424a53;
+}
+.edge-label-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.edge-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .edge-label .badge {
-  margin-left: 6px;
-  font-family: system-ui, sans-serif;
+  flex-shrink: 0;
+  line-height: 16px;
 }
+.edge-label.selected {
+  background: #0969da;
+}
+/* A ring for problems, an outline for the test call, so both show with the selection. */
 .edge-label.error {
-  border-color: #cf222e;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #cf222e;
+}
+.edge-label.warning {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #d4a72c;
 }
 /* The edge a test call took last; React Flow animates its dashes. */
 .react-flow__edge.animated .react-flow__edge-path {
@@ -299,10 +343,8 @@ details[open] summary {
   stroke-width: 2;
 }
 .edge-label.active {
-  background: #dafbe1;
-}
-.edge-label.warning {
-  border-color: #d4a72c;
+  outline: 3px solid rgb(26 127 55 / 45%);
+  outline-offset: 4px;
 }
 
 /* Problems list, below the canvas */

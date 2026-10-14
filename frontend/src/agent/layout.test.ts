@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { autoLayout, freeSpot, nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH, placeMissing, withPositions } from "./layout";
+import {
+  autoLayout,
+  edgeLabel,
+  freeSpot,
+  LABEL_MAX_WIDTH,
+  labelWidth,
+  nearestFreeSpot,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  placeMissing,
+  withPositions,
+} from "./layout";
 import type { Agent, Position } from "./schema";
 
 const example = () =>
@@ -43,6 +54,27 @@ describe("autoLayout", () => {
     const all = agent.nodes.map((n) => n.ui!);
     for (const [i, a] of all.entries()) for (const b of all.slice(i + 1)) expect(overlap(a, b)).toBe(false);
     expect(pos(agent, "a").collapsed).toBe(true);
+  });
+});
+
+describe("edgeLabel", () => {
+  const label = (description: string) => edgeLabel({ function: "go_on", description, target: "b" });
+
+  it("is the description on one line, without a leading 'Call' before when, once or if", () => {
+    expect(label("Record what the caller\n  wants.")).toBe("Record what the caller wants.");
+    expect(label("Call once the caller has spelled their name.")).toBe("Once the caller has spelled their name.");
+    expect(label("call when they agree")).toBe("When they agree");
+    expect(label("Call the clinic back.")).toBe("Call the clinic back.");
+  });
+
+  it("is the function name when there is no description", () => {
+    expect(label("")).toBe("go_on");
+    expect(label("  \n ")).toBe("go_on");
+  });
+
+  it("is never wider than a label can be", () => {
+    expect(labelWidth("short")).toBeLessThan(LABEL_MAX_WIDTH);
+    expect(labelWidth("x".repeat(200))).toBe(LABEL_MAX_WIDTH);
   });
 });
 
