@@ -5,7 +5,7 @@ PROJECT := backend
 FRONTEND := frontend
 TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset synth memo clean
+.PHONY: help install run dev test clinic-reset synth detect detect-eval memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -34,6 +34,12 @@ clinic-reset: ## Restore the live clinics (bookings made in calls) to their seed
 
 synth: ## Write synthetic call logs with planted defects to backend/.synth (#57; no model calls)
 	uv run --directory $(PROJECT) python -m detect synth
+
+detect: ## Print the ranked issues found in the call logs (#58; no model calls)
+	uv run --directory $(PROJECT) python -m detect run
+
+detect-eval: ## Measure detection against the planted defects, with recall by rate and volume (#58)
+	uv run --directory $(PROJECT) python -m detect eval
 
 memo: ## Build docs/memo/memo.pdf (Tectonic; pass TECTONIC=/path/to/tectonic if it is not on PATH)
 	$(TECTONIC) docs/memo/memo.tex

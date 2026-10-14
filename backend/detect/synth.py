@@ -208,8 +208,10 @@ def write(out_dir: Path = OUT_DIR, seed: int = SEED, scene: dict | None = None) 
 
 
 def read(out_dir: Path = OUT_DIR) -> tuple[list, list]:
-    """The calls and records in a directory, as the detector reads them."""
-    return _read_lines(out_dir / "calls.jsonl"), _read_lines(out_dir / "records.jsonl")
+    """The calls and records in a directory, as the detector reads them (no records file:
+    no records)."""
+    records = out_dir / "records.jsonl"
+    return _read_lines(out_dir / "calls.jsonl"), _read_lines(records) if records.exists() else []
 
 
 def graph_for(template: dict, clinic: dict, version: int) -> dict:
