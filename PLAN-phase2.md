@@ -40,7 +40,7 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 
 - **Exact checks first.** Tests check tool calls and their arguments, their order, transfers and how the call ended. A fixed tool catalog makes these checks the same for any agent ([ADR 0008](docs/adr/0008-node-tools-from-a-mock-catalog.md)). An LLM judge is used only for soft rules.
 - **A reference suite the Copilot never sees.** 20 hand-written tests for a fictional clinic, in `backend/eval/`, outside anything the Copilot can read. The Copilot loops on its own tests; the reference suite measures afterwards.
-- **Mutation testing.** Deliberately broken versions of a hand-built reference agent must each fail at least one test, and each test must catch at least one of them.
+- **Mutation testing.** Deliberately broken versions of a hand-built reference agent must each fail at least one of the tests designed to catch them, and each test must be designed to catch at least one. Only those pairs are run, so a pass over every mutant is about 20 simulated calls, not mutants times tests.
 - **A calibrated judge.** About 30 hand-labelled transcripts; each judged rule needs at least 90% agreement or becomes an exact check.
 - **A measured call checker.** The mock production calls come from a deliberately weak agent, so we know which problems each call contains and can measure how many the checker finds and how many of its alarms are wrong.
 - **Safety tests block.** Emergency, medical advice, identity and transfer tests must pass at 100% for a change to be offered.
@@ -164,27 +164,35 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 ## 43. Clinic configuration as data
 
-**Goal:** what changes from one clinic to the next lives in a validated clinic configuration that the tools enforce, not in prompts. The scheduling agent becomes a template that works for any clinic, and the Copilot (#29, #30) customizes it with a configuration plus a small graph diff ([ADR 0016](docs/adr/0016-clinic-configuration-as-data.md)).
+**Goal:** what changes from one clinic to the next lives in a validated clinic configuration that the tools enforce, not in prompts, and the editor shows it. The scheduling agent becomes a template that works for any clinic, and the Copilot (#29, #30) customizes it with a configuration plus a small graph diff ([ADR 0016](docs/adr/0016-clinic-configuration-as-data.md)).
 
 **Depends on:** #25, #26. Built before #27, so clinic-a, its reference agent and the reference suite are written against the final catalog.
 
-**Scope:**
-- Configuration in the clinic seed, all optional (a clinic without it behaves as in #25): `appointment_types` (id, name, description, minutes, `new`/`existing`/`any` patients, providers), `insurance_plans` (covered types, types needing a referral), `registration_fields` and `booking_fields` (name, description, required, optional format), `policies` (`min_notice_hours`, `days_ahead`, `cancellation` with `window_hours` and `fee`) and `facts` (address, hours, parking, phone). Patients may carry `last_visit` and `insurance_plan`; a patient with no visit is new.
+**Size:** kept small on purpose (decided 2026-10-14): only what the interviewer named, and two PRs, the backend first and the editor's Clinic tab second.
+
+**Scope, first PR (backend):**
+- Configuration in the clinic seed, all optional (a clinic without it behaves as in #25): `appointment_types` (id, name, description, `new`/`existing`/`any` patients, providers), `insurance_plans` (id, name, covered types), `registration_fields` and `booking_fields` (name, description, required), `cancellation` (`window_hours` and `fee`; no entry means no fee) and `facts` (address, hours, parking, phone). Patients may carry `last_visit` and `insurance_plan`; a patient with no visit is new.
 - A loader that validates a configuration and returns every problem with its path, like `validate_agent`. The Copilot's extracted configuration (#29) must pass it.
-- Slots: a type of N minutes needs N consecutive free minutes inside one schedule block; appointments store type and length; overlap is checked on intervals. Slot ids are unchanged.
-- Tools: new `list_appointment_types`, `check_coverage(insurance_plan, appointment_type)` and `get_clinic_info`; `find_slots` and `book_appointment` take `appointment_type` and enforce providers, fit, notice, patient eligibility and required fields; `register_patient` takes the clinic's fields; cancel and reschedule inside the fee window need `fee_acknowledged` and the refusal states the fee; `lookup_patient` shows each appointment's type and whether a fee applies now. The schema the model sees is built per clinic (fields as properties, types as an enum).
-- Several clinics under `backend/clinic/clinics/` (the seed becomes `riverside.json`); an optional `clinic` field on the agent (default `riverside`); live state per clinic; schema, validation, zod mirror, `GET /composer/clinics` and a clinic select in the agent panel.
-- The text runner (#26) uses the same per-clinic schemas and clinic selection as the builder; test files may set the new keys in `world`; `tool_called` arguments are checked against the clinic's schema.
+- Slots are unchanged: a booking takes one slot of its provider's grid, whatever its type.
+- Tools: new `list_appointment_types`, `check_coverage(insurance_plan, appointment_type)` and `get_clinic_info`; `find_slots` and `book_appointment` take `appointment_type` and enforce providers, patient eligibility and required fields; `register_patient` takes the clinic's fields; cancel and reschedule inside the fee window need `fee_acknowledged` and the refusal states the fee; `lookup_patient` shows each appointment's type and whether a fee applies now. The schema the model sees is built per clinic (fields as properties, types as an enum).
+- Several clinics under `backend/clinic/clinics/` (the seed becomes `riverside.json`); an optional `clinic` field on the agent (default `riverside`); live state per clinic; schema, validation (unknown clinic) and zod mirror.
+- The text runner (#26) uses the same per-clinic schemas and clinic selection as the builder; test files may set the new keys in `world`.
 - The example agent becomes the scheduling template: no clinic facts in its prompts; it maps the reason to a type, checks coverage when insurance comes up, and collects the fields the tools ask for.
 - Riverside's seed gets a configuration: 4 or 5 types (one for new patients only), 2 or 3 plans with different coverage, one extra registration field and one booking field, a 24 h fee.
-- Candidate actions, to iterate and not in scope unless agreed: `add_to_waitlist`, `leave_message`, `confirm_appointment`, a configurable "new patient", provider rules beyond types (age ranges, languages), hospital departments.
+
+**Scope, second PR (the Clinic tab):**
+- `GET /composer/clinics` (id and name of each) and `GET /composer/clinics/{id}` (the configuration and the loader's problems). A clinic select in the agent panel.
+- A Graph | Clinic switch above the canvas. The Clinic view is read-only and shows the open agent's clinic: who does what (a providers by appointment types grid, each type with its description and who may book it, each provider with their weekly hours), coverage (a plans by types grid), the fields asked at registration and at booking (required ones marked), the cancellation fee, the facts, and the loader's problems with their path. It makes the split visible: an agent is a template graph plus a clinic configuration. Editing the configuration in the UI is #31's, at approval time.
+
+**Candidates, to iterate and not in scope unless agreed:** visit lengths (a type of N minutes needs N consecutive free minutes, overlap checked on intervals), minimum notice, referrals, field formats (date, phone, a list of values), a week calendar of open and booked slots in the Clinic tab, `add_to_waitlist`, `leave_message`, `confirm_appointment`, a configurable "new patient", provider rules beyond types (age ranges, languages), hospital departments.
 
 **Acceptance criteria:**
-- pytest for every rule on the seed (types and providers, fit, notice, eligibility, required fields, coverage, the fee and `fee_acknowledged`, interval overlap).
+- pytest for every rule on the seed (types and providers, patient eligibility, required fields, coverage, the fee and `fee_acknowledged`).
 - The loader reports every planted error in a broken configuration fixture, each with its path.
 - The same template builds against two clinics, and the schemas it gets differ as configured, in the builder and in the runner.
 - The #25 tests pass unchanged on a fixture clinic without configuration.
 - The #26 example tests, updated for the template, pass; time and cost recorded in the PR.
+- The Clinic tab, checked in the browser pane: Riverside's grids match its seed, switching the agent's clinic updates the view, and a fixture clinic with a broken configuration lists its problems.
 - In a real call (user): the template books a type that needs a field Riverside asks for, is refused by a plan that does not cover the visit and says so, and asks the caller to accept the fee before a late cancellation.
 
 ## 27. Demo clinic, reference suite and `make eval`
@@ -199,9 +207,9 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
   - `world.json`: the clinic's seed and configuration (#43): appointment types, providers per type, insurance coverage, required fields, the fee.
   - `reference-agent.json`: built by hand in the editor from the scheduling template (#43), using the catalog.
   - `tests.json`: the 20 reference tests. About 5 safety tests (emergency, medical advice, identity before booking or sharing appointment details, a human on request) and about 15 core tests (book, new patient, reschedule, cancel inside and outside 24 h, nothing available, a misheard name corrected by spelling, a caller who changes their mind, an off-topic question, provider preference, an insurance question, a time outside opening hours, a provider who does not do the requested type, a plan that does not cover the visit, a late cancellation where the caller must accept the fee first). Personas vary on purpose: terse, elderly, non-native speaker, angry, rambling.
-- Mutants: `backend/eval/mutants.py`, about 8 functions that each break the reference agent in one known way (remove the identity check, book without confirming, drop the emergency instruction, skip the fee warning, never transfer, ignore the new-patient rule, invent availability instead of calling `find_slots`; and configuration mutants (#43): a provider allowed a type they do not do, a plan covering a visit it should not, the fee removed, ...).
+- Mutants: `backend/eval/mutants.py`, about 8 functions that each break the reference agent (or clinic-a's configuration) in one known way and name the 2 or 3 tests designed to catch it (remove the identity check, book without confirming, drop the emergency instruction, skip the fee warning, never transfer, ignore the new-patient rule, invent availability instead of calling `find_slots`; and configuration mutants (#43): a provider allowed a type they do not do, a plan covering a visit it should not, the fee removed, ...).
 - Judge calibration: about 30 transcripts from real runs, passing and failing on the soft rules, labelled by hand (drafted by Claude, reviewed by the user) in `backend/eval/judge-labels.json`. Measure agreement per rule; pick the judge model; a rule under 90% is rewritten or turned into an exact check.
-- `make eval`: runs the reference suite against an agent (default: the reference agent; `AGENT=...` for another) and prints a table and a summary. `make eval MUTANTS=1` runs it against every mutant. Results go to `backend/eval/results/` (gitignored). Not part of `make test`.
+- `make eval`: runs the reference suite against an agent (default: the reference agent; `AGENT=...` for another) and prints a table and a summary. `make eval MUTANTS=1` runs each mutant against its own tests only, once each and without the rerun on failure: about 20 simulated calls (about $1.50 with `gpt-4o` as the agent) instead of 8 times 20. A test counts as catching a mutant only if the reference agent passed it without being flaky. Mutation testing must stay cheap enough to run on every change to the suite. Results go to `backend/eval/results/` (gitignored). Not part of `make test`.
 - Spend log. The company keys cannot read usage or billing ([`docs/notes/models.md`](docs/notes/models.md)), so we keep our own estimate:
   - The runner records cached input tokens (`usage.prompt_tokens_details.cached_tokens`) and prices them at the cached rate, so the estimate is no longer an upper bound.
   - The model client (`sim/llm.py`) appends every request it makes to `backend/.spend/ledger.jsonl` (gitignored): time, source (`test`, `eval`, `replay`, later `copilot`), model version, and input, cached and output tokens. A result served from the cache adds nothing. Because the log sits in the client, the Copilot's own model calls (#29 on) are counted with no extra work.
@@ -209,7 +217,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Acceptance criteria:**
 - The reference agent passes 20/20. Flaky results are allowed only in the core tier and are listed in the PR.
-- Every mutant fails at least one test, and every test fails on at least one mutant, or the PR says why not.
+- Every mutant fails at least one of its tests, and every test is designed to catch at least one mutant (a table in the PR), or the PR says why not. The full mutants-by-tests matrix is not run.
 - Judge agreement is at least 90% for every judged rule in the suite.
 - The user has reviewed the guidelines and the tests.
 - Time and cost of one `make eval` run are recorded.
@@ -316,7 +324,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Scope:**
 - A right-hand column with tabs: Copilot, Tests, Calls (filled in #32) and Test call (the #7 panel, unchanged). It takes the call panel's place instead of adding a fourth column.
-- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the checklist coverage (#38), the clinic configuration as tables (types, providers per type, coverage, fields, fee; editable before approval, #43), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
+- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the checklist coverage (#38), the clinic configuration as tables (types, providers per type, coverage, fields, fee; the grids of #43's Clinic tab, editable here before approval), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
 - Guidelines: a text area in the workspace to paste the client's document.
 - Requirement map: clicking a requirement outlines the nodes that carry it; the node panel shows a node's requirements as read-only chips; requirements with no node or no test appear in the problems list as warnings.
 - Canvas: while the Copilot builds, its operations appear live; a proposal shows as a diff overlay (added, changed, removed nodes and edges). Accept applies it through a new store operation as one undo step and saves a version; Reject leaves the agent as it was.

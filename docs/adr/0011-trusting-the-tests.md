@@ -1,6 +1,6 @@
 # ADR 0011: Trusting the tests
 
-- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): checks on the debugging itself.
+- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): checks on the debugging itself. Amended 2026-10-14: each mutant runs only against the tests designed to catch it (point 6).
 - **Date:** 2026-10-05
 
 ## Context
@@ -16,7 +16,7 @@
 3. **Tests come from requirements, not from the graph.** The spec step never sees an agent.
 4. **No test facts in the agent.** A proposal whose agent contains facts from any test (caller names, dates of birth, phone numbers) is blocked. It is the cheapest guard against special-casing a test ("if the caller is Ana Lopez...").
 5. **A held-out reference suite.** 20 hand-written tests for a fictional clinic live in `backend/eval/`, outside the workspace the Copilot can read. The Copilot loops only on its own tests; the reference suite measures the result afterwards. A test checks that no reference test reaches a Copilot prompt.
-6. **Mutation testing.** About 8 deliberately broken versions of the hand-built reference agent. Every mutant must fail at least one reference test, and every reference test must catch at least one mutant (or the reason is written down). A test that passes on a broken agent checks nothing.
+6. **Mutation testing.** About 8 deliberately broken versions of the hand-built reference agent (or of its clinic configuration, ADR 0016). Each mutant names the 2 or 3 tests designed to catch it and runs only against those, once each: about 20 simulated calls in all instead of mutants times tests, so mutation testing is never the expensive part. Every mutant must fail at least one of its tests, and every reference test must be designed to catch at least one mutant (or the reason is written down). A test counts as catching a mutant only if the reference agent passes it without being flaky. A test that passes on a broken agent checks nothing.
 7. **Judge calibration.** About 30 transcripts for the soft rules, labelled by Claude with a reason each and corrected by the user. Each judged rule needs at least 90% agreement with the labels; otherwise it is rewritten or turned into an exact check.
 8. **Planted issues.** The mock production calls come from a deliberately weak agent with known defects, so we know what each call contains. The call checker's recall and false alarms are measured against that list. Real recorded voice calls and hand-roughened ones are mixed in, so the checker is not measured only on clean simulated text. The calls made by the runner keep their hidden caller in the label file, which the checker cannot read.
 9. **A blind second clinic.** Claude writes the reference suite and the Copilot's prompts, so the reference suite is held out from the Copilot but not from its author. The user writes clinic B (guidelines and about 6 tests) and keeps it out of the repo until a single final run. No prompt changes after seeing it; the result is reported as it is. It shows whether the Copilot generalises or just learned clinic A.

@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14, #26 merged; clinic configuration planned after the interviewer's answers)
+## 0. Status (updated 2026-10-14, #44 merged; #43 narrowed and started)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -26,18 +26,27 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
-| Clinic configuration plan | **In review.** #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
+| Clinic configuration plan | Merged: #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
+| #43 Clinic configuration | **In progress** on `issue-43-clinic-config`. Scope narrowed on 2026-10-14 (see below); two PRs | |
 | #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** merge #44 (docs) when the user says so. Then #43 (clinic configuration) before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `issue-27-reference-suite` (local, not pushed) holds only a handoff commit, which #44 contains, so it can be deleted once #44 is merged; start #43 on `issue-43-clinic-config` from `main`. A separate session is brainstorming how to find problems in calls at scale (workflow 2) before #32 is rewritten: see "Interviewer's answers" below. #11 comes last.
+**Next step:** #43 (clinic configuration) on `issue-43-clinic-config`, before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `issue-27-reference-suite` and `docs/clinic-config-plan` were deleted after the #44 merge.
+
+Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
+- #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
+- #43 adds a read-only Clinic tab: a Graph | Clinic switch above the canvas showing the open agent's clinic (providers by types grid, plans by types coverage grid, fields, fee, facts, loader problems), plus `GET /composer/clinics[/{id}]` and a clinic select in the agent panel.
+- Two PRs for #43: the backend first (configuration, loader, tools, per-clinic schemas, clinics, runner, template), then the Clinic tab. Both close parts of #43; the second says `Closes #43`.
+- Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
+- Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
+- These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. A separate session is brainstorming how to find problems in calls at scale (workflow 2) before #32 is rewritten: see "Interviewer's answers" below. #11 comes last.
 
 When #27 starts (after #43), for that session:
 - The issue body changed on 2026-10-14: the guidelines must describe appointment types and which provider does each, which plans cover which visits and the data needed to register a patient; `world.json` carries clinic-a's configuration in #43's format; the reference agent is built from the scheduling template; tests and mutants cover configuration rules.
 - Read the issue body first (`gh issue view 27 --repo feliuserra/prosper-challenge-agent-copilot`): it now includes the spend log (cached tokens priced at the cached rate, `backend/.spend/ledger.jsonl` written by `sim/llm.py`, `make spend`).
-- Suggested order, offered to the user at the end of the last session: draft `backend/eval/clinic-a/guidelines.md` and a one-line list of the 20 tests (tier, persona, what it checks) for the user to review before writing any test JSON or the reference agent. The user's review of the guidelines, the tests and about 30 judge labels (about 45 minutes) is a prerequisite in `PLAN-phase2.md`.
+- Drafts exist, untracked and not reviewed: `backend/eval/clinic-a/guidelines.md` (Linden Grove Family Practice) and `backend/eval/clinic-a/tests-outline.md` (the 20 tests), written before #43 was planned. Rework them for #43's configuration and give them to the user for review before writing any test JSON or the reference agent. Keep them out of #43's commits. The user's review of the guidelines, the tests and about 30 judge labels (about 45 minutes) is a prerequisite in `PLAN-phase2.md`.
 - Build on #26: the test format is `backend/sim/testfile.py` (with `validate_tests`), examples in `backend/sim/examples/scheduler-tests.json`; `run_suite`, `blocking` and the CLI's table are reusable for `make eval`. Mutants are agent dicts, so `run_suite(mutant, tests, models)` per mutant; the cache keeps reruns free.
-- Cost to expect at list prices: about $0.06 to $0.08 per booking-length test, so one uncached run of 20 tests is about $1.20 to $1.60 plus reruns of failures, and one pass over 8 mutants about $10. Prefer cached runs and the cheap probes below while iterating; use `--no-cache` for numbers that go in the PR.
+- Cost to expect at list prices: about $0.06 to $0.08 per booking-length test, so one uncached run of 20 tests is about $1.20 to $1.60 plus reruns of failures. Mutants run only against their own tests (about 20 calls, about $1.50). Prefer cached runs and the cheap probes below while iterating; use `--no-cache` for numbers that go in the PR.
 - Judge calibration: label transcripts from real runs (the CLI's `--out` writes them). To compare judge models, call `judge_rule` directly on the labelled turns, as the caller probe did in #26, instead of rerunning calls.
 - Leftover from the user's broken-agent check: `backend/agents/broken-transfer.json` (untracked). The user was told to delete it; check before committing anything in `backend/agents/`.
 
