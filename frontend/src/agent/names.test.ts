@@ -2,12 +2,25 @@ import { describe, expect, it } from "vitest";
 
 import {
   agentIdFor,
+  displayName,
   FUNCTION_NAME_RE,
   functionNameError,
   nodeNameError,
   placeholderFunctionName,
   sanitizeFunctionName,
 } from "./names";
+
+describe("displayName", () => {
+  it("reads a snake_case or kebab-case name as words, capitalised", () => {
+    expect(displayName("ask_name")).toBe("Ask name");
+    expect(displayName("verify-patient__now")).toBe("Verify patient now");
+    expect(displayName("Account & Billing")).toBe("Account & Billing");
+  });
+
+  it("keeps a name that is only separators", () => {
+    expect(displayName("_")).toBe("_");
+  });
+});
 
 describe("placeholderFunctionName", () => {
   it("is go_to_<target>", () => {
