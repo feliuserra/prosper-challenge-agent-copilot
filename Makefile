@@ -3,8 +3,9 @@
 
 PROJECT := backend
 FRONTEND := frontend
+TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset clean
+.PHONY: help install run dev test clinic-reset memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -30,6 +31,9 @@ test: ## Run the backend and frontend tests
 
 clinic-reset: ## Restore the live clinic (bookings made in calls) to its seed
 	rm -f $(PROJECT)/clinic/state.json
+
+memo: ## Build docs/memo/memo.pdf (Tectonic; pass TECTONIC=/path/to/tectonic if it is not on PATH)
+	$(TECTONIC) docs/memo/memo.tex
 
 clean: ## Remove the venv, node_modules and Python caches
 	rm -rf $(PROJECT)/.venv $(FRONTEND)/node_modules
