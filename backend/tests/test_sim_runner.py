@@ -60,6 +60,10 @@ def test_the_cache_key_follows_what_decides_a_result(example):
     moved = copy.deepcopy(example)
     moved["nodes"][0]["ui"] = {"x": 10, "y": 20}
     assert cache_key(moved, JUDGED) == key
+    regrouped = copy.deepcopy(example)
+    regrouped["nodes"][0]["stage"] = "Somewhere else"
+    del regrouped["nodes"][1]["stage"]
+    assert cache_key(regrouped, JUDGED) == key
     reworded = copy.deepcopy(example)
     reworded["nodes"][0]["task_messages"][0]["content"] += " Be brief."
     assert cache_key(reworded, JUDGED) != key

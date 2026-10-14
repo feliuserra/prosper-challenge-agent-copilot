@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { readFileSync } from "node:fs";
+
+import { autoLayout, cardHeight, NODE_WIDTH } from "../agent/layout";
 import type { Agent } from "../agent/schema";
 import type { Problem } from "../validation/problems";
-import { edgeId, parseEdgeId, statusBadges, toFlowEdges, toFlowNodes } from "./derive";
+import { edgeId, FRAME_LABEL, FRAME_PAD, parseEdgeId, stageFrames, statusBadges, toFlowEdges, toFlowNodes } from "./derive";
 
 const agent: Agent = {
   name: "a",
@@ -138,5 +141,57 @@ describe("a test call's position", () => {
 describe("edge ids", () => {
   it("round-trip, even when the node name contains '::'", () => {
     expect(parseEdgeId(edgeId("a::b", "go_to_c"))).toEqual({ source: "a::b", function: "go_to_c" });
+  });
+});
+
+describe("stageFrames", () => {
+  it("frames a stage's cards with padding and room for the label, using measured sizes", () => {
+    const staged: Agent = {
+      name: "f",
+      initial_node: "a",
+      nodes: [
+        { name: "a", stage: "S", ui: { x: 0, y: 0 } },
+        { name: "b", stage: "S", tools: ["find_slots"], ui: { x: 100, y: 300 } },
+        { name: "c", ui: { x: 900, y: 900 } },
+      ],
+    };
+    const [frame, ...rest] = stageFrames(staged, { a: { width: 400, height: 50 } });
+    expect(rest).toEqual([]);
+    expect(frame).toMatchObject({ name: "S", nodes: ["a", "b"], tone: 0 });
+    expect(frame).toMatchObject({
+      x: -FRAME_PAD,
+      y: -FRAME_LABEL,
+      width: 100 + NODE_WIDTH + 2 * FRAME_PAD,
+      height: 300 + cardHeight(staged.nodes[1]) + FRAME_LABEL + FRAME_PAD,
+    });
+  });
+
+  it("after autoLayout of the template, do not overlap, and each card is inside its own frame only", () => {
+    const template = JSON.parse(
+      readFileSync(new URL("../../../backend/agents/prosper-scheduler.json", import.meta.url), "utf8"),
+    ) as Agent;
+    // A branch out of the last stage, so stages also sit side by side.
+    const branched: Agent = {
+      ...template,
+      nodes: [
+        ...template.nodes.map((n) =>
+          n.name === "offer_times"
+            ? { ...n, edges: [...(n.edges ?? []), { function: "no_slot", description: "", target: "waitlist" }] }
+            : n,
+        ),
+        { name: "waitlist", stage: "Waitlist" },
+      ],
+    };
+    const laidOut = autoLayout(branched);
+    const frames = stageFrames(laidOut);
+    expect(frames.map((f) => f.name)).toEqual(["Identify caller", "Visit", "Book", "Waitlist"]);
+    type Rect = { x: number; y: number; width: number; height: number };
+    const overlaps = (a: Rect, b: Rect) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    for (const [i, a] of frames.entries()) for (const b of frames.slice(i + 1)) expect(overlaps(a, b)).toBe(false);
+    for (const n of laidOut.nodes) {
+      const card = { x: n.ui!.x, y: n.ui!.y, width: NODE_WIDTH, height: cardHeight(n) };
+      expect(frames.filter((f) => overlaps(f, card)).map((f) => f.name)).toEqual([n.stage]);
+    }
   });
 });

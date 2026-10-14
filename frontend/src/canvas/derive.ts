@@ -2,6 +2,7 @@ import { MarkerType, type Edge as FlowEdge, type Node as FlowNode } from "@xyflo
 
 import { cardHeight, edgeLabel, NODE_WIDTH } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
+import { stagesOf, type Stage } from "../agent/stages";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
 import { routeBackEdges, type BackRoute, type Box } from "./edgePath";
@@ -134,17 +135,7 @@ export function toFlowEdges(
   // Edges to a missing node cannot be drawn; validation reports them on their node.
   const drawn = drawnEdges(agent);
 
-  const boxes = new Map<string, Box>(
-    agent.nodes.map((n) => [
-      n.name,
-      {
-        x: n.ui?.x ?? 0,
-        y: n.ui?.y ?? 0,
-        width: measured[n.name]?.width ?? NODE_WIDTH,
-        height: measured[n.name]?.height ?? cardHeight(n),
-      },
-    ]),
-  );
+  const boxes = new Map<string, Box>(agent.nodes.map((n) => [n.name, cardBox(n, measured)]));
   const routes = routeBackEdges(
     boxes,
     drawn.map(({ source, edge }) => ({
@@ -193,5 +184,34 @@ export function toFlowEdges(
         color: active ? ACTIVE_STROKE : selected ? SELECTED_STROKE : EDGE_STROKE,
       },
     };
+  });
+}
+
+/** A node's card in flow coordinates: its measured size, or the size it is laid out with. */
+function cardBox(node: Node, measured: Record<string, Dimensions>): Box {
+  return {
+    x: node.ui?.x ?? 0,
+    y: node.ui?.y ?? 0,
+    width: measured[node.name]?.width ?? NODE_WIDTH,
+    height: measured[node.name]?.height ?? cardHeight(node),
+  };
+}
+
+// Room around a stage's cards inside its frame (#50), and above them for the label.
+export const FRAME_PAD = 20;
+export const FRAME_LABEL = 40;
+
+export type StageFrame = Stage & Box;
+
+/** The frame around each stage's cards, in flow coordinates, in stage order. */
+export function stageFrames(agent: Agent, measured: Record<string, Dimensions> = {}): StageFrame[] {
+  const byName = new Map(agent.nodes.map((n) => [n.name, n]));
+  return stagesOf(agent).map((stage) => {
+    const cards = stage.nodes.map((name) => cardBox(byName.get(name)!, measured));
+    const left = Math.min(...cards.map((c) => c.x)) - FRAME_PAD;
+    const top = Math.min(...cards.map((c) => c.y)) - FRAME_LABEL;
+    const right = Math.max(...cards.map((c) => c.x + c.width)) + FRAME_PAD;
+    const bottom = Math.max(...cards.map((c) => c.y + c.height)) + FRAME_PAD;
+    return { ...stage, x: left, y: top, width: right - left, height: bottom - top };
   });
 }
