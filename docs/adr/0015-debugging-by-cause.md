@@ -1,6 +1,6 @@
 # ADR 0015: Debugging by cause: rule chains, turn replay and what-if forecasts
 
-- **Status:** Accepted, 2026-10-08. Amends [ADR 0002](0002-keep-schema-add-ui-positions.md) (one more optional field), [0009](0009-text-runner-for-simulated-calls.md), [0010](0010-test-format-and-grading.md), [0011](0011-trusting-the-tests.md), [0012](0012-copilot-edits-through-operations.md) and [0013](0013-workspaces-versions-and-calls.md).
+- **Status:** Accepted, 2026-10-08. Amends [ADR 0002](0002-keep-schema-add-ui-positions.md) (one more optional field), [0009](0009-text-runner-for-simulated-calls.md), [0010](0010-test-format-and-grading.md), [0011](0011-trusting-the-tests.md), [0012](0012-copilot-edits-through-operations.md) and [0013](0013-workspaces-versions-and-calls.md). Amended 2026-10-14 by [ADR 0016](0016-clinic-configuration-as-data.md): one more broken link, a wrong or missing configuration entry, decided exactly.
 - **Date:** 2026-10-08
 
 ## Context

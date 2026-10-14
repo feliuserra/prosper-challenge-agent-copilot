@@ -1,6 +1,6 @@
 # ADR 0008: Node tools from a fixed mock catalog
 
-- **Status:** Accepted, 2026-10-05. Amends [ADR 0002](0002-keep-schema-add-ui-positions.md): the schema gains one optional field.
+- **Status:** Accepted, 2026-10-05. Amends [ADR 0002](0002-keep-schema-add-ui-positions.md): the schema gains one optional field. Amended 2026-10-14 by [ADR 0016](0016-clinic-configuration-as-data.md): rules that are tables or numbers (appointment types, coverage, fields, the fee) move from prompts to a clinic configuration the tools enforce; three tools are added.
 - **Date:** 2026-10-05
 
 ## Context

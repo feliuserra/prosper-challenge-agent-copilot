@@ -1,6 +1,6 @@
 # ADR 0012: The Copilot changes agents through validated operations
 
-- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): operations cite requirements; candidate changes are checked by turn replay before full reruns.
+- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): operations cite requirements; candidate changes are checked by turn replay before full reruns. Amended 2026-10-14 by [ADR 0016](0016-clinic-configuration-as-data.md): the Copilot starts from a scheduling template and proposes a configuration plus operations on it.
 - **Date:** 2026-10-05
 
 ## Context

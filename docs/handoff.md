@@ -1,12 +1,12 @@
 # Handoff: Prosper challenge (Agent Composer), Phase 1 UI
 
-Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35, #38 and #39), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
+Context for a new session. Read it fully before writing code. The build plan is in [`PLAN.md`](../PLAN.md) for Phase 1 and [`PLAN-phase2.md`](../PLAN-phase2.md) for Phase 2 (the Agent Copilot, issues #25 to #35, #38, #39 and #43), the design decisions are in [`docs/adr/`](adr/README.md), and what the Pipecat runtime actually does (with file:line references into the installed packages) is in [`docs/notes/runtime.md`](notes/runtime.md). This file holds the context those do not.
 
 Working style: the user (Feliu) is a strong Python developer and wants direct answers with explicit reasoning and trade-offs. Explain why each decision is made. Avoid overengineering. In documents written for the repo, keep a plain voice and avoid em-dashes.
 
 ---
 
-## 0. Status (updated 2026-10-14, #26 checked by the user and merged)
+## 0. Status (updated 2026-10-14, #26 merged; clinic configuration planned after the interviewer's answers)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -26,12 +26,14 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
-| #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
+| Clinic configuration plan | **In review.** #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
+| #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** #27 (demo clinic, reference suite, `make eval`, now with the spend log) on `issue-27-reference-suite` (created locally from `main` after the #42 merge, not pushed; this handoff commit is its only commit), then the rest in the order of `PLAN-phase2.md`. #11 comes last.
+**Next step:** merge #44 (docs) when the user says so. Then #43 (clinic configuration) before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `issue-27-reference-suite` (local, not pushed) holds only a handoff commit, which #44 contains, so it can be deleted once #44 is merged; start #43 on `issue-43-clinic-config` from `main`. A separate session is brainstorming how to find problems in calls at scale (workflow 2) before #32 is rewritten: see "Interviewer's answers" below. #11 comes last.
 
-Starting #27, for the next session:
+When #27 starts (after #43), for that session:
+- The issue body changed on 2026-10-14: the guidelines must describe appointment types and which provider does each, which plans cover which visits and the data needed to register a patient; `world.json` carries clinic-a's configuration in #43's format; the reference agent is built from the scheduling template; tests and mutants cover configuration rules.
 - Read the issue body first (`gh issue view 27 --repo feliuserra/prosper-challenge-agent-copilot`): it now includes the spend log (cached tokens priced at the cached rate, `backend/.spend/ledger.jsonl` written by `sim/llm.py`, `make spend`).
 - Suggested order, offered to the user at the end of the last session: draft `backend/eval/clinic-a/guidelines.md` and a one-line list of the 20 tests (tier, persona, what it checks) for the user to review before writing any test JSON or the reference agent. The user's review of the guidelines, the tests and about 30 judge labels (about 45 minutes) is a prerequisite in `PLAN-phase2.md`.
 - Build on #26: the test format is `backend/sim/testfile.py` (with `validate_tests`), examples in `backend/sim/examples/scheduler-tests.json`; `run_suite`, `blocking` and the CLI's table are reusable for `make eval`. Mutants are agent dicts, so `run_suite(mutant, tests, models)` per mutant; the cache keeps reruns free.
@@ -40,6 +42,12 @@ Starting #27, for the next session:
 - Leftover from the user's broken-agent check: `backend/agents/broken-transfer.json` (untracked). The user was told to delete it; check before committing anything in `backend/agents/`.
 
 Spend log, for reference (decided 2026-10-13): the company keys cannot read spend (OpenAI: missing `api.usage.read`; ElevenLabs: no `user_read`, and its character stats cover the whole account since 2026-09-12, not just us), so only Prosper's dashboards show billed amounts. Added to #27 (cached tokens, a ledger written by the model client, `make spend`) and #28 (usage per call record, one ledger line per call), in the issue bodies and `PLAN-phase2.md`. Spend before the ledger is not covered; #26 spent about $1.01.
+
+Interviewer's answers, for reference (received 2026-10-14; the user asked three questions by email):
+- Answers: (1) most deployment time goes to turning rules into an agent and checking it; getting the rules depends on how responsive the client is. (2) Agents start from a template per use case and are always customized; two scheduling agents for small clinics are quite similar; what changes is which providers do which appointment types, which types exist, which insurance covers which visits, the data needed to register a patient or book, and the flow and tone. A hospital could be a client; for the challenge, assume few clinic types. (3) One person runs fewer than 10 agents, but an agent can take 50,000 calls a month. How to find problems is left to us as part of the challenge.
+- (1) keeps the test-first build loop as the headline of act 1. #39 moved to the first thing to cut; the idea of intake sessions with 3 or 4 people playing clinic managers was dropped.
+- (2) produced #43 and ADR 0016: rules that are tables or numbers live in a validated clinic configuration that the tools enforce (3 new tools, `appointment_type` on `find_slots` and `book_appointment`, `fee_acknowledged`, fields per clinic, schemas built per clinic), agents name their clinic, and the example agent becomes the scheduling template. #29 extracts the configuration, #30 customizes the template; #27, #31 and #38 follow. Candidate extra actions (waitlist, leave a message, confirmations) are listed in #43 to iterate on.
+- (3) makes workflow 2 triage at scale: nobody can listen, and the limit is attention more than model cost. Ideas so far, none decided: a per-node funnel on the graph from transitions, with no model calls; the same template node compared across clinics; issues grouped with a rate and a trend per version (an alarm when a rate rises after an accepted change); three tiers (deterministic signals on every call, a small model on flagged calls plus a random sample, grouping and ranking by severity, frequency and trend); mock data in the hundreds of calls with defects planted at known rates. Brainstormed in a separate session; #32 (maybe #33) is rewritten after it.
 
 Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
 - The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
@@ -270,4 +278,5 @@ Recorded so the reasoning is not lost:
 - Back edges (to a node above the source) were plain curves that crossed the nodes in between; #4 only routed self-loops and parallel lanes. Added to #10's scope during #9 and built in #10.
 - Import opens the file as a new agent instead of replacing the open one (#10), so it cannot overwrite a saved agent by accident.
 - #13 was built before #11, on the existing example agent instead of the demo agent. #11 moved to the end, after Phase 2: one README and one video for both phases, and the full demo agent may come from the Composer. A short `make dev` README fix went in with #13.
-- Two issues were added after the Phase 2 plan, from a brainstorm on what to ask a client: #38 (intake checklist, coverage in the spec step) and #39 (an intake call generated from it). No ADR; the reasoning is in the issues and in section 0. About a day added to the estimate; #39 sits in the cut order after the sentence ablation and the win-probability chart.
+- Two issues were added after the Phase 2 plan, from a brainstorm on what to ask a client: #38 (intake checklist, coverage in the spec step) and #39 (an intake call generated from it). No ADR; the reasoning is in the issues and in section 0. About a day added to the estimate; #39 was placed in the cut order after the sentence ablation and the win-probability chart, then moved to first on 2026-10-14.
+- After the interviewer's answers (2026-10-14): #43 and ADR 0016 (clinic configuration as data, agents from a template; amends ADRs 0008, 0012 and 0015) added before #27, about a day and a half. #27, #29, #30, #31 and #38 were updated for it on GitHub and in `PLAN-phase2.md`.
