@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Agent } from "../agent/schema";
 import { useAgentStore } from "../store/agentStore";
-import { handleEdgeChanges, handleNodeChanges } from "./changes";
-import type { AgentFlowNode } from "./derive";
+import { connectNodes, deleteElements, handleEdgeChanges, handleNodeChanges, reconnectEdge } from "./changes";
+import { toFlowEdges, toFlowNodes, type AgentFlowEdge, type CanvasFlowNode } from "./derive";
+import { canvasView } from "./view";
 
 const exampleText = readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8");
 
@@ -14,7 +15,7 @@ const history = () => useAgentStore.temporal.getState();
 const ui = (name: string) => store().agent!.nodes.find((n) => n.name === name)!.ui;
 const noop = () => {};
 
-const move = (id: string, x: number, y: number, dragging: boolean): NodeChange<AgentFlowNode> => ({
+const move = (id: string, x: number, y: number, dragging: boolean): NodeChange<CanvasFlowNode> => ({
   type: "position",
   id,
   position: { x, y },
@@ -89,5 +90,90 @@ describe("selection and measurements", () => {
     handleNodeChanges([{ type: "dimensions", id: "greeting", dimensions: { width: 240, height: 61 } }], onMeasured);
     expect(onMeasured).toHaveBeenCalledWith("greeting", { width: 240, height: 61 });
     expect(store().agent).toBe(agent);
+  });
+});
+
+describe("with a collapsed stage", () => {
+  // collect_details and offer_times in stage "Middle", collapsed.
+  beforeEach(() => {
+    store().setStage("collect_details", "Middle");
+    store().setStage("offer_times", "Middle");
+  });
+  const view = () => canvasView(store().agent!, ["Middle"]);
+
+  it("stores a node dragged below the stage where it is with the stage expanded", () => {
+    const shown = view().shown(store().agent!.nodes.find((n) => n.name === "confirm")!);
+    const stored = ui("confirm")!;
+    handleNodeChanges([move("confirm", shown.x + 5, shown.y + 7, false)], noop, view());
+    expect(ui("confirm")).toEqual({ x: stored.x + 5, y: stored.y + 7 });
+  });
+
+  it("moves every node of the stage when its card is dragged, and selects the stage with it", () => {
+    const card = view().cards.get("Middle")!;
+    const [details, offer] = [ui("collect_details")!, ui("offer_times")!];
+    handleNodeChanges([move(card.id, card.position.x + 40, card.position.y - 20, false)], noop, view());
+    expect(ui("collect_details")).toMatchObject({ x: details.x + 40, y: details.y - 20 });
+    expect(ui("offer_times")).toMatchObject({ x: offer.x + 40, y: offer.y - 20 });
+    handleNodeChanges([{ type: "select", id: card.id, selected: true }], noop, view());
+    expect(store().selection).toEqual({ kind: "stage", name: "Middle" });
+  });
+});
+
+describe("Start and End pills", () => {
+  // The fixture starts at greeting and ends at confirm.
+  const view = () => canvasView(store().agent!, []);
+  const pills = () => toFlowNodes(store().agent!, null).filter((n) => n.type === "terminal");
+  const pillEdges = () => toFlowEdges(store().agent!, null).filter((e) => e.type === "default");
+  const connection = (source: string, target: string) => ({ source, target, sourceHandle: null, targetHandle: null });
+
+  it("are measured, but never moved or selected in the store", () => {
+    const agent = store().agent;
+    const [start] = pills();
+    const onMeasured = vi.fn();
+    handleNodeChanges(
+      [
+        move(start.id, 40, 40, false),
+        { type: "select", id: start.id, selected: true },
+        { type: "dimensions", id: start.id, dimensions: { width: 84, height: 28 } },
+      ],
+      onMeasured,
+      view(),
+    );
+    expect(store().agent).toBe(agent);
+    expect(store().selection).toBeNull();
+    expect(history().pastStates).toHaveLength(0);
+    expect(onMeasured).toHaveBeenCalledWith(start.id, { width: 84, height: 28 });
+    handleEdgeChanges([{ type: "select", id: pillEdges()[0].id, selected: true }], view());
+    expect(store().selection).toBeNull();
+  });
+
+  it("cannot be connected to, or have an edge moved onto them", () => {
+    const agent = store().agent;
+    const [start, end] = pills();
+    connectNodes(connection(start.id, "greeting"), view());
+    connectNodes(connection("confirm", end.id), view());
+    connectNodes(connection("greeting", start.id), view());
+    const edge = toFlowEdges(agent!, null).find((e) => e.id === "offer_times::select_time") as AgentFlowEdge;
+    reconnectEdge(edge, connection("offer_times", end.id), view());
+    expect(store().agent).toBe(agent);
+    // Between nodes, both still work.
+    reconnectEdge(edge, connection("offer_times", "greeting"), view());
+    connectNodes(connection("confirm", "greeting"), view());
+    const nodes = store().agent!.nodes;
+    expect(nodes.find((n) => n.name === "offer_times")!.edges![0].target).toBe("greeting");
+    expect(nodes.find((n) => n.name === "confirm")!.edges).toHaveLength(1);
+  });
+
+  it("are skipped when deleting, with their edges, while nodes and edges are still deleted", () => {
+    const agent = store().agent;
+    expect(deleteElements({ nodes: pills(), edges: pillEdges() })).toEqual([]);
+    expect(store().agent).toBe(agent);
+    const flow = toFlowNodes(agent!, null);
+    const greeting = flow.find((n) => n.id === "greeting")!;
+    const confirm = flow.find((n) => n.id === "confirm")!;
+    const errors = deleteElements({ nodes: [greeting, confirm, ...pills()], edges: pillEdges() });
+    // The start node is refused, as in the store; confirm goes.
+    expect(errors).toHaveLength(1);
+    expect(store().agent!.nodes.map((n) => n.name)).toEqual(["greeting", "collect_details", "offer_times"]);
   });
 });

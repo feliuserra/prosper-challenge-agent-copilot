@@ -1,6 +1,6 @@
 # ADR 0002: Keep the existing schema; add only optional UI positions
 
-- **Status:** Accepted. Amended by [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (Phase 2): nodes gain an optional `tools` list. Amended by [ADR 0015](0015-debugging-by-cause.md) (Phase 2): nodes and the agent gain an optional `requirements` list, ignored by the runtime.
+- **Status:** Accepted. Amended by [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (Phase 2): nodes gain an optional `tools` list. Amended by [ADR 0015](0015-debugging-by-cause.md) (Phase 2): nodes and the agent gain an optional `requirements` list, ignored by the runtime. Amended by #50 (Phase 2): nodes gain an optional `stage`, a name that groups nodes on the canvas, ignored by the runtime and by the text runner's cache key.
 - **Date:** 2026-09-29
 
 ## Context

@@ -111,12 +111,13 @@ def blocking(result: dict) -> bool:
 
 
 def cache_key(agent: dict, test: dict) -> str:
-    """A hash of everything that decides a result: the agent (without canvas positions),
-    the test, the world it starts from, the models and the runner version."""
+    """A hash of everything that decides a result: the agent (without canvas positions
+    and stages), the test, the world it starts from, the models and the runner version."""
     agent = copy.deepcopy(agent)
     for node in agent.get("nodes", []):
         if isinstance(node, dict):
             node.pop("ui", None)
+            node.pop("stage", None)
     inputs = {
         "agent": agent,
         "test": test,

@@ -1,7 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { autoLayout, freeSpot, nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH, placeMissing, withPositions } from "./layout";
+import {
+  autoLayout,
+  cardHeight,
+  edgeLabel,
+  freeSpot,
+  LABEL_MAX_WIDTH,
+  labelWidth,
+  nearestFreeSpot,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  placeMissing,
+  withPositions,
+} from "./layout";
 import type { Agent, Position } from "./schema";
 
 const example = () =>
@@ -43,6 +55,56 @@ describe("autoLayout", () => {
     const all = agent.nodes.map((n) => n.ui!);
     for (const [i, a] of all.entries()) for (const b of all.slice(i + 1)) expect(overlap(a, b)).toBe(false);
     expect(pos(agent, "a").collapsed).toBe(true);
+  });
+});
+
+describe("card heights", () => {
+  // a -> b -> c, where only a has tools, so its card has the tools footer.
+  const chain: Agent = {
+    name: "chain",
+    initial_node: "a",
+    nodes: [
+      { name: "a", tools: ["find_slots"], edges: [{ function: "next", description: "", target: "b" }] },
+      { name: "b", edges: [{ function: "next", description: "", target: "c" }] },
+      { name: "c" },
+    ],
+  };
+  const gap = (agent: Agent, from: string, to: string) =>
+    pos(agent, to).y - pos(agent, from).y - cardHeight(agent.nodes.find((n) => n.name === from)!);
+
+  it("count the tools footer", () => {
+    expect(cardHeight(chain.nodes[0])).toBeGreaterThan(cardHeight(chain.nodes[1]));
+    expect(cardHeight({ name: "x", tools: [] })).toBe(NODE_HEIGHT);
+  });
+
+  it("leave the same gap below a card with tools as below one without, in a layout and when placing", () => {
+    const laidOut = autoLayout(chain);
+    expect(gap(laidOut, "a", "b")).toBe(gap(laidOut, "b", "c"));
+    const onlyA = chain.nodes.map((n) => (n.name === "a" ? { ...n, ui: { x: 0, y: 0 } } : n));
+    const placed = placeMissing({ ...chain, nodes: onlyA });
+    expect(gap(placed, "a", "b")).toBe(gap(laidOut, "a", "b"));
+    expect(gap(placed, "b", "c")).toBe(gap(laidOut, "a", "b"));
+  });
+});
+
+describe("edgeLabel", () => {
+  const label = (description: string) => edgeLabel({ function: "go_on", description, target: "b" });
+
+  it("is the description on one line, without a leading 'Call' before when, once or if", () => {
+    expect(label("Record what the caller\n  wants.")).toBe("Record what the caller wants.");
+    expect(label("Call once the caller has spelled their name.")).toBe("Once the caller has spelled their name.");
+    expect(label("call when they agree")).toBe("When they agree");
+    expect(label("Call the clinic back.")).toBe("Call the clinic back.");
+  });
+
+  it("is the function name when there is no description", () => {
+    expect(label("")).toBe("go_on");
+    expect(label("  \n ")).toBe("go_on");
+  });
+
+  it("is never wider than a label can be", () => {
+    expect(labelWidth("short")).toBeLessThan(LABEL_MAX_WIDTH);
+    expect(labelWidth("x".repeat(200))).toBe(LABEL_MAX_WIDTH);
   });
 });
 

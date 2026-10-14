@@ -172,9 +172,6 @@ details[open] summary {
 .badge.start {
   background: #ddf4ff;
 }
-.badge.end {
-  background: #eaeef2;
-}
 .badge.error {
   background: #ffebe9;
   color: #cf222e;
@@ -190,7 +187,11 @@ details[open] summary {
   inset: 0;
   display: flex;
   flex-direction: column;
+  /* Edge colours; derive.ts colours the arrowheads to match. */
+  --xy-edge-stroke: #b6bcc4;
   --xy-edge-stroke-selected: #0969da;
+  --xy-background-color: #fafafa;
+  --canvas-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 .canvas-flow {
   position: relative;
@@ -207,13 +208,17 @@ details[open] summary {
   border-radius: 6px;
   background: #fff8c5;
 }
+/* Cards are NODE_HEIGHT (98px) tall, plus the footer (TOOLS_HEIGHT, 41px) when the
+   node has tools: layout.ts spaces the graph with those heights. */
 .node-card {
   box-sizing: border-box;
-  padding: 8px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+  border: 1px solid #e1e4e8;
+  border-radius: 12px;
   background: #fff;
-  box-shadow: 0 1px 2px rgb(31 35 40 / 8%);
+  box-shadow:
+    0 1px 2px rgb(31 35 40 / 4%),
+    0 3px 10px rgb(31 35 40 / 5%);
+  font-family: var(--canvas-font);
 }
 .node-card.selected {
   border-color: #0969da;
@@ -224,34 +229,96 @@ details[open] summary {
   outline: 3px solid rgb(26 127 55 / 45%);
   outline-offset: 2px;
 }
+.node-card-main {
+  padding: 16px 18px;
+}
 .node-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  height: 22px;
+}
+.node-card-icon {
+  flex-shrink: 0;
+  color: #57606a;
 }
 .node-card-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
 }
 .node-card-status {
   display: flex;
   gap: 4px;
   margin-left: auto;
 }
-.node-card-task,
-.node-card-tools {
-  margin-top: 4px;
+.node-card-header .badge {
+  flex-shrink: 0;
+}
+/* Two lines of the task; a one-line task keeps the height. */
+.node-card-task {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 36px;
+  margin-top: 6px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
+  color: #656d76;
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.node-card-footer {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 41px;
+  padding: 0 12px;
+  border-top: 1px solid #eceef1;
+  border-radius: 0 0 11px 11px;
+  background: #f6f8fa;
 }
 .node-card-tools {
-  color: #8250df;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #d8dce1;
+  border-radius: 11px;
+  background: #fff;
+  color: #57606a;
+  font-size: 12px;
+}
+/* The Start and End pills (#47): TERMINAL_WIDTH and TERMINAL_HEIGHT in layout.ts,
+   which places them. Only their edge uses the handle, so it never shows. */
+.terminal-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(31 35 40 / 6%);
+  color: #24292f;
+  font: 500 13px var(--canvas-font);
+  cursor: default;
+}
+.terminal-node.start svg {
+  color: #1a7f37;
+}
+.terminal-node.end svg {
+  color: #57606a;
+}
+.terminal-node .react-flow__handle {
+  visibility: hidden;
 }
 .tool-option {
   display: flex;
@@ -260,6 +327,22 @@ details[open] summary {
 }
 .tool-option .hint {
   margin-left: 20px;
+}
+/* Handles show on a hovered or selected card, and on every card while a
+   connection is dragged; they still work while hidden. */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #8c959f;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle,
+.react-flow__node:focus-visible .react-flow__handle,
+.canvas-flow.connecting .react-flow__handle {
+  opacity: 1;
 }
 /* Blue means selected. React Flow also paints an edge blue when a mouse press
    focuses it without selecting it; keep that for keyboard focus only. */
@@ -272,26 +355,51 @@ details[open] summary {
   stroke: #0969da;
   stroke-width: 1.5;
 }
+/* Edge labels: a dark pill. Its height and widest width are LABEL_HEIGHT and
+   LABEL_MAX_WIDTH in layout.ts, which spaces the layout around them. */
 .edge-label {
   position: absolute;
   pointer-events: all;
-  padding: 1px 6px;
-  border: 1px solid #d0d7de;
-  border-radius: 4px;
-  background: #fff;
-  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 260px;
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 12px;
+  background: #24292f;
+  color: #fff;
+  font: 12px var(--canvas-font);
   cursor: pointer;
 }
-.edge-label.selected {
-  border-color: #0969da;
-  color: #0969da;
+.edge-label:hover {
+  background: #424a53;
+}
+.edge-label-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.edge-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .edge-label .badge {
-  margin-left: 6px;
-  font-family: system-ui, sans-serif;
+  flex-shrink: 0;
+  line-height: 16px;
 }
+.edge-label.selected {
+  background: #0969da;
+}
+/* A ring for problems, an outline for the test call, so both show with the selection. */
 .edge-label.error {
-  border-color: #cf222e;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #cf222e;
+}
+.edge-label.warning {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #d4a72c;
 }
 /* The edge a test call took last; React Flow animates its dashes. */
 .react-flow__edge.animated .react-flow__edge-path {
@@ -299,10 +407,134 @@ details[open] summary {
   stroke-width: 2;
 }
 .edge-label.active {
-  background: #dafbe1;
+  outline: 3px solid rgb(26 127 55 / 45%);
+  outline-offset: 4px;
 }
-.edge-label.warning {
-  border-color: #d4a72c;
+
+/* Stage frames (#50): behind the edges and cards, in the viewport. Only the label
+   takes clicks, so the canvas still pans from inside a frame. */
+.stage-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  box-sizing: border-box;
+  border: 1px solid var(--stage-border);
+  border-radius: 16px;
+  background: var(--stage-fill);
+  pointer-events: none;
+}
+.stage-frame.selected {
+  box-shadow: 0 0 0 2px var(--stage-text);
+}
+.stage-frame-header {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  pointer-events: all;
+}
+.stage-frame-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--stage-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--stage-text);
+  font: 500 13px var(--canvas-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+/* The chevron that collapses a stage (frame) or expands it (card). */
+.stage-frame-toggle,
+.stage-card-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--stage-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--stage-text);
+  cursor: pointer;
+}
+.stage-frame-toggle:hover,
+.stage-card-toggle:hover,
+.stage-frame-label:hover {
+  background: var(--stage-fill);
+}
+/* A collapsed stage (#51): a node card in its stage's colour, drawn as a small stack. */
+.node-card.stage-card {
+  border-color: var(--stage-border);
+  background: linear-gradient(var(--stage-fill), var(--stage-fill)), #fff;
+  box-shadow:
+    4px 4px 0 -1px #fff,
+    4px 4px 0 0 var(--stage-border),
+    0 3px 10px rgb(31 35 40 / 5%);
+}
+.node-card.stage-card.selected {
+  border-color: #0969da;
+  box-shadow:
+    0 0 0 1px #0969da,
+    4px 4px 0 -1px #fff,
+    4px 4px 0 0 var(--stage-border);
+}
+.stage-card .node-card-name {
+  color: var(--stage-text);
+}
+.stage-card-active-step {
+  color: #1a7f37;
+  font-weight: 600;
+}
+.stage-frame-steps {
+  color: #656d76;
+  font-size: 12px;
+  font-weight: 400;
+}
+/* Stage colours, by stage order (STAGE_TONES in stages.ts). */
+.tone-0 {
+  --stage-fill: rgb(9 105 218 / 5%);
+  --stage-border: #c6dbf5;
+  --stage-text: #0b4f9c;
+}
+.tone-1 {
+  --stage-fill: rgb(26 127 55 / 5%);
+  --stage-border: #c3e6cd;
+  --stage-text: #1a7f37;
+}
+.tone-2 {
+  --stage-fill: rgb(130 80 223 / 5%);
+  --stage-border: #ddd0f7;
+  --stage-text: #6639ba;
+}
+.tone-3 {
+  --stage-fill: rgb(188 76 0 / 5%);
+  --stage-border: #f3d7bd;
+  --stage-text: #953800;
+}
+.tone-4 {
+  --stage-fill: rgb(191 57 137 / 5%);
+  --stage-border: #f3cde2;
+  --stage-text: #99286e;
+}
+.tone-5 {
+  --stage-fill: rgb(13 128 128 / 5%);
+  --stage-border: #bfe3e3;
+  --stage-text: #0d6b6b;
 }
 
 /* Problems list, below the canvas */
