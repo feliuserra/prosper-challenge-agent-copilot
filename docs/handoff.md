@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-12, #26 built and committed locally, not pushed)
+## 0. Status (updated 2026-10-14, #26 checked by the user and merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -25,13 +25,13 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
 | #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
-| #26 Text runner and test format | Built on `issue-26-text-runner`, committed locally; waiting for the user's review before push and PR | |
+| #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
 | #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** the user reviews #26; on their word, push, open the PR (`Closes #26`), merge, then #27 (demo clinic, reference suite, `make eval`) on `issue-27-...`, and the rest in the order of `PLAN-phase2.md`. #11 comes last.
+**Next step:** #27 (demo clinic, reference suite, `make eval`, now with the spend log) on `issue-27-reference-suite`, then the rest in the order of `PLAN-phase2.md`. #11 comes last.
 
-Spend log, for reference (decided 2026-10-13): the company keys cannot read spend (OpenAI: missing `api.usage.read`; ElevenLabs: no `user_read`, and its character stats cover the whole account since 2026-09-12, not just us), so only Prosper's dashboards show billed amounts. Added to #27 (cached tokens, a ledger written by the model client, `make spend`) and #28 (usage per call record, one ledger line per call), in the issue bodies and `PLAN-phase2.md`. Spend before the ledger is not covered; #26 spent about $0.70.
+Spend log, for reference (decided 2026-10-13): the company keys cannot read spend (OpenAI: missing `api.usage.read`; ElevenLabs: no `user_read`, and its character stats cover the whole account since 2026-09-12, not just us), so only Prosper's dashboards show billed amounts. Added to #27 (cached tokens, a ledger written by the model client, `make spend`) and #28 (usage per call record, one ledger line per call), in the issue bodies and `PLAN-phase2.md`. Spend before the ledger is not covered; #26 spent about $1.01.
 
 Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
 - The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
@@ -49,8 +49,10 @@ What #26 built, for reference:
 - `runner.py`: `simulate`, `run_test` (rerun once on failure, `flaky`, `error` for `ModelError`, cache in `backend/.sim-cache/` keyed by agent without `ui`, test, resolved world, models, `RUNNER_VERSION`), `run_suite` (parallel; `OpenAIChat` caps 16 requests in flight, SDK retries 5). `replay.py`: `replay_turn`, `continue_from` (take a record or a test result). `config.py`: models, limits, prices.
 - CLI: `cd backend && uv run python -m sim run agents/prosper-scheduler.json sim/examples/scheduler-tests.json [--no-cache] [--only ID] [--out FILE] [--transcripts]`. Exit 1 when a result blocks (fail, error, flaky safety), 2 for invalid input.
 - Models and rate limits on the company key: `docs/notes/models.md` (10k+ requests/min everywhere, so limits are not a concern).
-- Real runs on 2026-10-12: the 3 example tests passed 3/3 in 21.8 s for about $0.19 (agent `gpt-4o` is ~90% of the tokens). `replay_turn` on a real turn: 5/5 in 1.8 s. `continue_from` with the same agent reused all 8 recorded answers. Spent about $0.70 on the key in total for #26.
-- Tests: 181 pytest (76 new, all with scripted models; an autouse fixture removes `OPENAI_API_KEY` so no test can call the API), 165 Vitest.
+- Real runs on 2026-10-12: the 3 example tests passed 3/3 in 21.8 s for about $0.19 (agent `gpt-4o` is ~90% of the tokens). `replay_turn` on a real turn: 5/5 in 1.8 s. `continue_from` with the same agent reused all 8 recorded answers. Spent about $1.01 on the key in total for #26, the user's runs included (every run is listed in PR #42).
+- Tests: 182 pytest (77 new, all with scripted models; an autouse fixture removes `OPENAI_API_KEY` so no test can call the API), 165 Vitest.
+- Checked by the user on 2026-10-14: the 3 example tests passed, and a copy of the example without `transfer_to_human` failed `transfer-on-request` twice (it kept promising a transfer it could not make; `transferred` and `call_ended` caught it). The user's first run showed the misheard-name test passing without saying the garble: the caller prompt asked that a recorded answer "still fit", and the model read a name without its spelling as not fitting. Fixed (partial answers are replayed; picks and yes/no still must fit), measured by replaying only the caller's decision on that turn (2/10 before, 10/10 after; a recorded time pick 10/10 when the same times are offered, 0/10 when not; about 1.5 cents). Runs now report `replay: {recorded, used}` and the CLI warns when a run did not fully replay; `--transcripts` shows edge transitions and recorded lines (the judge's view is unchanged). `RUNNER_VERSION` is 26.2.
+- Cheap way to test a caller or judge prompt change: call `Caller.next` (or the judge) directly on the exact turns from a result, 10 times, instead of rerunning whole calls. A cent instead of a dollar.
 - Results keep the full context per agent turn, about 165 KB per test. Storing only what each turn adds is an easy change if it matters for #28 or the UI.
 
 What #25 built, for reference:
@@ -142,7 +144,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 181 tests) + Vitest (frontend, 165 tests) |
+| `make test` | pytest (backend, 182 tests) + Vitest (frontend, 165 tests) |
 | `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 
