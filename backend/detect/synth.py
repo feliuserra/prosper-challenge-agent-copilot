@@ -18,7 +18,8 @@
 #                   base and planted rates, and what must not be flagged
 #
 # Rates are per call that entered the node, as the detector measures them: `reentry`
-# (entered it again), `hang_up`, `transfer`, `error` (the call ended there that way),
+# (the call went back from the node to one it had already visited: itself or an earlier
+# node, so a loop is counted where it starts), `hang_up`, `transfer`, `error` (the call ended there that way),
 # `tool_error` (a catalog tool failed there) and `duplicate` (a patient registered
 # there matches an existing patient's birth date and phone under another name). Two
 # come from what happened after the call: `callback` (per call that ended in the node:
@@ -141,8 +142,8 @@ def scenario() -> dict:
             {"id": "quiet-clinic-noise", "clinic": "maple-street", "node": "*", "signal": "*",
              "why": "150 calls a week: anything flagged there besides the planted callbacks is noise."},
             {"id": "below-min-effect", "clinic": "riverside", "versions": [2, 3], "node": "greeting",
-             "signal": "hang_up", "rate": 0.092,
-             "why": "A real rise from 8% to 9.2% (1.15 times): at 50,000 calls a month it is significant, "
+             "signal": "hang_up", "excess": 0.01,
+             "why": "A real rise of one point (about 1.12 times): at 50,000 calls a month it is significant, "
                     "but smaller than the minimum effect."},
         ],
     }
@@ -573,7 +574,7 @@ def measure(calls: list, records: list, *, clinic: str, node: str, signal: str, 
             continue
         n += 1
         if signal == "reentry":
-            k += nodes.count(node) > 1
+            k += any(a == node and b in nodes[:i + 1] for i, (a, b) in enumerate(zip(nodes, nodes[1:])))
         elif signal in ("hang_up", "transfer", "error"):
             k += call["ended"] == signal and nodes[-1] == node
         elif signal == "tool_error":
