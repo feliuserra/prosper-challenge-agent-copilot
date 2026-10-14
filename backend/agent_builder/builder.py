@@ -77,6 +77,15 @@ class AgentBuilder:
         """Return the entry NodeConfig; downstream nodes are built lazily on transition."""
         return self._make_node(self._nodes_by_name[self.config.initial_node])
 
+    def build_node(self, name: str) -> NodeConfig:
+        """The NodeConfig for one node by name. The text runner (sim/) enters nodes this way
+        when it rebuilds a recorded call, where only the target's name is known."""
+        return self._make_node(self._nodes_by_name[name])
+
+    def build_transfer_node(self, from_node: str) -> NodeConfig:
+        """The node transfer_to_human moves to when called from `from_node`."""
+        return self._transfer_node(self._nodes_by_name[from_node])
+
     def _role_message(self, node: Node) -> str:
         role = node.role_message or self.config.persona
         if self.clinic is None:

@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-12, #25 merged, client intake planned)
+## 0. Status (updated 2026-10-14, #26 checked by the user and merged)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -24,11 +24,14 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Phase 2 plan | Merged: [`PLAN-phase2.md`](../PLAN-phase2.md), ADRs 0008 to 0015, issues #25 to #35 on GitHub | #36 |
 | #13 Reliable caller identity | Merged; the user's test calls passed | #37 |
 | #25 Mock tools and turn timing | Merged; the user's test calls passed | #41 |
-| Client intake plan | **In review.** #38 (checklist) and #39 (intake call) created; `PLAN-phase2.md` updated on `docs/intake-plan` | #40 |
-| #26 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
+| Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
+| #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
+| #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** merge #40 when the user says so (it only touches `PLAN-phase2.md`). Then #26. #11 comes last.
+**Next step:** #27 (demo clinic, reference suite, `make eval`, now with the spend log) on `issue-27-reference-suite`, then the rest in the order of `PLAN-phase2.md`. #11 comes last.
+
+Spend log, for reference (decided 2026-10-13): the company keys cannot read spend (OpenAI: missing `api.usage.read`; ElevenLabs: no `user_read`, and its character stats cover the whole account since 2026-09-12, not just us), so only Prosper's dashboards show billed amounts. Added to #27 (cached tokens, a ledger written by the model client, `make spend`) and #28 (usage per call record, one ledger line per call), in the issue bodies and `PLAN-phase2.md`. Spend before the ledger is not covered; #26 spent about $1.01.
 
 Client intake, for reference (decided 2026-10-12, from a brainstorm with the user):
 - The idea: for workflow 1 the input sets the ceiling. The model writes prompts well but cannot invent a clinic's policy, and the slow part of an initial build is probably the round trips with the client, not writing the graph (a hypothesis; we do not know what Prosper asks clients today).
@@ -36,6 +39,21 @@ Client intake, for reference (decided 2026-10-12, from a brainstorm with the use
 - #39: a voice agent generated from the checklist (no model call, so it never drifts from it) interviews the clinic manager on the existing bot; its transcript goes into the agent's workspace as `source: intake` and feeds the spec step; gaps left become a short follow-up call. Measured with a simulated manager (#26 runner) who knows the answers the guidelines leave out, which is partly by construction and must be said. Cuttable.
 - Dropped: uploading a recorded kickoff call. The intake call replaces it.
 - Pointers to #38 and #39 were added to the bodies of issues #29, #31, #34 and #38, matching `PLAN-phase2.md`. The first `gh issue edit` was blocked by the permission classifier ("External System Writes"); it went through once the user allowed it.
+
+What #26 built, for reference:
+- `backend/sim/` (ADR 0009, 0010, 0015). `conversation.py`: one call, agent side. Node configs and handlers come from `AgentBuilder` itself (new public `build_node(name)`, `build_transfer_node(from_node)`), so a node offers what the bot offers. Flows' context rules are mirrored with file:line references in the header: the role message becomes the system message (an empty one keeps the last), task messages are appended (APPEND), tools replaced per node; calls go into the history as Pipecat writes Flows functions (async tools): assistant `tool_calls`, a "started" tool message, the result as a developer message (built with Pipecat's own `async_tool_messages`); unknown functions get Pipecat's "not currently available" tool message; calls with non-JSON arguments are dropped; post-actions run after the node's first reply. Not modelled: interruptions, timing, and the order of words and calls when one reply has both (words first here; #28 compares with a live call).
+- Turns: numbered from 1, agent turns are one model call each (`node`, `text`, `calls` with `kind` edge/tool/unknown/ignored, `args`, `result`, `to`; `context` = the exact system, messages and tools; `model` = the version that answered), caller turns have `text` and `replayed` when recorded words were used, action lines have `source: tts_say`. A record also keeps `start_node`, `date_line`, the starting `world` and `end_reason` (`end_node`, `transfer`, `caller_hung_up`, `max_turns`, `agent_loop`).
+- `Conversation.rebuild(record, agent, before_turn)`: replays the record's words and calls (recorded results, not rerun) with `agent`'s prompts and tools, and redoes recorded world changes on the record's world. With the same agent it equals every recorded context (unit test, and checked on a real run).
+- `caller.py`: `gpt-4.1-mini-2025-04-14` with strict JSON output `{say, hang_up, use_recorded}`. Recorded answers: the model only picks an index, the code puts the recorded words in verbatim. Anchored (tests): any unused answer; strict (`continue_from`): only the next one, until the first divergence. The caller sees spoken words only.
+- `testfile.py`: the test format and `validate_tests` (for model-written tests in #29). `world` replaces the seed's top-level keys. `checks.py`: `tool_called` (succeeded calls only, loose args via `normalize_name`), `tool_not_called` (attempts count), `tool_order` (first calls in order), `call_ended` (optional `reason`), `transferred`, `max_turns`, `judge` (sees words and catalog tool calls with results; never prompts or edge calls; temperature 0; provisional `gpt-4.1-2025-04-14` until #27). Turn checks for `replay_turn`: tool_called, tool_not_called, transferred, judge.
+- `runner.py`: `simulate`, `run_test` (rerun once on failure, `flaky`, `error` for `ModelError`, cache in `backend/.sim-cache/` keyed by agent without `ui`, test, resolved world, models, `RUNNER_VERSION`), `run_suite` (parallel; `OpenAIChat` caps 16 requests in flight, SDK retries 5). `replay.py`: `replay_turn`, `continue_from` (take a record or a test result). `config.py`: models, limits, prices.
+- CLI: `cd backend && uv run python -m sim run agents/prosper-scheduler.json sim/examples/scheduler-tests.json [--no-cache] [--only ID] [--out FILE] [--transcripts]`. Exit 1 when a result blocks (fail, error, flaky safety), 2 for invalid input.
+- Models and rate limits on the company key: `docs/notes/models.md` (10k+ requests/min everywhere, so limits are not a concern).
+- Real runs on 2026-10-12: the 3 example tests passed 3/3 in 21.8 s for about $0.19 (agent `gpt-4o` is ~90% of the tokens). `replay_turn` on a real turn: 5/5 in 1.8 s. `continue_from` with the same agent reused all 8 recorded answers. Spent about $1.01 on the key in total for #26, the user's runs included (every run is listed in PR #42).
+- Tests: 182 pytest (77 new, all with scripted models; an autouse fixture removes `OPENAI_API_KEY` so no test can call the API), 165 Vitest.
+- Checked by the user on 2026-10-14: the 3 example tests passed, and a copy of the example without `transfer_to_human` failed `transfer-on-request` twice (it kept promising a transfer it could not make; `transferred` and `call_ended` caught it). The user's first run showed the misheard-name test passing without saying the garble: the caller prompt asked that a recorded answer "still fit", and the model read a name without its spelling as not fitting. Fixed (partial answers are replayed; picks and yes/no still must fit), measured by replaying only the caller's decision on that turn (2/10 before, 10/10 after; a recorded time pick 10/10 when the same times are offered, 0/10 when not; about 1.5 cents). Runs now report `replay: {recorded, used}` and the CLI warns when a run did not fully replay; `--transcripts` shows edge transitions and recorded lines (the judge's view is unchanged). `RUNNER_VERSION` is 26.2.
+- Cheap way to test a caller or judge prompt change: call `Caller.next` (or the judge) directly on the exact turns from a result, 10 times, instead of rerunning whole calls. A cent instead of a dollar.
+- Results keep the full context per agent turn, about 165 KB per test. Storing only what each turn adds is an easy change if it matters for #28 or the UI.
 
 What #25 built, for reference:
 - `backend/clinic/` (ADR 0008): `catalog.py` is the tool catalog as pure data (`TOOLS`: name, description, parameter schema, `changes_world`, `ends_call`; `catalog()` for the editor). `world.py` is `ClinicWorld`: providers with weekly schedules, patients and appointments from a seed; `now` comes from the seed; open slots are generated from the schedules (ids like `dr-patel-2026-10-12-0900`) and are open when after `now` and not used by a booked appointment. Each tool is a method of the same name; `call(name, args)` checks required args and returns `{"error": ...}` for refusals instead of raising. Names match ignoring case, accents, spaces and punctuation; dates must be YYYY-MM-DD. `live.py` is `LiveClinic`: `state.json` (gitignored), created from `seed.json` on the first change, reread on every call so deleting it resets at once. `make clinic-reset` deletes it.
@@ -126,7 +144,8 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 105 tests) + Vitest (frontend, 165 tests) |
+| `make test` | pytest (backend, 182 tests) + Vitest (frontend, 165 tests) |
+| `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
@@ -149,6 +168,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - `agent_builder/builder.py`: `AgentBuilder.from_dict` validates and raises `ValidationError(ValueError)` carrying all records; the constructor validates `asdict(config)`. Each edge handler updates `flow_manager.state`, logs, and queues an RTVI server message `{type: "transition", from, function, to, args}` (Issue #8 builds the UI on it). Nodes are built lazily on transition.
 - `agent_builder/schema.py`: dataclasses `AgentConfig` (`name`, `initial_node`, `nodes`, `persona`, `voice_id`, `model`), `Node` (`name`, `task_messages`, `role_message`, `edges`, `pre_actions`, `post_actions`, `end`), `Edge` (`function`, `description`, `target`, `properties`, `required`). Unchanged from the starter.
 - `clinic/`: the tool catalog, the fake clinic world and the live state shared by calls (#25, see section 0).
+- `sim/`: the text runner, test format, checks, turn replay (#26, see section 0).
 - `agents/prosper-scheduler.json`: the example and default agent (was `example_flow.json`). Written with indent 2, as the editor saves it (since #25).
 - `tests/`: pytest for validation and the API (TestClient on a bare FastAPI app with a temp dir, no voice stack). Dev deps: `pytest`, `httpx2` (Starlette's TestClient deprecates `httpx`).
 

@@ -34,3 +34,6 @@ Thumbs.db
 
 # ---- Live clinic state (created from backend/clinic/seed.json) ----
 backend/clinic/state.json
+
+# ---- Text runner results, cached by input hash (backend/sim) ----
+backend/.sim-cache/

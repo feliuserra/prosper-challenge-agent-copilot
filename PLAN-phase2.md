@@ -173,6 +173,10 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Mutants: `backend/eval/mutants.py`, about 8 functions that each break the reference agent in one known way (remove the identity check, book without confirming, drop the emergency instruction, skip the fee warning, never transfer, ignore the new-patient rule, invent availability instead of calling `find_slots`, ...).
 - Judge calibration: about 30 transcripts from real runs, passing and failing on the soft rules, labelled by hand (drafted by Claude, reviewed by the user) in `backend/eval/judge-labels.json`. Measure agreement per rule; pick the judge model; a rule under 90% is rewritten or turned into an exact check.
 - `make eval`: runs the reference suite against an agent (default: the reference agent; `AGENT=...` for another) and prints a table and a summary. `make eval MUTANTS=1` runs it against every mutant. Results go to `backend/eval/results/` (gitignored). Not part of `make test`.
+- Spend log. The company keys cannot read usage or billing ([`docs/notes/models.md`](docs/notes/models.md)), so we keep our own estimate:
+  - The runner records cached input tokens (`usage.prompt_tokens_details.cached_tokens`) and prices them at the cached rate, so the estimate is no longer an upper bound.
+  - The model client (`sim/llm.py`) appends every request it makes to `backend/.spend/ledger.jsonl` (gitignored): time, source (`test`, `eval`, `replay`, later `copilot`), model version, and input, cached and output tokens. A result served from the cache adds nothing. Because the log sits in the client, the Copilot's own model calls (#29 on) are counted with no extra work.
+  - `make spend` prints the estimated dollars by day and by source, and the total since a date (`SINCE=2026-10-01`). It says what it is: an estimate at list prices, from the day the log started; billed amounts are only in Prosper's OpenAI and ElevenLabs dashboards.
 
 **Acceptance criteria:**
 - The reference agent passes 20/20. Flaky results are allowed only in the core tier and are listed in the PR.
@@ -180,12 +184,13 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Judge agreement is at least 90% for every judged rule in the suite.
 - The user has reviewed the guidelines and the tests.
 - Time and cost of one `make eval` run are recorded.
+- One `make eval` run adds its requests to the spend log, a cached rerun adds none, and `make spend` shows the run under `eval`. pytest for the log and the summary, with no model calls.
 
 ## 28. Workspaces, versions and recorded calls
 
 **Goal:** everything the Copilot works from lives next to the agent: guidelines, requirements, tests, versions, calls and tickets.
 
-**Depends on:** #25 (#26 for the comparison with the runner).
+**Depends on:** #25 (#26 for the comparison with the runner, #27 for the spend log).
 
 **Scope:**
 - `backend/workspaces/<agent-id>/` ([ADR 0013](docs/adr/0013-workspaces-versions-and-calls.md)): `guidelines.md`, `spec.json` (requirements, client questions, tests with a `draft` or `approved` state), `chat.json` (the Copilot conversation), `versions/`, `calls/`, `tickets/`. The agent file stays at `backend/agents/<id>.json`, so the Phase 1 API is unchanged and a workspace is optional.
@@ -193,11 +198,13 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Call records: the bot writes one when the call ends: a copy of the agent that ran and its hash (and the version, if it matches a saved one), the transcript (user turns as speech-to-text heard them, bot turns), transitions, tool calls with results, start and end times and how it ended. For each agent turn, the node and the exact messages and functions the model was given (the flight recorder, [ADR 0015](docs/adr/0015-debugging-by-cause.md)), taken from the bot's LLM context. Simulated and mock production calls use the same format, with a `source` field.
 - API under `/copilot/workspaces/{id}/...`: guidelines (get, put), versions (list, get), calls (list, get), tickets (list).
 - `backend/workspaces/` is gitignored; seed data for the demo lives elsewhere (#32). Decide the open item about agents saved from the editor landing untracked in `backend/agents/` (handoff section 5).
+- Call usage: each call record carries what the call used, from Pipecat's usage metrics (`enable_usage_metrics` is already on in `bot.py`): LLM tokens per model (input, cached, output), text-to-speech characters and speech-to-text seconds. When the call ends the bot adds one line to the spend log from #27 with source `call`. ElevenLabs is shown in characters and minutes, with a dollar estimate only when the plan's prices are set in the config: they depend on Prosper's plan, which we do not know.
 
 **Acceptance criteria:**
 - A test call from the editor produces a call record with the draft that ran, the user's words as speech-to-text heard them, and every transition and tool call.
 - Saving twice without changes creates one version.
 - On a live test call, the per-turn messages the bot recorded match what the runner rebuilds from the same agent and history, or the PR lists the differences.
+- A live test call's record has its usage and adds one line to the spend log; `make spend` shows it under `call`, next to the runner's spend.
 - pytest for the store: atomic writes, ids sanitised like agent ids, a missing workspace handled.
 
 ## 29. Copilot service: edit operations and the spec step

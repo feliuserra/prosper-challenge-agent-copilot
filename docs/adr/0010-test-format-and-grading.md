@@ -1,6 +1,6 @@
 # ADR 0010: Test format and grading
 
-- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): turn checks graded as rates.
+- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): turn checks graded as rates. #26 (2026-10-12): the caller model is pinned and the judge is provisional until #27 ([`docs/notes/models.md`](../notes/models.md)); the format as built is documented in `backend/sim/testfile.py`.
 - **Date:** 2026-10-05
 
 ## Context

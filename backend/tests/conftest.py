@@ -20,3 +20,10 @@ def agent() -> dict:
 def example() -> dict:
     """A fresh copy of the example agent that ships in agents/."""
     return copy.deepcopy(EXAMPLE)
+
+
+@pytest.fixture(autouse=True)
+def no_model_calls(monkeypatch):
+    """`make test` makes no model calls: without a key a real OpenAI client cannot be built,
+    so a test that reached one would fail instead of spending."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
