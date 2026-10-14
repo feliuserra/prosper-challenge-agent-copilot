@@ -38,3 +38,6 @@ backend/clinic/state.json
 
 # ---- Text runner results, cached by input hash (backend/sim) ----
 backend/.sim-cache/
+
+# ---- Hand-in memo: PDFs are committed only in their final version (#11) ----
+docs/memo/*.pdf
