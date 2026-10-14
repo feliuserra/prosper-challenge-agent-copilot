@@ -7,11 +7,21 @@ import { stagesOf, type Stage } from "../agent/stages";
 // hidden. The vertical space the stage no longer needs is taken out of the canvas,
 // so everything below it moves up. Positions in the agent never change: the shift
 // applies to what is shown, and `stored` undoes it for a position the user drags.
+//
+// The view also names the Start and End pills (#47): one above the start node and
+// one below each end node, or on the card of the collapsed stage they are in.
+// derive.ts places them.
 
 export type Dimensions = { width: number; height: number };
 
 /** A collapsed stage's card (a node card's size): its React Flow id, the stage, and where it is shown. */
 export type StageCard = { id: string; stage: Stage; position: Position };
+
+/**
+ * A Start or End pill: its React Flow node id, the id of its plain edge, and
+ * `at`, what it is attached to (a node, or a collapsed stage's card).
+ */
+export type Terminal = { id: string; edgeId: string; kind: "start" | "end"; at: string };
 
 export type CanvasView = {
   /** Hidden node -> the collapsed stage it is in. */
@@ -20,6 +30,8 @@ export type CanvasView = {
   cards: Map<string, StageCard>;
   /** Card id -> its stage's name. */
   cardStage: Map<string, string>;
+  /** Pill id -> the Start or End pill, the Start pill first. */
+  terminals: Map<string, Terminal>;
   /** Where a visible node is shown. */
   shown(node: Node): Position;
   /** The position to store for one shown on the canvas. */
@@ -64,15 +76,21 @@ export function canvasView(
 
   const hiddenIn = new Map<string, string>();
   const folds: { stage: Stage; id: string; first: Node; top: number; bottom: number }[] = [];
+  // Node names can be any text: make sure no node, card or pill has another's id,
+  // and no pill's edge an edge's id.
   const ids = new Set(byName.keys());
+  // Edge ids as derive.ts makes them (`edgeId`).
+  const edgeIds = new Set(agent.nodes.flatMap((n) => (n.edges ?? []).map((e) => `${n.name}::${e.function}`)));
+  const unique = (id: string, taken: Set<string>) => {
+    while (taken.has(id)) id = `:${id}`;
+    taken.add(id);
+    return id;
+  };
   for (const stage of stagesOf(agent)) {
     if (!folded.has(stage.name)) continue;
     const members = stage.nodes.map((name) => byName.get(name)!);
     for (const name of stage.nodes) hiddenIn.set(name, stage.name);
-    // Node names can be any text: make sure no node, or other card, has the card's id.
-    let id = `stage::${stage.name}`;
-    while (ids.has(id)) id = `:${id}`;
-    ids.add(id);
+    const id = unique(`stage::${stage.name}`, ids);
     folds.push({
       stage,
       id,
@@ -100,10 +118,31 @@ export function canvasView(
       return [f.stage.name, { id: f.id, stage: f.stage, position }];
     }),
   );
+  const endOf = (name: string) => {
+    const stage = hiddenIn.get(name);
+    return stage === undefined ? name : cards.get(stage)!.id;
+  };
+
+  // One End pill per end node, so none needs a long edge across the graph; end
+  // nodes in one collapsed stage share the card's.
+  const ends = [...new Set(agent.nodes.filter((n) => n.end).map((n) => endOf(n.name)))];
+  const pills = [
+    ...(byName.has(agent.initial_node) ? [{ kind: "start" as const, at: endOf(agent.initial_node) }] : []),
+    ...ends.map((at) => ({ kind: "end" as const, at })),
+  ];
+  const terminals = new Map(
+    pills.map(({ kind, at }): [string, Terminal] => {
+      // The Start pill's id does not depend on the start node, so it moves when that changes.
+      const id = unique(kind === "start" ? "terminal::start" : `terminal::end::${at}`, ids);
+      return [id, { id, edgeId: unique(`${id}::edge`, edgeIds), kind, at }];
+    }),
+  );
+
   return {
     hiddenIn,
     cards,
     cardStage: new Map(folds.map((f) => [f.id, f.stage.name])),
+    terminals,
     shown: (node) => ({ x: node.ui?.x ?? 0, y: top(node) - shift(top(node)) }),
     stored({ x, y }) {
       // Walk the removed spans from the top: each one starting above the stored
@@ -115,18 +154,16 @@ export function canvasView(
       }
       return { x, y: y + back };
     },
-    endOf: (name) => {
-      const stage = hiddenIn.get(name);
-      return stage === undefined ? name : cards.get(stage)!.id;
-    },
+    endOf,
   };
 }
 
-/** The view with nothing collapsed: everything shown where it is stored. */
+/** The view with nothing collapsed and no pills: everything shown where it is stored. */
 export const flatView: CanvasView = {
   hiddenIn: new Map(),
   cards: new Map(),
   cardStage: new Map(),
+  terminals: new Map(),
   shown: (node) => ({ x: node.ui?.x ?? 0, y: node.ui?.y ?? 0 }),
   stored: (position) => position,
   endOf: (name) => name,

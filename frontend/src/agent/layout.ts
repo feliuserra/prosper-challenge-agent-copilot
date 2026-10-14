@@ -19,6 +19,12 @@ const NODE_GAP = 60;
 // Room between a card and the next rank's cards, with an edge label in the middle.
 const RANK_GAP = 120;
 
+// The Start and End pills (#47, TerminalNode, `.terminal-node`), and the space
+// between a pill and its card, or the stage frame around it (derive.ts).
+export const TERMINAL_WIDTH = 84;
+export const TERMINAL_HEIGHT = 28;
+export const TERMINAL_GAP = 40;
+
 // Edge labels (FunctionEdge, `.edge-label`). Longer text is cut with an ellipsis.
 export const LABEL_HEIGHT = 24;
 export const LABEL_MAX_WIDTH = 260;
@@ -65,7 +71,9 @@ function slotWidths(agent: Agent): Map<string, number> {
 /**
  * A full top-to-bottom layout: every node gets a new position. The nodes of a
  * stage are laid out as one block (a dagre cluster), so stage frames do not
- * overlap; dagre leaves an extra rank gap between blocks.
+ * overlap; dagre leaves an extra rank gap between blocks. The Start and End
+ * pills the canvas draws are laid out too, in their node's block, so nothing
+ * else lands where they go; their own positions are derived (derive.ts).
  */
 export function autoLayout(agent: Agent): Agent {
   const graph = new dagre.graphlib.Graph({ compound: true });
@@ -78,9 +86,13 @@ export function autoLayout(agent: Agent): Agent {
   for (const node of agent.nodes) {
     graph.setNode(ids.get(node.name)!, { width: widths.get(node.name)!, height: cardHeight(node) });
   }
+  const stageIds = new Map<string, string>();
   stagesOf(agent).forEach((stage, i) => {
     graph.setNode(`stage${i}`, {});
-    for (const name of stage.nodes) graph.setParent(ids.get(name)!, `stage${i}`);
+    for (const name of stage.nodes) {
+      graph.setParent(ids.get(name)!, `stage${i}`);
+      stageIds.set(name, `stage${i}`);
+    }
   });
   for (const node of agent.nodes) {
     for (const edge of node.edges ?? []) {
@@ -88,6 +100,20 @@ export function autoLayout(agent: Agent): Agent {
       if (target) graph.setEdge(ids.get(node.name)!, target);
     }
   }
+  const pill = (id: string, name: string) => {
+    graph.setNode(id, { width: TERMINAL_WIDTH, height: TERMINAL_HEIGHT });
+    const stage = stageIds.get(name);
+    if (stage) graph.setParent(id, stage);
+  };
+  if (ids.has(agent.initial_node)) {
+    pill("start", agent.initial_node);
+    graph.setEdge("start", ids.get(agent.initial_node)!);
+  }
+  agent.nodes.forEach((node, i) => {
+    if (!node.end) return;
+    pill(`end${i}`, node.name);
+    graph.setEdge(ids.get(node.name)!, `end${i}`);
+  });
   dagre.layout(graph);
   return {
     ...agent,

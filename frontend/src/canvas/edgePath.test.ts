@@ -153,7 +153,7 @@ describe("back edges", () => {
     const flow = toFlowEdges(withBackEdge, null);
     const back = flow.find((e) => e.id === "confirm::start_over")!;
     // Forward edges keep the plain curve.
-    expect(flow.filter((e) => e.data!.route).map((e) => e.id)).toEqual(["confirm::start_over"]);
+    expect(flow.filter((e) => e.type === "function" && e.data!.route).map((e) => e.id)).toEqual(["confirm::start_over"]);
 
     const boxes = Object.fromEntries(withBackEdge.nodes.map((n) => [n.name, box(n.ui!.x, n.ui!.y)]));
     // Handle positions as React Flow passes them: bottom centre of the source, top centre of the target.

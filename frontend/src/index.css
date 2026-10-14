@@ -172,9 +172,6 @@ details[open] summary {
 .badge.start {
   background: #ddf4ff;
 }
-.badge.end {
-  background: #eaeef2;
-}
 .badge.error {
   background: #ffebe9;
   color: #cf222e;
@@ -296,6 +293,32 @@ details[open] summary {
   background: #fff;
   color: #57606a;
   font-size: 12px;
+}
+/* The Start and End pills (#47): TERMINAL_WIDTH and TERMINAL_HEIGHT in layout.ts,
+   which places them. Only their edge uses the handle, so it never shows. */
+.terminal-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(31 35 40 / 6%);
+  color: #24292f;
+  font: 500 13px var(--canvas-font);
+  cursor: default;
+}
+.terminal-node.start svg {
+  color: #1a7f37;
+}
+.terminal-node.end svg {
+  color: #57606a;
+}
+.terminal-node .react-flow__handle {
+  visibility: hidden;
 }
 .tool-option {
   display: flex;

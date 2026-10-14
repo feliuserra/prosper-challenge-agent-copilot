@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14, canvas polish and stages merged; #47 next; #43 in progress on a local branch)
+## 0. Status (updated 2026-10-14, canvas polish and stages merged; #47 in review; #43 in progress on a local branch)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -32,23 +32,23 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #46 Canvas polish: node card redesign | Merged; checked by the user | #49 |
 | #50 Canvas: stages, frames around groups of nodes | Merged; checked by the user | #52 |
 | #51 Canvas: collapse a stage into one card | Merged; checked by the user | #53 |
-| #47 Canvas polish: Start and End as terminal nodes | **Next**, in a new session (see "When #47 starts") | |
+| #47 Canvas polish: Start and End as terminal nodes | **In review** (see "What #47 built") | #55 |
 | #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 
-**Next step:** #47 (Start and End as terminal nodes), in a new session: see "When #47 starts" below. It is the last of the canvas issues the user added on 2026-10-14 (#45, #46, #50, #51 are merged; see "What #45, #46, #50 and #51 built").
+**Next step:** #47 (Start and End as terminal nodes) is in review as PR #55; the user checks it in the browser. It is the last of the canvas issues the user added on 2026-10-14 (#45, #46, #50, #51 are merged; see "What #45, #46, #50 and #51 built"). After it merges, #43 goes on.
 
 #43 (clinic configuration) is in progress on the local branch `issue-43-clinic-config`, before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. That branch has an unpushed plan commit (`25b0409`: #43 narrowed, a read-only Clinic tab, two PRs, cheaper mutant runs) whose copy of this section has the details. It was written before the canvas work, so merge `main` into it before going on: this section and the status table will conflict; keep both sides. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits. A separate session is brainstorming how to find problems in calls at scale (workflow 2) before #32 is rewritten: see "Interviewer's answers" below. #11 comes last.
 
-When #47 starts, for that session:
-- Read the issue (`gh issue view 47 --repo feliuserra/prosper-challenge-agent-copilot`). Its "Depends on" was updated: the Start and End pills go into the stage layout of #50 and #51.
-- Derived only, never in the agent file (ADR 0001): add a `terminal` node type in `toFlowNodes` and plain unlabelled edges in `toFlowEdges` (`canvas/derive.ts`). Both already take a `CanvasView` (`canvas/view.ts`): attach a pill to `view.endOf(name)`, so a start or end node inside a collapsed stage gets its pill on the stage's card, and place it from `view.shown(node)` or the card's position.
-- React Flow ids: node names can be any text, so make pill ids unique the way `view.ts` does for stage cards (`stage::<name>`, prefixed with `:` until no node has it).
-- Not selectable, draggable, deletable or connectable. `changes.ts` (`handleNodeChanges`) and `Canvas.tsx` (`onConnect`, `onReconnect`, `onDelete`, `isCard`) already skip stage cards by id; skip pills the same way. Edges' real source comes from `parseEdgeId(edge.id)`, never from `edge.source`, which can be a card.
-- Remove the Start and End badges from `NodeCard.tsx` and `StageCard.tsx` (`isStart`, `isEnd`); the node panel's "Start node" badge stays.
-- Room for the pills: `autoLayout` (`agent/layout.ts`) does not know them. A Start pill sits above the start node, inside the 80px top padding that `fitViewOptions` in `Canvas.tsx` leaves; End pills go below end nodes. Add the pills' boxes to the `boxes` map in `toFlowEdges` so back edges route around them. Check frames: a pill above a stage's first node lands in the frame's 40px header (`FRAME_LABEL` in `derive.ts`).
-- Test patterns to copy: `derive.test.ts` ("a collapsed stage"), `view.test.ts`, `changes.test.ts` ("with a collapsed stage"). The template has stages (Identify caller, Visit, Book), so `stageFrames` tests read it from `backend/agents/prosper-scheduler.json`.
-- Browser checks: the browser pane's `preview_start` cannot launch from `~/Desktop` (`make: getcwd: Operation not permitted`), so start servers from Bash in the background (spare ports, as in "Testing without disturbing the user"). Load a throwaway agent with `window.agentStore.getState().open("scratch", agent, false)` and reload to get the saved one back; never save from the browser, which would rewrite `backend/agents/`.
+What #47 built (frontend only), for reference:
+- Derived only (ADR 0001). `canvas/view.ts` names the pills: `view.terminals` (pill id, the id of its edge, `kind`, and `at`, the node or collapsed stage card it hangs off). Ids are made unique against nodes, cards and edge ids like stage cards' (`:` prefixes); the Start pill's id does not depend on the start node, so React Flow moves it when the start node changes. `derive.ts` places them (`terminalPills`) and adds `terminal` nodes and plain React Flow `default` edges in `toFlowNodes` and `toFlowEdges`. `TerminalNode.tsx` draws them (flag, hang-up icon; `TERMINAL_WIDTH` x `TERMINAL_HEIGHT`, 84x28, in `layout.ts`).
+- One End pill per end node (decided in the PR: never a long edge across the graph); end nodes in one collapsed stage share the card's pill.
+- Placement: `TERMINAL_GAP` (40px) above or below the card. In a stage frame a pill stays inside only if it fits below the header or above the bottom padding; otherwise it goes 40px outside the frame. When an edge from above also enters the card (Start) or one leaves it downwards (End), that edge and its label sit where a centred pill would be, so the pill moves to the card's left or right edge, away from the other cards (left when they are straight above or below). Back edges and self-loops join from the side and do not move it. Found in the browser: with the start node set to `ask_name`, the centred pill sat on the label of `greeting -> ask_name`.
+- `autoLayout` adds the pills to dagre (in their node's stage cluster) and drops their positions, so no card lands right below an End pill. Without it, a diamond (`a -> b, e, f`; `b, f -> c`; `e` ends) puts `c` right under `e`, and `e`'s pill seems to lead into `c` (tested).
+- Back edges route around pills (they are in `boxes`).
+- `connectNodes`, `reconnectEdge` and `deleteElements` moved from `Canvas.tsx` to `changes.ts` so they can be tested. They and `handleNodeChanges` / `handleEdgeChanges` skip pills and pill edges; a pill's `dimensions` change still goes to `measured`, which fit view waits for.
+- The Start and End badges are gone from `NodeCard.tsx` and `StageCard.tsx` (and `.badge.end` from the CSS); the node panel's "Start node" badge stays.
+- Tests: 218 in Vitest (15 new). Checked in the browser pane (not by the user yet).
 
 What #45, #46, #50 and #51 built (frontend, plus a backend line in #50), for reference. Added by the user on 2026-10-14 from a reference screenshot of another flow builder:
 - #45 (PR #48): edge labels are dark pills showing the edge's description (`edgeLabel` in `layout.ts`: one line, a leading "Call" before when/once/if/after dropped; the function name when there is none, and in the tooltip). Hairline edges with open arrowheads coloured per edge (`derive.ts` gives each colour its own marker). Handles hidden until a card is hovered or selected, or a connection is dragged (`useConnection`). Off-white dotted canvas, no minimap. `RANK_GAP` 120; the targets of a branching node get wider dagre slots (`slotWidths`) so their labels, which sit at the curve midpoints, do not overlap.
@@ -234,7 +234,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - Reconnecting: only the selected edge has a reconnect knob (a blue circle over its arrowhead), and `elevateEdgesOnSelect` draws it above other edges ending at the same handle. Click an edge, then drag the knob to another node.
 - Single selection only: multi-select and box select are off, matching the store's `selection`.
 - Canvas look and stages (#45, #46, #50, #51): `agent/stages.ts`, `canvas/view.ts`, `StageFrames.tsx`, `StageCard.tsx`, `panel/StagePanel.tsx`, and changes to `layout.ts`, `derive.ts`, `changes.ts`, `NodeCard.tsx`, `FunctionEdge.tsx` and the store. See "What #45, #46, #50 and #51 built" in section 0.
-- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts`, `warnings.test.ts`, `history.test.ts`, `file.test.ts`, `stages.test.ts`, `view.test.ts` (203 in total after #51). No component tests; the panel and the problems list are checked in the browser.
+- Tests: `names.test.ts`, `schema.test.ts`, `agentStore.test.ts`, `layout.test.ts`, `derive.test.ts`, `changes.test.ts`, `edgePath.test.ts`, `fields.test.ts`, `editSession.test.ts`, `problems.test.ts`, `validationStore.test.ts`, `transcript.test.ts`, `callStore.test.ts`, `warnings.test.ts`, `history.test.ts`, `file.test.ts`, `stages.test.ts`, `view.test.ts` (218 in total after #47). No component tests; the panel and the problems list are checked in the browser.
 
 ## 4. Known gotchas
 
@@ -274,6 +274,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **The problems strip has the `nokey` class.** React Flow listens for Delete/Backspace on the whole document, so without it Backspace on a focused problem would delete the node it just selected.
 - **Keep zod objects loose and add no defaults**, or a round trip drops or adds fields.
 - **Stage cards and edge ends (#51).** A collapsed stage's card is a React Flow node with id `stage::<name>` (prefixed with `:` until no node has that name), and edges into or out of the stage have the card as `source` or `target`. Always get an edge's real source from `parseEdgeId(edge.id)`.
+- **Start and End pills (#47)** are React Flow nodes and edges too, with ids from `view.terminals`, never node names. Anything that turns a canvas id into a store operation must skip them (`changes.ts` does). Edge lists from `toFlowEdges` mix function edges (`type: "function"`) and pill edges (`type: "default"`, no `data`).
 - **Shown and stored positions (#51).** With a stage collapsed, the canvas shows nodes higher than they are stored (`view.shown`). Anything that writes a position from the canvas goes through `view.stored` (drags in `changes.ts`, Add node). Collapsing never writes to the agent.
 - **Fit view after a change that adds nodes.** React Flow's own queued `fitView` fitted the old nodes with our controlled nodes, so `Canvas.tsx` sets `fitPending` and fits once every node passed in has a measured size. `fitViewOptions` pads the top by 80px for the buttons over the canvas and a frame's header, which fitting does not count.
 - **Frames are not React Flow nodes.** They are divs in a `ViewportPortal` at `z-index: -1` with `pointer-events: none`, except their header, so the canvas still pans from inside a frame and edges and labels draw over them.

@@ -28,7 +28,7 @@ export function Chevron({ open }: { open: boolean }) {
  * expands it; dragging it moves all its nodes.
  */
 export const StageCard = memo(function StageCard({ data, selected }: NodeProps<StageFlowNode>) {
-  const { stage, status = [], isStart, isEnd, activeStep } = data;
+  const { stage, status = [], activeStep } = data;
   const className = ["node-card", "stage-card", `tone-${stage.tone}`, selected && "selected", activeStep && "active"]
     .filter(Boolean)
     .join(" ");
@@ -56,8 +56,6 @@ export const StageCard = memo(function StageCard({ data, selected }: NodeProps<S
           <span className="stage-frame-steps">
             {steps} {steps === 1 ? "step" : "steps"}
           </span>
-          {isStart && <span className="badge start">Start</span>}
-          {isEnd && <span className="badge end">End</span>}
           <span className="node-card-status">
             {status.map((s) => (
               <span key={s.tone} className={`badge ${s.tone}`} title={s.title}>
