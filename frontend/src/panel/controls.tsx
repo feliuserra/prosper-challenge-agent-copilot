@@ -52,13 +52,16 @@ type NameProps = {
   commit: (draft: string) => void;
   label?: string;
   className?: string;
+  /** Id of a `<datalist>` of suggestions. */
+  list?: string;
+  placeholder?: string;
 };
 
 /**
  * An identifier: shows problems while typing, writes on blur or Enter, and goes
  * back to the stored value if the draft is invalid. Escape cancels.
  */
-export function NameInput({ value, check, commit, label, className }: NameProps) {
+export function NameInput({ value, check, commit, label, className, list, placeholder }: NameProps) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
   // Follow the store (undo, a rename elsewhere) unless the user is typing.
@@ -75,6 +78,8 @@ export function NameInput({ value, check, commit, label, className }: NameProps)
         value={draft}
         aria-label={label}
         aria-invalid={!!error}
+        list={list}
+        placeholder={placeholder}
         onFocus={() => setFocused(true)}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {

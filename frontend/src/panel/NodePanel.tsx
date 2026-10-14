@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { listTools, type ToolInfo } from "../api";
 import { parseAction } from "../agent/fields";
 import { nodeNameError } from "../agent/names";
 import { TASK_ROLES } from "../agent/options";
 import type { Action, Agent, Node, TaskMessage } from "../agent/schema";
+import { stageOf, stagesOf } from "../agent/stages";
 import { useAgentStore } from "../store/agentStore";
 import { Field, JsonField, LiveText, NameInput } from "./controls";
 
@@ -88,6 +89,8 @@ export function NodePanel({ node, agent }: { node: Node; agent: Agent }) {
             : "The bot gives its reply for this node, then hangs up."}
         </div>
       )}
+
+      <StageField node={node} agent={agent} />
 
       <TaskMessages node={node} />
 
@@ -276,6 +279,28 @@ function Actions({ node, which, label, hint }: ActionsProps) {
           + Other action
         </button>
       </div>
+    </Field>
+  );
+}
+
+/** The node's stage: pick one of the agent's stages or type a new one; empty for none. */
+function StageField({ node, agent }: { node: Node; agent: Agent }) {
+  const listId = useId();
+  return (
+    <Field label="Stage" hint="Groups this node with others in a frame on the canvas. Leave empty for none.">
+      <NameInput
+        label="Stage"
+        value={stageOf(node) ?? ""}
+        placeholder="No stage"
+        list={listId}
+        check={() => null}
+        commit={(draft) => store().setStage(node.name, draft)}
+      />
+      <datalist id={listId}>
+        {stagesOf(agent).map((stage) => (
+          <option key={stage.name} value={stage.name} />
+        ))}
+      </datalist>
     </Field>
   );
 }

@@ -34,6 +34,8 @@ export const Node = z.looseObject({
   end: z.boolean().optional(),
   // Tools from the clinic catalog this node may call (ADR 0008).
   tools: z.array(z.string()).optional(),
+  // The stage this node belongs to on the canvas (#50); the runtime ignores it.
+  stage: z.string().optional(),
   // Editor-only canvas position; the backend ignores it.
   ui: Position.optional(),
 });

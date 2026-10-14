@@ -4,6 +4,7 @@ import { temporal } from "zundo";
 import { autoLayout, placeMissing, withPositions } from "../agent/layout";
 import { placeholderFunctionName, uniqueName } from "../agent/names";
 import type { Agent, Edge, Node, Position } from "../agent/schema";
+import { stageOf } from "../agent/stages";
 
 // One agent document plus editor state. Every change to the agent goes through a
 // named operation below (ADR 0001), so the canvas, the side panel and later the
@@ -12,6 +13,7 @@ import type { Agent, Edge, Node, Position } from "../agent/schema";
 export type Selection =
   | { kind: "node"; name: string }
   | { kind: "edge"; source: string; function: string }
+  | { kind: "stage"; name: string }
   | null;
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -43,6 +45,12 @@ interface AgentState {
   deleteEdge(source: string, fn: string): void;
   setInitialNode(name: string): Result;
   moveNode(name: string, position: Position): void;
+  /** Put a node in a stage, or take it out with null or an empty name. */
+  setStage(name: string, stage: string | null): void;
+  /** Rename a stage on all its nodes; renaming onto another stage merges the two. */
+  renameStage(stage: string, newName: string): Result;
+  /** Take every node out of a stage; the nodes stay. */
+  ungroupStage(stage: string): void;
   tidyLayout(): void;
   updateAgent(patch: AgentPatch): void;
 }
@@ -53,9 +61,10 @@ const fail = (error: string): Result => ({ ok: false, error });
 const edgesOf = (node: Node): Edge[] => node.edges ?? [];
 const findNode = (agent: Agent, name: string) => agent.nodes.find((n) => n.name === name);
 
-/** Whether the selected node or edge still exists in `agent`. */
+/** Whether the selected node, edge or stage still exists in `agent`. */
 export function selectionExists(agent: Agent, selection: Selection): boolean {
   if (!selection) return true;
+  if (selection.kind === "stage") return agent.nodes.some((n) => stageOf(n) === selection.name);
   const node = findNode(agent, selection.kind === "node" ? selection.name : selection.source);
   if (!node) return false;
   return selection.kind === "node" || edgesOf(node).some((e) => e.function === selection.function);
@@ -67,6 +76,9 @@ function merge<T extends object>(base: T, patch: object): T {
   for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key];
   return next as T;
 }
+
+/** `node` in `stage`, or in none (the key is removed, as in a patch). */
+const withStage = (node: Node, stage: string | null): Node => merge(node, { stage: stage?.trim() || undefined });
 
 /** Replace the node called `name` with `update(node)`; other nodes keep their identity. */
 function mapNode(agent: Agent, name: string, update: (node: Node) => Node): Agent {
@@ -239,6 +251,30 @@ export const useAgentStore = create<AgentState>()(
 
         moveNode(name, position) {
           change((agent) => mapNode(agent, name, (n) => ({ ...n, ui: { ...n.ui, ...position } })));
+        },
+
+        setStage(name, stage) {
+          change((agent) => mapNode(agent, name, (n) => withStage(n, stage)));
+        },
+
+        renameStage(stage, newName) {
+          const agent = get().agent;
+          const next = newName.trim();
+          if (!agent) return fail("No agent open.");
+          if (!next) return fail("Stage name cannot be empty.");
+          if (next === stage) return ok;
+          const nodes = agent.nodes.map((n) => (stageOf(n) === stage ? withStage(n, next) : n));
+          let { selection } = get();
+          if (selection?.kind === "stage" && selection.name === stage) selection = { kind: "stage", name: next };
+          set({ agent: { ...agent, nodes }, selection });
+          return ok;
+        },
+
+        ungroupStage(stage) {
+          const { agent, selection } = get();
+          if (!agent) return;
+          const next = { ...agent, nodes: agent.nodes.map((n) => (stageOf(n) === stage ? withStage(n, null) : n)) };
+          set({ agent: next, selection: selectionExists(next, selection) ? selection : null });
         },
 
         tidyLayout() {

@@ -22,6 +22,7 @@ import { useProblems } from "../validation/problems";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
 import {
   edgeId,
+  stageFrames,
   statusBadges,
   toFlowEdges,
   toFlowNodes,
@@ -32,6 +33,7 @@ import {
 import { FunctionEdge } from "./FunctionEdge";
 import { NodeCard } from "./NodeCard";
 import { ProblemsList } from "./ProblemsList";
+import { StageFrames } from "./StageFrames";
 
 const nodeTypes = { agent: NodeCard };
 const edgeTypes = { function: FunctionEdge };
@@ -76,6 +78,8 @@ function Flow() {
     () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured),
     [agent, selection, badges, activeEdge, measured],
   );
+  const frames = useMemo(() => stageFrames(agent, measured), [agent, measured]);
+  const selectedStage = selection?.kind === "stage" ? selection.name : null;
 
   // Notices (e.g. a blocked delete) fade after a few seconds.
   useEffect(() => {
@@ -158,6 +162,8 @@ function Flow() {
           onReconnect={onReconnect}
           onBeforeDelete={onBeforeDelete}
           onDelete={onDelete}
+          // React Flow clears its own selection on a pane click; a stage is not one of its elements.
+          onPaneClick={() => selectedStage && store().select(null)}
           deleteKeyCode={["Backspace", "Delete"]}
           reconnectRadius={12}
           // The selected edge (and its reconnect knob) draws above the others,
@@ -183,6 +189,7 @@ function Flow() {
           )}
           <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
           <Background color="#d5d9de" gap={16} size={1} />
+          <StageFrames frames={frames} selected={selectedStage} />
         </ReactFlow>
       </div>
       {/* Below the graph, not over it, so it never hides a node or its badge. */}

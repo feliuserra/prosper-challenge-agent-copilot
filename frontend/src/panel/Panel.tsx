@@ -2,13 +2,15 @@ import { useMemo, useState } from "react";
 
 import { agentFileText } from "../agent/file";
 import type { Agent } from "../agent/schema";
+import { stagesOf } from "../agent/stages";
 import { useAgentStore } from "../store/agentStore";
 import { AgentPanel } from "./AgentPanel";
 import { EdgePanel } from "./EdgePanel";
 import { NodePanel } from "./NodePanel";
+import { StagePanel } from "./StagePanel";
 
 /**
- * Editor for the selection: a node, an edge, or (nothing selected) the agent.
+ * Editor for the selection: a node, an edge, a stage, or (nothing selected) the agent.
  * The JSON tab shows the whole agent instead, read-only.
  */
 export function Panel() {
@@ -28,6 +30,9 @@ export function Panel() {
     if (edge) {
       content = <EdgePanel key={`${selection.source}::${edge.function}`} source={selection.source} edge={edge} agent={agent} />;
     }
+  } else if (selection?.kind === "stage") {
+    const stage = stagesOf(agent).find((s) => s.name === selection.name);
+    if (stage) content = <StagePanel key={stage.name} stage={stage} />;
   }
   // `nokey`: React Flow ignores key presses from here, so Backspace on a focused
   // panel button never deletes the selected node.

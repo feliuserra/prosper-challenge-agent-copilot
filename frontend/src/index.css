@@ -388,6 +388,81 @@ details[open] summary {
   outline-offset: 4px;
 }
 
+/* Stage frames (#50): behind the edges and cards, in the viewport. Only the label
+   takes clicks, so the canvas still pans from inside a frame. */
+.stage-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  box-sizing: border-box;
+  border: 1px solid var(--stage-border);
+  border-radius: 16px;
+  background: var(--stage-fill);
+  pointer-events: none;
+}
+.stage-frame.selected {
+  box-shadow: 0 0 0 2px var(--stage-text);
+}
+.stage-frame-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: calc(100% - 24px);
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--stage-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--stage-text);
+  font: 500 13px var(--canvas-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: all;
+  cursor: pointer;
+}
+.stage-frame-steps {
+  color: #656d76;
+  font-size: 12px;
+  font-weight: 400;
+}
+/* Stage colours, by stage order (STAGE_TONES in stages.ts). */
+.tone-0 {
+  --stage-fill: rgb(9 105 218 / 5%);
+  --stage-border: #c6dbf5;
+  --stage-text: #0b4f9c;
+}
+.tone-1 {
+  --stage-fill: rgb(26 127 55 / 5%);
+  --stage-border: #c3e6cd;
+  --stage-text: #1a7f37;
+}
+.tone-2 {
+  --stage-fill: rgb(130 80 223 / 5%);
+  --stage-border: #ddd0f7;
+  --stage-text: #6639ba;
+}
+.tone-3 {
+  --stage-fill: rgb(188 76 0 / 5%);
+  --stage-border: #f3d7bd;
+  --stage-text: #953800;
+}
+.tone-4 {
+  --stage-fill: rgb(191 57 137 / 5%);
+  --stage-border: #f3cde2;
+  --stage-text: #99286e;
+}
+.tone-5 {
+  --stage-fill: rgb(13 128 128 / 5%);
+  --stage-border: #bfe3e3;
+  --stage-text: #0d6b6b;
+}
+
 /* Problems list, below the canvas */
 .problems {
   flex-shrink: 0;

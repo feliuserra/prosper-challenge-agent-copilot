@@ -1,6 +1,7 @@
 import dagre from "@dagrejs/dagre";
 
 import type { Agent, Edge, Node, Position } from "./schema";
+import { stagesOf } from "./stages";
 
 // Canvas positions (`ui`) for nodes that have none. A full dagre layout runs only
 // when no node has a position; otherwise missing nodes are placed one by one and
@@ -61,19 +62,30 @@ function slotWidths(agent: Agent): Map<string, number> {
   return widths;
 }
 
-/** A full top-to-bottom layout: every node gets a new position. */
+/**
+ * A full top-to-bottom layout: every node gets a new position. The nodes of a
+ * stage are laid out as one block (a dagre cluster), so stage frames do not
+ * overlap; dagre leaves an extra rank gap between blocks.
+ */
 export function autoLayout(agent: Agent): Agent {
-  const graph = new dagre.graphlib.Graph();
+  const graph = new dagre.graphlib.Graph({ compound: true });
   graph.setGraph({ rankdir: "TB", nodesep: NODE_GAP, ranksep: RANK_GAP });
   graph.setDefaultEdgeLabel(() => ({}));
+  // dagre ids of our own: node names can be any text, so they could clash with a stage's id.
+  const ids = new Map(agent.nodes.map((n, i) => [n.name, `node${i}`]));
   // A card is centred in its slot: positions come from the centre below.
   const widths = slotWidths(agent);
   for (const node of agent.nodes) {
-    graph.setNode(node.name, { width: widths.get(node.name)!, height: cardHeight(node) });
+    graph.setNode(ids.get(node.name)!, { width: widths.get(node.name)!, height: cardHeight(node) });
   }
+  stagesOf(agent).forEach((stage, i) => {
+    graph.setNode(`stage${i}`, {});
+    for (const name of stage.nodes) graph.setParent(ids.get(name)!, `stage${i}`);
+  });
   for (const node of agent.nodes) {
     for (const edge of node.edges ?? []) {
-      if (graph.hasNode(edge.target)) graph.setEdge(node.name, edge.target);
+      const target = ids.get(edge.target);
+      if (target) graph.setEdge(ids.get(node.name)!, target);
     }
   }
   dagre.layout(graph);
@@ -81,7 +93,7 @@ export function autoLayout(agent: Agent): Agent {
     ...agent,
     nodes: agent.nodes.map((node) => {
       // dagre gives the centre; React Flow positions are the top-left corner.
-      const { x, y } = graph.node(node.name);
+      const { x, y } = graph.node(ids.get(node.name)!);
       return { ...node, ui: { ...node.ui, ...round({ x: x - NODE_WIDTH / 2, y: y - cardHeight(node) / 2 }) } };
     }),
   };

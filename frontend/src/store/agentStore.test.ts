@@ -234,6 +234,63 @@ describe("deleteEdge, setInitialNode, moveNode, updateNode", () => {
   });
 });
 
+describe("stages", () => {
+  const stages = () => agent().nodes.map((n) => n.stage);
+  const steps = () => useAgentStore.temporal.getState().pastStates.length;
+
+  it("setStage puts a node in a stage, trimmed, and takes it out with null or a blank name", () => {
+    store().setStage("greeting", "  Identify caller ");
+    expect(node("greeting")?.stage).toBe("Identify caller");
+    store().setStage("greeting", " ");
+    expect(node("greeting")).not.toHaveProperty("stage");
+    store().setStage("greeting", "Identify caller");
+    store().setStage("greeting", null);
+    expect(node("greeting")).not.toHaveProperty("stage");
+  });
+
+  it("renameStage renames it on every node and follows with the selection, in one step", () => {
+    store().setStage("greeting", "Start");
+    store().setStage("collect_details", "Start");
+    store().setStage("confirm", "End");
+    store().select({ kind: "stage", name: "Start" });
+    const before = steps();
+    expect(store().renameStage("Start", " Identify ")).toEqual({ ok: true });
+    expect(stages()).toEqual(["Identify", "Identify", undefined, "End"]);
+    expect(store().selection).toEqual({ kind: "stage", name: "Identify" });
+    expect(steps()).toBe(before + 1);
+  });
+
+  it("renameStage onto another stage merges them, and refuses a blank name", () => {
+    store().setStage("greeting", "A");
+    store().setStage("confirm", "B");
+    expect(store().renameStage("A", "  ")).toEqual({ ok: false, error: "Stage name cannot be empty." });
+    store().renameStage("A", "B");
+    expect(stages()).toEqual(["B", undefined, undefined, "B"]);
+  });
+
+  it("ungroupStage takes every node out and drops a selection of it, in one step", () => {
+    store().setStage("greeting", "A");
+    store().setStage("confirm", "A");
+    store().setStage("offer_times", "B");
+    store().select({ kind: "stage", name: "A" });
+    const before = steps();
+    store().ungroupStage("A");
+    expect(stages()).toEqual([undefined, undefined, "B", undefined]);
+    expect(store().selection).toBeNull();
+    expect(steps()).toBe(before + 1);
+  });
+
+  it("a renamed or moved node keeps its stage, and a stage selection lasts while it has nodes", () => {
+    store().setStage("confirm", "End");
+    store().renameNode("confirm", "wrap_up");
+    store().moveNode("wrap_up", { x: 5, y: 5 });
+    expect(node("wrap_up")?.stage).toBe("End");
+    store().select({ kind: "stage", name: "End" });
+    store().deleteNode("wrap_up");
+    expect(store().selection).toBeNull();
+  });
+});
+
 describe("patches", () => {
   it("undefined removes a key from a node, an edge or the agent, keeping key order", () => {
     store().updateNode("greeting", { role_message: "Be brief." });
