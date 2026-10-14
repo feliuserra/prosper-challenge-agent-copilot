@@ -84,3 +84,24 @@ export interface ToolInfo {
 export async function listTools(): Promise<ToolInfo[]> {
   return (await (await request("/tools")).json()).tools;
 }
+
+export interface ClinicSummary {
+  id: string;
+  /** The clinic's name, or null when its file cannot be read. */
+  name: string | null;
+}
+
+/** The clinics an agent can run against (ADR 0016). */
+export async function listClinics(): Promise<ClinicSummary[]> {
+  return (await (await request("/clinics")).json()).clinics;
+}
+
+export interface ClinicProblem {
+  path: string;
+  message: string;
+}
+
+/** A clinic file as it is (null when it is not JSON) and every problem the backend loader finds in it. */
+export async function getClinic(id: string): Promise<{ id: string; clinic: unknown; problems: ClinicProblem[] }> {
+  return (await request(`/clinics/${encodeURIComponent(id)}`)).json();
+}

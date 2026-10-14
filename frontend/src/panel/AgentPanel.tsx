@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { listVoices, type Voice } from "../api";
-import { DEFAULT_MODEL, DEFAULT_VOICE_ID, MODELS } from "../agent/options";
+import { listClinics, listVoices, type ClinicSummary, type Voice } from "../api";
+import { DEFAULT_CLINIC, DEFAULT_MODEL, DEFAULT_VOICE_ID, MODELS } from "../agent/options";
 import type { Agent } from "../agent/schema";
 import { useAgentStore } from "../store/agentStore";
 import { ChoiceWithCustom, Field, LiveText } from "./controls";
@@ -20,9 +20,26 @@ function useVoices() {
   return state;
 }
 
+// Fetched each time the panel shows: a local file listing, and clinics are added as files.
+function useClinics() {
+  const [state, setState] = useState<{ clinics: ClinicSummary[]; error?: string } | null>(null);
+  useEffect(() => {
+    let current = true;
+    listClinics()
+      .then((clinics) => current && setState({ clinics }))
+      .catch((error) => current && setState({ clinics: [], error: String(error) }));
+    return () => {
+      current = false;
+    };
+  }, []);
+  return state;
+}
+
 /** Shown when nothing is selected: the agent's own settings. */
 export function AgentPanel({ agent }: { agent: Agent }) {
   const voices = useVoices();
+  const clinics = useClinics();
+  const clinicId = agent.clinic ?? DEFAULT_CLINIC;
   // The backend uses these defaults when the agent leaves the fields out.
   const voiceId = agent.voice_id ?? DEFAULT_VOICE_ID;
   const model = agent.model ?? DEFAULT_MODEL;
@@ -89,6 +106,40 @@ export function AgentPanel({ agent }: { agent: Agent }) {
           customLabel="Custom model…"
           onChange={(value) => store().updateAgent({ model: value })}
         />
+      </Field>
+      <Field
+        label="Clinic"
+        hint={
+          <>
+            {clinics?.error && <div>The clinics could not be listed. {clinics.error}</div>}
+            <div>
+              What the tools run against: appointment types, providers, coverage, fields, the fee and facts. The
+              Clinic tab above the canvas shows it.
+            </div>
+            {agent.clinic === undefined && <div>Not set: the default clinic is used.</div>}
+          </>
+        }
+      >
+        <select
+          aria-label="Clinic"
+          value={clinicId}
+          disabled={!clinics}
+          onChange={(event) => store().updateAgent({ clinic: event.target.value })}
+        >
+          {/* A clinic that does not exist (hand-edited file, a removed clinic) still shows. */}
+          {!clinics?.clinics.some((c) => c.id === clinicId) && (
+            <option value={clinicId}>
+              {clinicId}
+              {clinics && !clinics.error ? " (missing)" : ""}
+            </option>
+          )}
+          {clinics?.clinics.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name ?? c.id}
+              {c.id === DEFAULT_CLINIC ? " (default)" : ""}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Start node" hint="The conversation begins here.">
         <select
