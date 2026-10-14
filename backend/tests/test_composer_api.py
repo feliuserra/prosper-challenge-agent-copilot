@@ -4,6 +4,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from clinic import clinics as clinics_module
+from clinic import load_seed
 from composer_api import VoiceListError, http_error_message, make_router
 
 
@@ -160,3 +162,57 @@ def test_tools_catalog(client):
     assert [t["name"] for t in tools][:3] == ["lookup_patient", "register_patient", "list_appointment_types"]
     assert tools[0]["required"] == ["full_name", "date_of_birth"]
     assert "date_of_birth" in tools[0]["properties"]
+
+
+@pytest.fixture
+def clinics_dir(tmp_path, monkeypatch):
+    """Riverside, a clinic with two configuration errors and a file that is not JSON."""
+    folder = tmp_path / "clinics"
+    folder.mkdir()
+    riverside = load_seed("riverside")
+    (folder / "riverside.json").write_text(json.dumps(riverside))
+    broken = {**riverside, "clinic": {**riverside["clinic"], "name": "Broken Clinic"}}
+    broken["insurance_plans"] = [{"id": "aetna-hmo", "name": "Aetna HMO", "covers": ["dental"]}]
+    broken["cancellation"] = {"window_hours": 24, "fee": -5}
+    (folder / "broken.json").write_text(json.dumps(broken))
+    (folder / "garbled.json").write_text("{not json")
+    monkeypatch.setattr(clinics_module, "CLINICS_DIR", folder)
+    return folder
+
+
+def test_list_clinics(client, clinics_dir):
+    assert client.get("/composer/clinics").json() == {
+        "clinics": [
+            {"id": "broken", "name": "Broken Clinic"},
+            {"id": "garbled", "name": None},
+            {"id": "riverside", "name": "Riverside Family Clinic"},
+        ]
+    }
+
+
+def test_get_clinic_returns_the_file_and_no_problems(client, clinics_dir):
+    body = client.get("/composer/clinics/riverside").json()
+    assert body["id"] == "riverside"
+    assert body["clinic"] == json.loads((clinics_dir / "riverside.json").read_text())
+    assert body["problems"] == []
+
+
+def test_get_clinic_lists_the_loader_problems_with_their_path(client, clinics_dir):
+    body = client.get("/composer/clinics/broken").json()
+    assert body["clinic"]["clinic"]["name"] == "Broken Clinic"
+    assert body["problems"] == [
+        {"path": "insurance_plans[0].covers[0]", "message": "Unknown appointment type 'dental'."},
+        {"path": "cancellation.fee", "message": "Must be a number of 0 or more."},
+    ]
+
+
+def test_get_clinic_that_is_not_json(client, clinics_dir):
+    body = client.get("/composer/clinics/garbled").json()
+    assert body["clinic"] is None
+    assert body["problems"][0]["path"] == ""
+    assert body["problems"][0]["message"].startswith("Not valid JSON")
+
+
+@pytest.mark.parametrize("clinic_id", ["nowhere", "..", "Riverside"])
+def test_get_unknown_clinic(client, clinics_dir, clinic_id):
+    assert client.get(f"/composer/clinics/{clinic_id}").status_code == 404

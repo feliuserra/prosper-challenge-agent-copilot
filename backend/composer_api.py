@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from agent_builder import validate_agent
-from clinic import catalog
+from clinic import catalog, clinic_ids, seed_path, validate_clinic
 
 # Lowercase slug. Rules out path separators and '..', so ids are safe file names.
 AGENT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
@@ -118,6 +118,33 @@ def make_router(agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_
     async def tools():
         # The tool catalog for the node panel (ADR 0008). Fixed, so no caching needed.
         return {"tools": catalog()}
+
+    @router.get("/clinics")
+    async def list_clinics():
+        # For the agent panel's clinic select (ADR 0016). Read on every request,
+        # so a clinic file added or renamed shows without a restart.
+        clinics = []
+        for clinic_id in clinic_ids():
+            try:
+                name = json.loads(seed_path(clinic_id).read_text())["clinic"]["name"]
+            except (OSError, ValueError, KeyError, TypeError):
+                name = None  # broken file: still listed, so the Clinic tab can show why
+            clinics.append({"id": clinic_id, "name": name if isinstance(name, str) else None})
+        return {"clinics": clinics}
+
+    @router.get("/clinics/{clinic_id}")
+    async def get_clinic(clinic_id: str):
+        # The clinic file as it is (seed plus configuration) and every problem the
+        # loader finds in it, for the read-only Clinic tab.
+        try:
+            path = seed_path(clinic_id)
+        except KeyError:
+            raise HTTPException(404, f"No clinic '{clinic_id}'.")
+        try:
+            data = json.loads(path.read_text())
+        except ValueError as error:
+            return {"id": clinic_id, "clinic": None, "problems": [{"path": "", "message": f"Not valid JSON: {error}"}]}
+        return {"id": clinic_id, "clinic": data, "problems": [i.to_dict() for i in validate_clinic(data)]}
 
     @router.get("/health")
     async def health():

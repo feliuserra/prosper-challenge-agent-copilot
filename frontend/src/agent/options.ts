@@ -3,6 +3,8 @@
 
 export const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 export const DEFAULT_MODEL = "gpt-4o";
+// As DEFAULT_CLINIC in backend/clinic/clinics.py.
+export const DEFAULT_CLINIC = "riverside";
 
 /** OpenAI chat models offered in the model picker. Any other id can be typed in. */
 export const MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"];

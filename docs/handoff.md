@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14: hand-in memo drafted and the plan cut to match, PR #60; #43's first PR in review, PR #61)
+## 0. Status (updated 2026-10-14: #43's first PR merged, PR #61; its second, the Clinic tab, in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -27,18 +27,18 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
 | Clinic configuration plan | Merged: #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
-| #43 Clinic configuration | First PR (backend) **in review**; the second (the Clinic tab) is next. Scope narrowed on 2026-10-14 (see below) | #61 |
+| #43 Clinic configuration | First PR (backend) merged; the second (the Clinic tab) **in review**. Scope narrowed on 2026-10-14 (see below) | #61, Clinic tab PR |
 | #45 Canvas polish: edge label pills, quiet edges, dotted background | Merged; checked by the user | #48 |
 | #46 Canvas polish: node card redesign | Merged; checked by the user | #49 |
 | #50 Canvas: stages, frames around groups of nodes | Merged; checked by the user | #52 |
 | #51 Canvas: collapse a stage into one card | Merged; checked by the user | #53 |
 | #47 Canvas polish: Start and End as terminal nodes | Merged (see "What #47 built") | #55 |
-| #56 Hand-in memo (draft) and plan update | **In review** on `docs/memo`: `docs/memo/memo.tex`; #57 to #59 created, #32 rewritten, #33 and #35 trimmed, #38 and #39 closed as cut (see "Hand-in memo and detection") | #60 |
-| #43, #57 to #59, #27 to #35 | Open, in the order of `PLAN-phase2.md` once #60 merges: #43, then #57, #58 and #59 (detection, no model calls), then #27 | |
+| #56 Hand-in memo (draft) and plan update | Merged: `docs/memo/memo.tex`; #57 to #59 created, #32 rewritten, #33 and #35 trimmed, #38 and #39 closed as cut (see "Hand-in memo and detection") | #60 |
+| #57 to #59, #27 to #35 | Open, in the order of `PLAN-phase2.md`: #57, #58 and #59 (detection, no model calls), then #27 | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #43's second PR, the read-only Clinic tab (`PLAN-phase2.md`), once the user has reviewed #61 and made the real call in its PR. #43 comes before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `main` (the canvas work, #45 to #51) was merged into the branch on 2026-10-14. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits. `issue-27-reference-suite` and `docs/clinic-config-plan` were deleted after the #44 merge.
+**Next step:** once the user has checked the Clinic tab PR and it merges (it closes #43), #57, #58 and #59 (detection, no model calls), then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -47,6 +47,14 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #43's second PR built (the Clinic tab), for reference:
+- `GET /composer/clinics` (id and name of each clinic, read on every request; an unreadable file is listed with no name) and `GET /composer/clinics/{id}` (the file as it is, `null` when it is not JSON, and `validate_clinic`'s problems; 404 for an unknown id). `DEFAULT_CLINIC` is mirrored in `frontend/src/agent/options.ts`.
+- `clinic/clinic.ts`: `readClinic` turns a clinic file into what the tab shows and never throws, so a broken configuration still shows next to its problems; `weeklyHours` groups days with the same hours ("Mon–Thu 9:00–12:00, 13:00–17:00").
+- `clinic/ClinicView.tsx` and `Workspace` in `App.tsx`: a Graph | Clinic switch above the canvas. The tab names the clinic and shows a problem count; opening it refetches the file and clears the selection (so the side panel shows the clinic select, and nothing hidden stays selected for Backspace). The view lies over the canvas, which stays mounted and keeps its zoom. Sections: the loader's problems with paths, types by providers (each type with description and who may book it, each provider with slot length and weekly hours), types by plans, registration and booking fields, the late-change fee, facts; each names the tools that enforce it, and a clinic without a key says what the tools do then.
+- A Clinic select in the agent panel (an unknown clinic shows as "(missing)", like the start node).
+- Checked in the browser pane with temporary `plain` and `broken` copies in `clinic/clinics/` (removed after): Riverside's grids match its seed, switching the clinic (and undoing it) updates the view, the broken fixture lists its 15 problems. The pane's `preview_start` could not launch servers from this folder (macOS denied it the working directory); `make dev` from the shell, then `navigate`, worked.
+- Tests: 233 pytest (7 new), 226 Vitest (8 new).
 
 What #43's first PR built (backend, plus one zod field), for reference:
 - `backend/clinic/config.py`: the configuration keys (appointment types, insurance plans, registration and booking fields, cancellation, facts; patients' `last_visit` and `insurance_plan`, appointments' `appointment_type`) and `validate_clinic`, which returns every problem as `ConfigIssue(path, message)`. `clinic/clinics.py`: one file per clinic in `clinic/clinics/` (the seed is now `riverside.json`), `clinic_ids`, `seed_path`, `load_seed`, `clinic_of(agent)` (default `riverside`).
