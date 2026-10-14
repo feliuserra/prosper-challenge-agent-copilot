@@ -1037,3 +1037,244 @@ button.primary:disabled {
 .clinic-facts dd {
   margin: 0;
 }
+
+/* Call heatmap (#59): the canvas tinted by the call logs, and the issues beside it */
+.canvas-actions button.pressed {
+  border-color: #bc4c00;
+  background: #fff1e5;
+  color: #953800;
+}
+.workspace.with-issues .canvas {
+  right: 360px;
+}
+.node-card.heated,
+.node-card.stage-card.heated {
+  background: var(--heat);
+}
+.node-card.heated .node-card-footer {
+  background: rgb(255 255 255 / 55%);
+}
+.node-card.heated.flagged {
+  border-color: #bc4c00;
+  box-shadow:
+    0 0 0 2px #bc4c00,
+    0 3px 10px rgb(31 35 40 / 8%);
+}
+.node-card.heated.flagged.selected {
+  box-shadow:
+    0 0 0 2px #bc4c00,
+    0 0 0 4px #0969da;
+}
+.node-card.heated.no-data,
+.node-card.stage-card.heated.no-data {
+  border: 2px dashed #8c959f;
+  background: repeating-linear-gradient(135deg, #f6f8fa 0 8px, #eef1f4 8px 16px);
+  box-shadow: none;
+}
+.node-card.heated.no-data .node-card-name,
+.node-card.heated.no-data .heat-line-main {
+  color: #656d76;
+}
+.heat-lines {
+  display: flex;
+  flex-direction: column;
+  color: #1f2328;
+}
+.heat-line-main {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.heat-line-base {
+  overflow: hidden;
+  color: #424a53;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.heat-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #f6f8fa;
+  font-size: 12px;
+}
+.heat-selects select {
+  max-width: 150px;
+}
+.heat-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.heat-selects label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #656d76;
+}
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.heat-scale {
+  flex-shrink: 0;
+  width: 90px;
+  height: 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 5px;
+}
+.error-text {
+  color: #cf222e;
+}
+.issues-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 360px;
+  padding: 10px 14px 24px;
+  overflow-y: auto;
+  border-left: 1px solid #d0d7de;
+  background: #fff;
+  font-size: 13px;
+}
+.issues-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.issues-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.issues-close {
+  border: none;
+  background: none;
+  color: #656d76;
+  font-size: 18px;
+  cursor: pointer;
+}
+.issues-summary {
+  margin: 6px 0 10px;
+  line-height: 1.4;
+}
+.issues-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.issue {
+  margin-bottom: 8px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+}
+.issue.open {
+  border-color: #bc4c00;
+}
+.issue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.issue-head:hover {
+  background: #f6f8fa;
+}
+.issue-title {
+  font-weight: 600;
+}
+.issue-line {
+  flex-basis: 100%;
+  line-height: 1.35;
+}
+.chip {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #eaeef2;
+  font-size: 11px;
+}
+.chip.severity-high {
+  background: #ffebe9;
+  color: #a40e26;
+}
+.chip.severity-medium {
+  background: #fff1e5;
+  color: #953800;
+}
+.issue-body {
+  padding: 0 10px 10px;
+}
+.issue-body h3,
+.node-numbers h3 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.evidence,
+.examples {
+  margin: 4px 0;
+  padding-left: 16px;
+  line-height: 1.4;
+}
+.examples li {
+  margin-bottom: 6px;
+}
+.example-path {
+  color: #424a53;
+  font-size: 12px;
+}
+.trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 52px;
+  margin-top: 6px;
+}
+.trend-week {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.trend-bar {
+  width: 16px;
+  border-radius: 2px 2px 0 0;
+  background: #f48c46;
+}
+.trend-label {
+  color: #656d76;
+  font-size: 10px;
+}
+.node-numbers {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid #d8dee4;
+}
+.node-numbers table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.node-numbers td {
+  padding: 2px 4px;
+}
+.node-numbers tr.up td:first-child {
+  font-weight: 600;
+}
+.node-numbers tr.flagged {
+  background: #fff1e5;
+  color: #953800;
+}

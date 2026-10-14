@@ -7,6 +7,7 @@
 \usepackage{microtype}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{tikz}
+\usepackage{graphicx}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
 \usepackage{booktabs,tabularx,array}
 \usepackage{enumitem}
@@ -25,10 +26,6 @@
 \newcommand{\draftnote}[1]{\par\colorbox{yellow!25}{\parbox{\dimexpr\linewidth-2\fboxsep}{\footnotesize\sffamily Draft: #1}}\par}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
-\definecolor{heat0}{HTML}{FFF7EC}
-\definecolor{heat1}{HTML}{FDD49E}
-\definecolor{heat2}{HTML}{FC8D59}
-\definecolor{heat3}{HTML}{D7301F}
 \definecolor{ink}{HTML}{2B2B2B}
 
 \begin{document}
@@ -121,31 +118,8 @@ Three tiers, cheapest first:
 
 \begin{figure}[b]
 \centering
-\begin{tikzpicture}[
-  n/.style={draw=ink,rounded corners=2pt,align=center,font=\scriptsize,minimum height=10mm,text width=17.5mm,inner sep=2pt},
-  e/.style={-{Stealth[length=1.6mm]},draw=ink!70},
-  node distance=3.5mm]
-  \node[n,fill=heat0] (gr) {\textbf{Greeting}\\ 0.3\% \textcolor{ink!60}{(0.4)}};
-  \node[n,fill=heat0,right=of gr] (an) {\textbf{Ask name}\\ 1.1\% \textcolor{ink!60}{(1.0)}};
-  \node[n,fill=heat3,text=white,right=of an] (cn) {\textbf{Confirm name}\\ 9.0\% \textcolor{white!80}{(2.1)}};
-  \node[n,fill=heat1,right=of cn] (vp) {\textbf{Verify patient}\\ 3.4\% \textcolor{ink!60}{(2.5)}};
-  \node[n,fill=heat0,right=8mm of vp] (cr) {\textbf{Collect reason}\\ 0.8\% \textcolor{ink!60}{(0.9)}};
-  \node[n,fill=heat0,right=8mm of cr] (ot) {\textbf{Offer times}\\ 1.9\% \textcolor{ink!60}{(1.7)}};
-  \node[n,fill=heat0,right=of ot] (co) {\textbf{Confirm}\\ 0.5\% \textcolor{ink!60}{(0.6)}};
-  \draw[e,line width=2.2pt] (gr) -- (an);
-  \draw[e,line width=2.2pt] (an) -- (cn);
-  \draw[e,line width=2.0pt] (cn) -- (vp);
-  \draw[e,line width=1.8pt] (vp) -- (cr);
-  \draw[e,line width=1.7pt] (cr) -- (ot);
-  \draw[e,line width=1.5pt] (ot) -- (co);
-  \draw[e,line width=1.3pt,draw=heat3] (cn.north) to[bend right=40] node[above,font=\scriptsize,text=heat3,fill=white,inner sep=1pt]{back to Ask name} (an.north);
-  \begin{scope}[on background layer]
-    \node[draw=ink!40,dashed,rounded corners=3pt,inner sep=3pt,fit=(gr)(vp),yshift=2.5mm,minimum height=17mm,label={[font=\scriptsize\itshape,anchor=north west,yshift=-1pt]north west:Identify caller}] {};
-    \node[draw=ink!40,dashed,rounded corners=3pt,inner sep=3pt,fit=(cr),yshift=2.5mm,minimum height=17mm,label={[font=\scriptsize\itshape,anchor=north west,yshift=-1pt]north west:Visit}] {};
-    \node[draw=ink!40,dashed,rounded corners=3pt,inner sep=3pt,fit=(ot)(co),yshift=2.5mm,minimum height=17mm,label={[font=\scriptsize\itshape,anchor=north west,yshift=-1pt]north west:Book}] {};
-  \end{scope}
-\end{tikzpicture}
-\caption{Illustrative, synthetic numbers on the scheduling template's nodes. Signal: re-entry rate this week; in brackets, the same node in other clinics. Tint is the distance from that baseline, edge width is traffic. To be replaced by a screenshot of the canvas.}
+\includegraphics[width=0.8\linewidth]{heatmap.png}
+\caption{The call heatmap on the synthetic logs (crop): Riverside, version 3 against 2, re-entries. Confirm name, the planted stall, is the only tinted node (8.9\% against 2.0\%). Edge width is traffic; right, the ranked issues.}
 \label{fig:heat}
 \end{figure}
 
@@ -165,9 +139,9 @@ Clinic tools and calendar & Mocked & No access to a real clinic system; tools ar
 Text runner and test format & Built & A simulated call costs cents and runs in seconds. \\
 Clinic configuration, scheduling template & Built & The interviewer's answer 2: clinics differ mostly in tables. \\
 Spec, tests, build loop, Copilot UI & \tbd{planned} & Workflow 1, where the team's time goes. \\
-Production calls & Mocked & No real call data. 85,000 synthetic call logs over six weeks for 3 clinics from one template, one at 50,000 calls a month, with defects planted at known rates (free), plus about 20 simulated calls with planted silent failures. Known rates let us measure what detection finds and what it gets wrong. \\
-Signals and triage & Built & Workflow 2, the part the brief left open. \\
-Heatmap, judge on a sample & \tbd{planned} & What the person sees, and failures the path cannot show. \\
+Production calls & Mocked & No real call data: 85,000 synthetic call logs, 3 clinics from one template (one at 50,000 calls a month), defects planted at known rates; plus about 20 simulated calls with silent failures. \\
+Signals, triage, heatmap & Built & Workflow 2, the part the brief left open. \\
+Judge on a sample & \tbd{planned} & Failures the path cannot show. \\
 Fix from an issue: reproduce, fix, regression test & \tbd{planned} & Closes the loop. No forecast of how the call would have gone. \\
 Intake call and checklist with the client & Left out & Getting the rules is not the bottleneck (answer 1). \\
 Telephony, staged rollout and rollback, auth, PHI redaction, languages other than English & Left out & Production infrastructure, not the Copilot. \\
@@ -192,9 +166,10 @@ Cost per test run and per judged call & \tbd{spend log} \\
 \end{tabularx}
 \end{center}
 
-\textbf{Where detection stops.} The same defect, a rise in one node's re-entries over a 2\% base, planted at several sizes in a clinic at three volumes; the share of 10 seeds in which it is flagged within the two weeks after the version that caused it (10 false alarms in those 600 clinic-weeks):
-
-\begin{center}\small
+\noindent\begin{minipage}[c]{0.5\linewidth}
+\textbf{Where detection stops.} One node's re-entries raised over a 2\% base, at five sizes and three volumes: the share of 10 seeds flagged within two weeks of the version that caused it (10 false alarms in those 600 clinic-weeks).
+\end{minipage}\hfill
+\begin{minipage}[c]{0.47\linewidth}\footnotesize\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{@{}r ccccc@{}}
 \toprule
 Calls a week & +0.5 pt & +1 pt & +2 pt & +3 pt & +5 pt \\
@@ -204,7 +179,9 @@ Calls a week & +0.5 pt & +1 pt & +2 pt & +3 pt & +5 pt \\
 11,500 & 60\% & 100\% & 100\% & 100\% & 100\% \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{minipage}
+
+\smallskip
 
 \textbf{What this does not show.} Text tests do not see latency, interruptions, audio, or speech-to-text errors other than the ones replayed from real calls. Synthetic logs prove the statistics and the plumbing, not how real callers behave; real rates and baselines are learned in production. In production the final judge is real outcomes: completed bookings, callbacks and hang-ups.
 

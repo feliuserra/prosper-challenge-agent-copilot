@@ -10,6 +10,7 @@ import {
   TERMINAL_WIDTH,
 } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
+import type { CanvasHeat, EdgeTraffic, NodeHeat } from "../detection/heat";
 import { stageOf, stagesOf, type Stage } from "../agent/stages";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
@@ -26,12 +27,12 @@ import { canvasView, type CanvasView, type Dimensions, type Terminal } from "./v
 /** A badge on a node card or an edge label: validation errors (#6), warnings (#9). */
 export type StatusBadge = { tone: Severity; label: string; title: string };
 
-/** `active`: the node a test call is in (#8). */
-export type AgentNodeData = { node: Node; status?: StatusBadge[]; active?: boolean };
+/** `active`: the node a test call is in (#8). `heat`: the call heatmap's numbers (#59). */
+export type AgentNodeData = { node: Node; status?: StatusBadge[]; active?: boolean; heat?: NodeHeat };
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /** A collapsed stage's card. `activeStep`: the node in it a test call is in. */
-export type StageCardData = { stage: Stage; status?: StatusBadge[]; activeStep: string | null };
+export type StageCardData = { stage: Stage; status?: StatusBadge[]; activeStep: string | null; heat?: NodeHeat };
 export type StageFlowNode = FlowNode<StageCardData, "stage">;
 
 /** A Start or End pill (#47): where a call starts, and where it can end. */
@@ -44,6 +45,7 @@ export type CanvasFlowNode = AgentFlowNode | StageFlowNode | TerminalFlowNode;
  * `lane` separates edges that join the same two nodes (see edgePath.ts).
  * `route`: set for a back edge (into a node above), the column it runs up.
  * `active`: the edge a test call took last (#8).
+ * `traffic`: calls that took it, with the call heatmap on (#59).
  */
 export type FunctionEdgeData = {
   function: string;
@@ -52,6 +54,7 @@ export type FunctionEdgeData = {
   route?: BackRoute;
   status?: StatusBadge[];
   active?: boolean;
+  traffic?: EdgeTraffic;
 };
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
 /** The plain edge from the Start pill to its card, or from a card to its End pill. */
@@ -67,6 +70,9 @@ const SELECTED_STROKE = "#0969da";
 const ACTIVE_STROKE = "#1a7f37";
 
 export const edgeId = (source: string, fn: string) => `${source}::${fn}`;
+
+/** A marker's size in stroke widths, for an arrowhead about max(12.5, 3 x width) pixels long. */
+export const arrowSize = (strokeWidth: number) => Math.max(12.5, 3 * strokeWidth) / strokeWidth;
 
 /** Inverse of `edgeId`. Function names cannot contain ':', so the last "::" splits. */
 export function parseEdgeId(id: string): { source: string; function: string } {
@@ -147,6 +153,7 @@ export function toFlowNodes(
   status: Map<string, StatusBadge[]> = new Map(),
   activeNode: string | null = null,
   view: CanvasView = canvasView(agent, [], measured),
+  heat: CanvasHeat | null = null,
 ): CanvasFlowNode[] {
   const nodes: CanvasFlowNode[] = agent.nodes
     .filter((node) => !view.hiddenIn.has(node.name))
@@ -155,7 +162,7 @@ export function toFlowNodes(
       type: "agent",
       // The store gives every node a position (open, addNode); 0,0 is only a guard.
       position: view.shown(node),
-      data: { node, status: status.get(node.name), active: node.name === activeNode },
+      data: { node, status: status.get(node.name), active: node.name === activeNode, heat: heat?.nodes.get(node.name) },
       selected: selection?.kind === "node" && selection.name === node.name,
       measured: measured[node.name],
     }));
@@ -167,6 +174,7 @@ export function toFlowNodes(
       stage,
       status: status.get(id),
       activeStep: activeNode !== null && stage.nodes.includes(activeNode) ? activeNode : null,
+      heat: heat?.nodes.get(id),
     },
     selected: selection?.kind === "stage" && selection.name === stage.name,
     measured: measured[id],
@@ -197,6 +205,7 @@ export function toFlowEdges(
   activeEdge: string | null = null,
   measured: Record<string, Dimensions> = {},
   view: CanvasView = canvasView(agent, [], measured),
+  heat: CanvasHeat | null = null,
 ): CanvasFlowEdge[] {
   // Edges to a missing node cannot be drawn; validation reports them on their node.
   const drawn = drawnEdges(agent, view);
@@ -229,6 +238,7 @@ export function toFlowEdges(
     const selected = selection?.kind === "edge" && selection.source === source && selection.function === edge.function;
     const id = edgeId(source, edge.function);
     const active = id === activeEdge;
+    const traffic = heat?.edges.get(id);
     return {
       id,
       type: "function",
@@ -241,6 +251,7 @@ export function toFlowEdges(
         route: routes.get(id),
         status: status.get(id),
         active,
+        traffic,
       },
       selected,
       animated: active,
@@ -251,6 +262,8 @@ export function toFlowEdges(
       markerEnd: {
         type: MarkerType.Arrow,
         color: active ? ACTIVE_STROKE : selected ? SELECTED_STROKE : EDGE_STROKE,
+        // Markers scale with the stroke: keep a wide (busy) edge's arrowhead in proportion.
+        ...(traffic ? { width: arrowSize(traffic.width), height: arrowSize(traffic.width) } : {}),
       },
     };
   });

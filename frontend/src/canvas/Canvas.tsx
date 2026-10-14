@@ -18,6 +18,8 @@ import "@xyflow/react/dist/style.css";
 import { nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
 import { stagesOf } from "../agent/stages";
 import { useCallStore } from "../call/callStore";
+import { useDetectionStore } from "../detection/detectionStore";
+import { canvasHeat } from "../detection/heat";
 import { useAgentStore } from "../store/agentStore";
 import { useProblems } from "../validation/problems";
 import { connectNodes, deleteElements, handleEdgeChanges, handleNodeChanges, reconnectEdge } from "./changes";
@@ -82,14 +84,23 @@ function Flow() {
   viewRef.current = view;
   const hasStages = useMemo(() => stagesOf(agent).length > 0, [agent]);
 
+  // The call heatmap (#59): numbers from the call logs over the graph, never stored in it.
+  const heatOn = useDetectionStore((s) => s.open);
+  const detection = useDetectionStore((s) => (s.load.state === "ready" ? s.load.data : null));
+  const heatOptions = useDetectionStore((s) => s.options);
+  const heat = useMemo(
+    () => (heatOn && detection && heatOptions ? canvasHeat(detection, heatOptions, agent, view) : null),
+    [heatOn, detection, heatOptions, agent, view],
+  );
+
   const badges = useMemo(() => statusBadges(agent, problems, view), [agent, problems, view]);
   const nodes = useMemo(
-    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode, view),
-    [agent, selection, measured, badges, activeNode, view],
+    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode, view, heat),
+    [agent, selection, measured, badges, activeNode, view, heat],
   );
   const edges = useMemo(
-    () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured, view),
-    [agent, selection, badges, activeEdge, measured, view],
+    () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured, view, heat),
+    [agent, selection, badges, activeEdge, measured, view, heat],
   );
   const frames = useMemo(() => stageFrames(agent, measured, view), [agent, measured, view]);
   const selectedStage = selection?.kind === "stage" ? selection.name : null;
@@ -97,6 +108,13 @@ function Flow() {
   // Fit the view after Tidy layout or collapsing stages, once every card shown has
   // been measured: a stage card that has just appeared has no size until then.
   const fitPending = useRef(false);
+  // The issues panel takes the canvas's right side (#59): fit the graph to what is left.
+  // Before the fit below, which then runs in the same commit.
+  const heatWas = useRef(heatOn);
+  useEffect(() => {
+    if (heatWas.current !== heatOn) fitPending.current = true;
+    heatWas.current = heatOn;
+  }, [heatOn]);
   useEffect(() => {
     if (!fitPending.current || !nodes.every((n) => n.measured)) return;
     fitPending.current = false;
@@ -212,6 +230,14 @@ function Flow() {
                 </button>
               </>
             )}
+            <button
+              aria-pressed={heatOn}
+              className={heatOn ? "pressed" : undefined}
+              onClick={() => void useDetectionStore.getState().setOpen(!heatOn)}
+              title="Tint the graph with numbers from the call logs, and list the issues found in them"
+            >
+              Call heatmap
+            </button>
           </Panel>
           {notice && (
             <Panel position="bottom-center" className="notice" role="status">

@@ -5,6 +5,8 @@ import { CallAudio, CallPanel } from "./call/CallPanel";
 import { useCallStore } from "./call/callStore";
 import { Canvas } from "./canvas/Canvas";
 import { ClinicView, useClinic } from "./clinic/ClinicView";
+import { useDetectionStore, wantedFromAddress } from "./detection/detectionStore";
+import { IssuesPanel } from "./detection/IssuesPanel";
 import { Toolbar } from "./components/Toolbar";
 import { Panel } from "./panel/Panel";
 import { useAgentStore } from "./store/agentStore";
@@ -35,6 +37,19 @@ function Workspace() {
   // Fetched again each time the Clinic tab opens, so edits to the file show.
   const [opened, setOpened] = useState(0);
   const clinic = useClinic(clinicId, opened);
+  const callsOpen = useDetectionStore((s) => s.open);
+  // A link to a heatmap view (#calls=clinic/version/against/signal) opens it: on load,
+  // once the first agent is open, and when the address changes to one.
+  useEffect(() => {
+    if (!hasAgent) return;
+    const openFromAddress = () => {
+      const wanted = wantedFromAddress();
+      if (wanted) void useDetectionStore.getState().setOpen(true, wanted);
+    };
+    if (!useDetectionStore.getState().open) openFromAddress();
+    window.addEventListener("hashchange", openFromAddress);
+    return () => window.removeEventListener("hashchange", openFromAddress);
+  }, [hasAgent]);
   const problems = clinic && "problems" in clinic ? clinic.problems.length : 0;
   const name = (clinic && "info" in clinic && clinic.info?.name) || clinicId;
 
@@ -65,9 +80,10 @@ function Workspace() {
           </button>
         </div>
       )}
-      <div className="workspace">
+      <div className={hasAgent && callsOpen ? "workspace with-issues" : "workspace"}>
         {/* The canvas stays mounted under the Clinic view, so it keeps its zoom and position. */}
         <Canvas />
+        {hasAgent && callsOpen && <IssuesPanel />}
         {hasAgent && view === "clinic" && <ClinicView load={clinic} />}
       </div>
     </div>

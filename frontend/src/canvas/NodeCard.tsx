@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { NODE_WIDTH } from "../agent/layout";
 import { displayName } from "../agent/names";
+import { heatColor, type NodeHeat } from "../detection/heat";
 import type { AgentFlowNode } from "./derive";
 
 /** The node's first task message on one paragraph; the card shows its first two lines. */
@@ -33,13 +34,39 @@ function WrenchIcon() {
   );
 }
 
+/** The style and class of a card with the call heatmap on (#59). */
+export function heatStyle(heat: NodeHeat | undefined): { className: string | false; style: Record<string, string> } {
+  if (!heat) return { className: false, style: {} };
+  // No call went through it (added or renamed since): marked, so it does not read as cool.
+  const className = ["heated", heat.flagged && "flagged", heat.entered === 0 && "no-data"]
+    .filter(Boolean)
+    .join(" ");
+  return { className, style: { "--heat": heatColor(heat.tint) } };
+}
+
+/** What a card says in place of its task with the call heatmap on. */
+export function HeatLines({ heat }: { heat: NodeHeat }) {
+  const [first, second] = heat.lines ?? ["", ""];
+  return (
+    <div className="node-card-task heat-lines" title={heat.note ?? `${first}\n${second}`}>
+      <span className="heat-line-main">{first}</span>
+      <span className="heat-line-base">{second}</span>
+    </div>
+  );
+}
+
 export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<AgentFlowNode>) {
-  const { node, status = [], active } = data;
+  const { node, status = [], active, heat } = data;
   const task = taskSummary(node.task_messages?.[0]?.content);
   const tools = node.tools ?? [];
-  const className = ["node-card", selected && "selected", active && "active"].filter(Boolean).join(" ");
+  const look = heatStyle(heat);
+  const className = ["node-card", selected && "selected", active && "active", look.className].filter(Boolean).join(" ");
   return (
-    <div className={className} style={{ width: NODE_WIDTH }} title={active ? "The test call is here" : undefined}>
+    <div
+      className={className}
+      style={{ width: NODE_WIDTH, ...look.style }}
+      title={active ? "The test call is here" : undefined}
+    >
       <Handle type="target" position={Position.Top} />
       <div className="node-card-main">
         <div className="node-card-header">
@@ -55,9 +82,13 @@ export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<Age
             ))}
           </span>
         </div>
-        <div className={task ? "node-card-task" : "node-card-task muted"} title={task}>
-          {task || "No task yet"}
-        </div>
+        {heat ? (
+          <HeatLines heat={heat} />
+        ) : (
+          <div className={task ? "node-card-task" : "node-card-task muted"} title={task}>
+            {task || "No task yet"}
+          </div>
+        )}
       </div>
       {tools.length > 0 && (
         <div className="node-card-footer">

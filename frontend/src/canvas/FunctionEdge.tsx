@@ -40,6 +40,8 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
   const fn = data?.function ?? "";
   const label = data?.label ?? fn;
   const status = data?.status ?? [];
+  const traffic = data?.traffic;
+  const calls = traffic ? `\n${traffic.calls.toLocaleString("en-US")} calls took it` : "";
   const className = [
     "edge-label",
     "nodrag",
@@ -53,14 +55,14 @@ export function FunctionEdge(props: EdgeProps<AgentFlowEdge>) {
 
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={traffic ? { strokeWidth: traffic.width } : undefined} />
       <EdgeLabelRenderer>
         <button
           className={className}
           style={{
             transform: `translate(${labelAlign === "start" ? "0" : "-50%"}, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
-          title={label === fn ? fn : `${fn}: ${label}`}
+          title={(label === fn ? fn : `${fn}: ${label}`) + calls}
           // By the edge's id: `source` is a collapsed stage's card when the edge leaves one.
           onClick={() => useAgentStore.getState().select({ kind: "edge", ...parseEdgeId(id) })}
         >
