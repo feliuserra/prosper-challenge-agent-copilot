@@ -27,6 +27,9 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
 | Clinic configuration plan | **In review.** #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
+| #45 Canvas polish: edge label pills, quiet edges, dotted background | Merged; checked by the user | #48 |
+| #46 Canvas polish: node card redesign | **In review** | #49 |
+| #47 Canvas polish: Start and End as terminal nodes | Open, after #46 | |
 | #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |
 

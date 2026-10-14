@@ -194,6 +194,7 @@ details[open] summary {
   --xy-edge-stroke: #b6bcc4;
   --xy-edge-stroke-selected: #0969da;
   --xy-background-color: #fafafa;
+  --canvas-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 .canvas-flow {
   position: relative;
@@ -210,13 +211,17 @@ details[open] summary {
   border-radius: 6px;
   background: #fff8c5;
 }
+/* Cards are NODE_HEIGHT (98px) tall, plus the footer (TOOLS_HEIGHT, 41px) when the
+   node has tools: layout.ts spaces the graph with those heights. */
 .node-card {
   box-sizing: border-box;
-  padding: 8px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+  border: 1px solid #e1e4e8;
+  border-radius: 12px;
   background: #fff;
-  box-shadow: 0 1px 2px rgb(31 35 40 / 8%);
+  box-shadow:
+    0 1px 2px rgb(31 35 40 / 4%),
+    0 3px 10px rgb(31 35 40 / 5%);
+  font-family: var(--canvas-font);
 }
 .node-card.selected {
   border-color: #0969da;
@@ -227,34 +232,70 @@ details[open] summary {
   outline: 3px solid rgb(26 127 55 / 45%);
   outline-offset: 2px;
 }
+.node-card-main {
+  padding: 16px 18px;
+}
 .node-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  height: 22px;
+}
+.node-card-icon {
+  flex-shrink: 0;
+  color: #57606a;
 }
 .node-card-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
 }
 .node-card-status {
   display: flex;
   gap: 4px;
   margin-left: auto;
 }
-.node-card-task,
-.node-card-tools {
-  margin-top: 4px;
+.node-card-header .badge {
+  flex-shrink: 0;
+}
+/* Two lines of the task; a one-line task keeps the height. */
+.node-card-task {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 36px;
+  margin-top: 6px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
+  color: #656d76;
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.node-card-footer {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 41px;
+  padding: 0 12px;
+  border-top: 1px solid #eceef1;
+  border-radius: 0 0 11px 11px;
+  background: #f6f8fa;
 }
 .node-card-tools {
-  color: #8250df;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #d8dce1;
+  border-radius: 11px;
+  background: #fff;
+  color: #57606a;
+  font-size: 12px;
 }
 .tool-option {
   display: flex;
@@ -307,7 +348,7 @@ details[open] summary {
   border-radius: 12px;
   background: #24292f;
   color: #fff;
-  font: 12px system-ui, sans-serif;
+  font: 12px var(--canvas-font);
   cursor: pointer;
 }
 .edge-label:hover {

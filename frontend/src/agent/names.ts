@@ -37,6 +37,12 @@ export function agentIdFor(name: string, taken: Iterable<string>): string {
   return uniqueName(slug, taken, 64);
 }
 
+/** How a node's name reads on its card: "ask_name" as "Ask name". The name itself stays the identifier. */
+export function displayName(name: string): string {
+  const words = name.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim() || name;
+  return words[0].toUpperCase() + words.slice(1);
+}
+
 /** Why `draft` cannot be the new name of node `current`, or null if it can (as renameNode checks). */
 export function nodeNameError(nodeNames: string[], current: string, draft: string): string | null {
   const name = draft.trim();

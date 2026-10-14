@@ -1,6 +1,6 @@
 import { MarkerType, type Edge as FlowEdge, type Node as FlowNode } from "@xyflow/react";
 
-import { edgeLabel, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
+import { cardHeight, edgeLabel, NODE_WIDTH } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
@@ -141,7 +141,7 @@ export function toFlowEdges(
         x: n.ui?.x ?? 0,
         y: n.ui?.y ?? 0,
         width: measured[n.name]?.width ?? NODE_WIDTH,
-        height: measured[n.name]?.height ?? NODE_HEIGHT,
+        height: measured[n.name]?.height ?? cardHeight(n),
       },
     ]),
   );

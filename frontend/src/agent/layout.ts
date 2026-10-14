@@ -1,15 +1,19 @@
 import dagre from "@dagrejs/dagre";
 
-import type { Agent, Edge, Position } from "./schema";
+import type { Agent, Edge, Node, Position } from "./schema";
 
 // Canvas positions (`ui`) for nodes that have none. A full dagre layout runs only
 // when no node has a position; otherwise missing nodes are placed one by one and
 // existing nodes never move (ADR 0002).
 
-/** Card width on the canvas; the node card uses it too, so layout and render agree. */
-export const NODE_WIDTH = 240;
-/** Approximate card height (name line + task line). Only used for spacing. */
-export const NODE_HEIGHT = 64;
+// Card sizes; the node card (NodeCard, `.node-card`) uses them too, so layout and render agree.
+export const NODE_WIDTH = 360;
+/** A card's height: its name and two lines of task. */
+export const NODE_HEIGHT = 98;
+/** The tools footer under a card with tools. */
+const TOOLS_HEIGHT = 41;
+const TALLEST_CARD = NODE_HEIGHT + TOOLS_HEIGHT;
+export const cardHeight = (node: Node) => NODE_HEIGHT + (node.tools?.length ? TOOLS_HEIGHT : 0);
 const NODE_GAP = 60;
 // Room between a card and the next rank's cards, with an edge label in the middle.
 const RANK_GAP = 120;
@@ -63,7 +67,10 @@ export function autoLayout(agent: Agent): Agent {
   graph.setGraph({ rankdir: "TB", nodesep: NODE_GAP, ranksep: RANK_GAP });
   graph.setDefaultEdgeLabel(() => ({}));
   // A card is centred in its slot: positions come from the centre below.
-  for (const [name, width] of slotWidths(agent)) graph.setNode(name, { width, height: NODE_HEIGHT });
+  const widths = slotWidths(agent);
+  for (const node of agent.nodes) {
+    graph.setNode(node.name, { width: widths.get(node.name)!, height: cardHeight(node) });
+  }
   for (const node of agent.nodes) {
     for (const edge of node.edges ?? []) {
       if (graph.hasNode(edge.target)) graph.setEdge(node.name, edge.target);
@@ -75,17 +82,17 @@ export function autoLayout(agent: Agent): Agent {
     nodes: agent.nodes.map((node) => {
       // dagre gives the centre; React Flow positions are the top-left corner.
       const { x, y } = graph.node(node.name);
-      return { ...node, ui: { ...node.ui, ...round({ x: x - NODE_WIDTH / 2, y: y - NODE_HEIGHT / 2 }) } };
+      return { ...node, ui: { ...node.ui, ...round({ x: x - NODE_WIDTH / 2, y: y - cardHeight(node) / 2 }) } };
     }),
   };
 }
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
-/** Whether a card at `p` would touch a card at any of `taken` (with a small margin). */
+/** Whether a card at `p` would touch a card at any of `taken` (with a small margin), either having tools. */
 function overlaps(p: Position, taken: Position[]): boolean {
   return taken.some(
-    (q) => Math.abs(q.x - p.x) < NODE_WIDTH + NODE_GAP / 2 && Math.abs(q.y - p.y) < NODE_HEIGHT + NODE_GAP / 2,
+    (q) => Math.abs(q.x - p.x) < NODE_WIDTH + NODE_GAP / 2 && Math.abs(q.y - p.y) < TALLEST_CARD + NODE_GAP / 2,
   );
 }
 
@@ -132,10 +139,11 @@ export function placeMissing(agent: Agent, fallback?: Position): Agent {
 
   const sourceOf = (name: string) =>
     agent.nodes.find((n) => placed.has(n.name) && (n.edges ?? []).some((e) => e.target === name));
+  const bottom = (node: Node) => placed.get(node.name)!.y + cardHeight(node);
   const below = () => {
-    const all = [...placed.values()];
+    const all = agent.nodes.filter((n) => placed.has(n.name));
     if (!all.length) return { x: 0, y: 0 };
-    return { x: Math.min(...all.map((p) => p.x)), y: Math.max(...all.map((p) => p.y)) + NODE_HEIGHT + RANK_GAP };
+    return { x: Math.min(...all.map((n) => placed.get(n.name)!.x)), y: Math.max(...all.map(bottom)) + RANK_GAP };
   };
 
   // Nodes reachable from a placed node first, so chains follow their sources.
@@ -147,7 +155,7 @@ export function placeMissing(agent: Agent, fallback?: Position): Agent {
     const [name] = pending.splice(index, 1);
     const source = sourceOf(name);
     const start = source
-      ? { x: placed.get(source.name)!.x, y: placed.get(source.name)!.y + NODE_HEIGHT + RANK_GAP }
+      ? { x: placed.get(source.name)!.x, y: bottom(source) + RANK_GAP }
       : (fallback ?? below());
     placed.set(name, freeSpot(start, placed.values()));
   }
