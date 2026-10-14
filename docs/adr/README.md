@@ -11,7 +11,7 @@ Each record explains one decision: the context, what we chose, what we rejected 
 | [0005](0005-draft-to-bot-at-connect-time.md) | Hand the current draft to the bot at connect time, one backend process | Accepted |
 | [0006](0006-stream-transitions-over-rtvi.md) | Stream transitions to the UI over RTVI | Accepted |
 | [0007](0007-frontend-stack.md) | Frontend stack | Accepted |
-| [0008](0008-node-tools-from-a-mock-catalog.md) | Node tools from a fixed mock catalog (Phase 2) | Accepted, amends 0002 |
+| [0008](0008-node-tools-from-a-mock-catalog.md) | Node tools from a fixed mock catalog (Phase 2) | Accepted, amends 0002, amended by 0016 |
 | [0009](0009-text-runner-for-simulated-calls.md) | Simulated calls with our own text runner (Phase 2) | Accepted |
 | [0010](0010-test-format-and-grading.md) | Test format and grading (Phase 2) | Accepted |
 | [0011](0011-trusting-the-tests.md) | Trusting the tests (Phase 2) | Accepted |
@@ -19,5 +19,6 @@ Each record explains one decision: the context, what we chose, what we rejected 
 | [0013](0013-workspaces-versions-and-calls.md) | Workspaces, versions and recorded calls (Phase 2) | Accepted |
 | [0014](0014-copilot-service-and-ui.md) | Copilot service and UI (Phase 2) | Accepted |
 | [0015](0015-debugging-by-cause.md) | Debugging by cause: rule chains, turn replay and what-if forecasts (Phase 2) | Accepted, amends 0002, 0009 to 0013 |
+| [0016](0016-clinic-configuration-as-data.md) | Clinic configuration as data, agents from a template (Phase 2) | Accepted, amends 0008, 0012, 0015 |
 
 Format: title, status, date, context, decision, alternatives considered, consequences.

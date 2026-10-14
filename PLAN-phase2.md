@@ -1,6 +1,6 @@
 # Phase 2 plan: Agent Copilot
 
-Issues in build order, built on top of the Phase 1 editor ([`PLAN.md`](PLAN.md)). Context is in [`docs/handoff.md`](docs/handoff.md), decisions in [`docs/adr/`](docs/adr/README.md) (0008 to 0015 are Phase 2). Each item is a GitHub issue on the fork with the same number. One branch/PR per issue, `Closes #N`. GitHub is the source of truth for status; update this file only when scope changes.
+Issues in build order, built on top of the Phase 1 editor ([`PLAN.md`](PLAN.md)). Context is in [`docs/handoff.md`](docs/handoff.md), decisions in [`docs/adr/`](docs/adr/README.md) (0008 to 0016 are Phase 2). Each item is a GitHub issue on the fork with the same number. One branch/PR per issue, `Closes #N`. GitHub is the source of truth for status; update this file only when scope changes.
 
 ## The brief, in short
 
@@ -8,6 +8,7 @@ Issues in build order, built on top of the Phase 1 editor ([`PLAN.md`](PLAN.md))
 - Build an AI Copilot, integrated in the Phase 1 UI, that automates both, the way coding tools automate software work. There is no real call data: mock calls and flagged issues.
 - What is valued: originality of the Copilot, how well it solves the two problems, pragmatic scoping (what to build, mock or leave out, and why), product sense (the real bottleneck, not tangential polish), and a live end-to-end demo.
 - OpenAI and ElevenLabs keys are provided.
+- The interviewer's answers (2026-10-14): most deployment time goes to turning rules into an agent and checking it, not to getting the rules (that depends on the client). Agents start from a template per use case and are always customized; what changes is mostly tables (providers per appointment type, appointment types, insurance coverage, the data needed to register a patient or book) plus flow and tone. A hospital could be a client, but we assume few clinic types. One person runs fewer than 10 agents, but an agent can take 50,000 calls a month. How to find problems in calls is left to us.
 
 ## The idea
 
@@ -24,6 +25,7 @@ client tickets                        fix (diff)    run / audit
 
 - **Requirements are the spec.** The Copilot turns guidelines into numbered, checkable requirements (each with the sentence it came from) plus questions for the client where the guidelines have gaps, each with the default it uses meanwhile. A healthcare baseline (emergency, no medical advice, identity first, a human on request) is always added.
 - **Gaps are found by a checklist, not by luck.** An intake checklist lists the decisions every clinic agent needs (#38); each item ends answered (with its source), assumed from a safe default (and asked), or not applicable. A voice agent generated from the same checklist interviews the clinic manager (#39), and the gaps left become a short follow-up call.
+- **Agents start from a template; clinic rules are data.** The Copilot customizes a scheduling template instead of generating a graph. Rules that are tables (appointment types, providers per type, coverage, required fields, the fee) go into a validated clinic configuration that the tools enforce, and only flow and tone change in the graph ([ADR 0016](docs/adr/0016-clinic-configuration-as-data.md), #43). A proposal is a small diff, and clinic rules get exact tests.
 - **The human reviews tests, not prompts.** Checking 20 one-line tests against the client's guidelines takes minutes; reading every prompt in a graph takes an hour. Tests are approved before the graph exists, and approved tests are locked.
 - **The Copilot loops until the tests pass,** then proposes one diff. You accept or reject it like a pull request; accepting is one undo step and a new version.
 - **Issues are found for you and pinned to the graph.** Every call is checked against the requirements and common failures; issues carry quotes and the node where they happened, and show as badges through the Phase 1 problems list.
@@ -70,10 +72,11 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 | Flight recorder | Call records and test results keep, per agent turn, the node and the exact messages, functions and tool results the model was given | [0013](docs/adr/0013-workspaces-versions-and-calls.md), [0015](docs/adr/0015-debugging-by-cause.md) |
 | Requirement map | Copilot operations cite requirement ids; nodes and the agent carry an optional `requirements` list that the runtime ignores | [0012](docs/adr/0012-copilot-edits-through-operations.md), [0015](docs/adr/0015-debugging-by-cause.md) |
 | Client intake | A checklist of client decisions with stable ids and safe defaults is the floor for the spec step's coverage; the interview agent is generated from it, so the two never drift; the client is asked only what only the client knows | No ADR; reasoning in #38 and #39 |
+| Clinic configuration | Rules that are tables or numbers live in a validated clinic configuration that the tools enforce; agents name their clinic; the Copilot customizes a scheduling template with a configuration and operations | [0016](docs/adr/0016-clinic-configuration-as-data.md) |
 
 ## Time and cuts
 
-About one week plus two days for the debugging tools (ADR 0015) and about a day for the client intake (#38, #39), so about two PRs a day to review. If we fall behind, cut in this order: sentence ablation, the win-probability chart, the intake call (#39), the canvas overlay of affected turns, the second clinic (if there is no time to write it), grouping issues across calls, any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them.
+About one week plus two days for the debugging tools (ADR 0015) about a day for the client intake (#38, #39) and about a day and a half for the clinic configuration (#43), so about two PRs a day to review. If we fall behind, cut in this order: the intake call (#39), sentence ablation, the win-probability chart, the canvas overlay of affected turns, the second clinic (if there is no time to write it), grouping issues across calls, any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them.
 
 ## Prerequisites (user)
 
@@ -82,12 +85,13 @@ About one week plus two days for the debugging tools (ADR 0015) and about a day 
 - [ ] Add Prosper or industry practice to the authoring guide when reviewing #29.
 - [ ] Review the intake checklist's questions and defaults (#38).
 - [ ] Write clinic B (guidelines and about 6 tests in the same format as #27) and keep it out of the repo until the final run in #34.
-- [ ] Real calls for #25 (tools, turn timing), #33 (the fix), #39 (an intake, playing the manager) and the rehearsal in #34.
+- [ ] Real calls for #25 (tools, turn timing), #43 (types, coverage, the fee), #33 (the fix), #39 (an intake, playing the manager) and the rehearsal in #34.
 
 ## Checklist
 
 - [ ] [#25](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/25) Mock tools and turn timing
 - [ ] [#26](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/26) Text runner and test format
+- [ ] [#43](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/43) Clinic configuration as data
 - [ ] [#27](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/27) Demo clinic, reference suite and `make eval`
 - [ ] [#28](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/28) Workspaces, versions and recorded calls
 - [ ] [#29](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/29) Copilot service: edit operations and the spec step
@@ -158,19 +162,44 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - `replay_turn` with the same agent rebuilds exactly the messages recorded for that turn, and `continue_from` repeats the recorded caller words up to the divergence turn (unit tests with a scripted model).
 - A real run of 3 hand-written tests against the example agent finishes in under a minute; time and cost are recorded in the PR.
 
+## 43. Clinic configuration as data
+
+**Goal:** what changes from one clinic to the next lives in a validated clinic configuration that the tools enforce, not in prompts. The scheduling agent becomes a template that works for any clinic, and the Copilot (#29, #30) customizes it with a configuration plus a small graph diff ([ADR 0016](docs/adr/0016-clinic-configuration-as-data.md)).
+
+**Depends on:** #25, #26. Built before #27, so clinic-a, its reference agent and the reference suite are written against the final catalog.
+
+**Scope:**
+- Configuration in the clinic seed, all optional (a clinic without it behaves as in #25): `appointment_types` (id, name, description, minutes, `new`/`existing`/`any` patients, providers), `insurance_plans` (covered types, types needing a referral), `registration_fields` and `booking_fields` (name, description, required, optional format), `policies` (`min_notice_hours`, `days_ahead`, `cancellation` with `window_hours` and `fee`) and `facts` (address, hours, parking, phone). Patients may carry `last_visit` and `insurance_plan`; a patient with no visit is new.
+- A loader that validates a configuration and returns every problem with its path, like `validate_agent`. The Copilot's extracted configuration (#29) must pass it.
+- Slots: a type of N minutes needs N consecutive free minutes inside one schedule block; appointments store type and length; overlap is checked on intervals. Slot ids are unchanged.
+- Tools: new `list_appointment_types`, `check_coverage(insurance_plan, appointment_type)` and `get_clinic_info`; `find_slots` and `book_appointment` take `appointment_type` and enforce providers, fit, notice, patient eligibility and required fields; `register_patient` takes the clinic's fields; cancel and reschedule inside the fee window need `fee_acknowledged` and the refusal states the fee; `lookup_patient` shows each appointment's type and whether a fee applies now. The schema the model sees is built per clinic (fields as properties, types as an enum).
+- Several clinics under `backend/clinic/clinics/` (the seed becomes `riverside.json`); an optional `clinic` field on the agent (default `riverside`); live state per clinic; schema, validation, zod mirror, `GET /composer/clinics` and a clinic select in the agent panel.
+- The text runner (#26) uses the same per-clinic schemas and clinic selection as the builder; test files may set the new keys in `world`; `tool_called` arguments are checked against the clinic's schema.
+- The example agent becomes the scheduling template: no clinic facts in its prompts; it maps the reason to a type, checks coverage when insurance comes up, and collects the fields the tools ask for.
+- Riverside's seed gets a configuration: 4 or 5 types (one for new patients only), 2 or 3 plans with different coverage, one extra registration field and one booking field, a 24 h fee.
+- Candidate actions, to iterate and not in scope unless agreed: `add_to_waitlist`, `leave_message`, `confirm_appointment`, a configurable "new patient", provider rules beyond types (age ranges, languages), hospital departments.
+
+**Acceptance criteria:**
+- pytest for every rule on the seed (types and providers, fit, notice, eligibility, required fields, coverage, the fee and `fee_acknowledged`, interval overlap).
+- The loader reports every planted error in a broken configuration fixture, each with its path.
+- The same template builds against two clinics, and the schemas it gets differ as configured, in the builder and in the runner.
+- The #25 tests pass unchanged on a fixture clinic without configuration.
+- The #26 example tests, updated for the template, pass; time and cost recorded in the PR.
+- In a real call (user): the template books a type that needs a field Riverside asks for, is refused by a plan that does not cover the visit and says so, and asks the caller to accept the fee before a late cancellation.
+
 ## 27. Demo clinic, reference suite and `make eval`
 
 **Goal:** a fixed, trusted measure: hand-written tests that a good agent passes and broken agents fail. It is the acceptance gate for the Copilot.
 
-**Depends on:** #26.
+**Depends on:** #26, #43.
 
 **Scope:**
 - `backend/eval/clinic-a/`:
-  - `guidelines.md`: a fictional clinic, written like a real client document (3 providers, booking, rescheduling, a 24 h cancellation fee, new-patient rules, an insurance answer), slightly messy, with a few gaps on purpose (minors, double booking, what to do when nothing fits).
-  - `world.json`: the seed for the tools.
-  - `reference-agent.json`: built by hand in the editor, using the catalog.
-  - `tests.json`: the 20 reference tests. About 5 safety tests (emergency, medical advice, identity before booking or sharing appointment details, a human on request) and about 15 core tests (book, new patient, reschedule, cancel inside and outside 24 h, nothing available, a misheard name corrected by spelling, a caller who changes their mind, an off-topic question, provider preference, an insurance question, a time outside opening hours). Personas vary on purpose: terse, elderly, non-native speaker, angry, rambling.
-- Mutants: `backend/eval/mutants.py`, about 8 functions that each break the reference agent in one known way (remove the identity check, book without confirming, drop the emergency instruction, skip the fee warning, never transfer, ignore the new-patient rule, invent availability instead of calling `find_slots`, ...).
+  - `guidelines.md`: a fictional clinic, written like a real client document (3 providers, appointment types and which provider does each, booking, rescheduling, a 24 h cancellation fee, new-patient rules, which insurance plans cover which visits, the data needed to register a patient), slightly messy, with a few gaps on purpose (minors, double booking, what to do when nothing fits).
+  - `world.json`: the clinic's seed and configuration (#43): appointment types, providers per type, insurance coverage, required fields, the fee.
+  - `reference-agent.json`: built by hand in the editor from the scheduling template (#43), using the catalog.
+  - `tests.json`: the 20 reference tests. About 5 safety tests (emergency, medical advice, identity before booking or sharing appointment details, a human on request) and about 15 core tests (book, new patient, reschedule, cancel inside and outside 24 h, nothing available, a misheard name corrected by spelling, a caller who changes their mind, an off-topic question, provider preference, an insurance question, a time outside opening hours, a provider who does not do the requested type, a plan that does not cover the visit, a late cancellation where the caller must accept the fee first). Personas vary on purpose: terse, elderly, non-native speaker, angry, rambling.
+- Mutants: `backend/eval/mutants.py`, about 8 functions that each break the reference agent in one known way (remove the identity check, book without confirming, drop the emergency instruction, skip the fee warning, never transfer, ignore the new-patient rule, invent availability instead of calling `find_slots`; and configuration mutants (#43): a provider allowed a type they do not do, a plan covering a visit it should not, the fee removed, ...).
 - Judge calibration: about 30 transcripts from real runs, passing and failing on the soft rules, labelled by hand (drafted by Claude, reviewed by the user) in `backend/eval/judge-labels.json`. Measure agreement per rule; pick the judge model; a rule under 90% is rewritten or turned into an exact check.
 - `make eval`: runs the reference suite against an agent (default: the reference agent; `AGENT=...` for another) and prints a table and a summary. `make eval MUTANTS=1` runs it against every mutant. Results go to `backend/eval/results/` (gitignored). Not part of `make test`.
 - Spend log. The company keys cannot read usage or billing ([`docs/notes/models.md`](docs/notes/models.md)), so we keep our own estimate:
@@ -211,21 +240,23 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Goal:** the Copilot backend can change agents safely and turns guidelines into the spec a human reviews: requirements, client questions and tests.
 
-**Depends on:** #26, #28.
+**Depends on:** #26, #28, #43.
 
 **Scope:**
 - `backend/copilot/ops.py` ([ADR 0012](docs/adr/0012-copilot-edits-through-operations.md)): `add_node`, `update_node`, `rename_node` (cascades), `delete_node` (cascades), `add_edge`, `update_edge`, `delete_edge`, `set_initial_node`, `set_tools`, `update_agent`, with the editor store's rules. Shared cases in `backend/tests/fixtures/ops/` (operations in, expected agent out) run by both pytest and Vitest so the two implementations cannot drift.
-- Requirement map ([ADR 0015](docs/adr/0015-debugging-by-cause.md)): operations that add or change prompts, edges or tools cite the requirement ids they serve, kept in an optional `requirements` list on nodes and on the agent (for the persona). The runtime ignores it; schema, dataclasses and zod mirror. A function lists the requirements no node carries and the requirements no test checks.
+- Requirement map ([ADR 0015](docs/adr/0015-debugging-by-cause.md)): operations that add or change prompts, edges or tools cite the requirement ids they serve, kept in an optional `requirements` list on nodes, on the agent (for the persona) and on clinic configuration entries (#43). The runtime ignores it; schema, dataclasses and zod mirror. A function lists the requirements that no node and no configuration entry carries and the requirements no test checks.
 - Operations are applied to a copy and validated with `validate_agent`; errors go back to the model for at most 2 more tries; an agent with errors is never written.
 - Service under `/copilot` on the runner ([ADR 0014](docs/adr/0014-copilot-service-and-ui.md)), progress streamed to the browser (server-sent events). OpenAI client, pinned models, prompts in their own files. Each request carries the editor's current draft, as test calls do, so the Copilot works on what the user sees, saved or not.
 - Authoring guide (`backend/copilot/prompts/authoring-guide.md`): what makes a good voice agent graph, drafted by Claude from general practice and Phase 1 (short spoken replies, one question at a time, confirm critical details such as #13's spell-and-confirm, how to write edge descriptions, when to use tools, clean endings). The user adds Prosper or industry practice in review. The Copilot's prompts include it; humans can read it too.
 - The conversation is saved in the workspace (`chat.json`), so a reload keeps it.
-- Spec step: guidelines plus the healthcare baseline produce requirements (id, text, the sentence it came from), client questions (question, default used meanwhile) and tests (format from #26, linked to requirements, with a tier). Tests are generated from the requirements only, never from a graph. Stored as drafts in the workspace. Coverage against the intake checklist is added right after, in #38.
+- Spec step: guidelines plus the healthcare baseline produce requirements (id, text, the sentence it came from), the clinic configuration (#43), client questions (question, default used meanwhile) and tests (format from #26, linked to requirements, with a tier). Tests are generated from the requirements only, never from a graph. Stored as drafts in the workspace. Coverage against the intake checklist is added right after, in #38.
+- Configuration extraction (ADR 0016): rules that are tables or numbers (appointment types, providers per type, coverage, required fields, notice, the fee, fixed facts) go into the clinic configuration, not into prompts, and each entry cites the requirements it carries. It is validated with #43's loader; errors go back to the model for at most 2 more tries, like operations, and a configuration with errors is never written. Unclear entries become client questions with the default used meanwhile. The human reviews it as tables (#31).
 - Chat loop with a small toolset: read the workspace, propose or edit the spec ("drop R7", "add a test for a minor"), and later build, run tests, audit and fix. Transcripts and tickets are passed as delimited data, never as instructions.
 - The Copilot's tools can read only its workspace; nothing reaches `backend/eval/`.
 
 **Acceptance criteria:**
 - From clinic-a's guidelines, the requirements cover every rule in the guidelines (checked against a list in the PR), every requirement has at least one test, and the baseline requirements are always there.
+- From clinic-a's guidelines, the extracted configuration passes the loader and matches the configuration in clinic-a's `world.json` entry by entry, or the PR lists the differences.
 - The gaps put in the guidelines on purpose come back as client questions.
 - The shared operation cases pass in pytest and Vitest; an invalid sequence of operations is repaired or reported, never written.
 - Renames and deletes carry a node's requirement list (shared cases).
@@ -243,6 +274,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Coverage in the spec step: each item is `answered` (requirement ids and source sentence), `defaulted` (a requirement from the default, marked `assumed`, plus a client question; a vague answer counts as defaulted and the question quotes it) or `not_applicable` (with a reason). Requirements that match no item are kept: the checklist is a floor.
 - Client questions come from the defaulted items, in checklist order, as one batch.
 - Expected coverage for clinic-a in `backend/eval/clinic-a/coverage.json`, held out.
+- Items whose answer is a clinic configuration value (#43), such as `booking.provider_choice`, `booking.window`, `new_patients.accepted`, `changes.policy`, `safety.insurance` and `facts.clinic`, are answered by a configuration entry instead of a prompt requirement, and their coverage points at the entry.
 - Shown in the Copilot tab (#31) as a coverage card; assumed requirements are marked on their cards.
 - How the list improves: a checklist change is a PR naming the call, test, ticket or client conversation behind it. When a failure is diagnosed as "unclear in the guidelines" (ADR 0015) or an audit issue (#32) traces back to something the client never decided, the PR adds the item that would have caught it. Prosper's real intake questions are merged in if they become known.
 
@@ -254,14 +286,14 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 ## 30. Copilot builds the agent and loops until green
 
-**Goal:** from approved tests, the Copilot builds the graph with operations and fixes it until its tests pass. This is the "initial implementation" workflow.
+**Goal:** from approved tests, the Copilot customizes the scheduling template with a configuration and operations and fixes it until its tests pass. This is the "initial implementation" workflow.
 
-**Depends on:** #27, #29.
+**Depends on:** #27, #29, #43.
 
 **Scope:**
-- Build: approved spec, then an outline (nodes, tools per node, edges), then operations, streamed so the UI can show the graph growing. Every operation cites the requirements it serves; at the end every requirement is carried by a node or the persona, or the proposal says why.
-- Diagnosis ([ADR 0015](docs/adr/0015-debugging-by-cause.md)): for each failing check, the broken link in the rule chain. Wrong place and data-or-tool are decided exactly, from the failing turn's recorded context and the requirement map; overridden and unclear guideline by the model. A failure diagnosed as an unclear guideline becomes a client question, not a fix.
-- Loop: run the workspace tests; for each failure the model proposes 2 to 3 candidate changes aimed at the broken link; each is checked with `replay_turn` on the failing turn (k = 5); the best is applied and the failing tests are rerun, then all of them. At most 3 rounds, counting full reruns; stop as soon as everything passes. The result is a proposal: operations, the new agent, the diagnosis per failure, a short rationale, and test results before and after.
+- Build from the scheduling template (#43, ADR 0016), not an empty graph: the approved configuration is set for the agent's clinic, then an outline of what changes in a copy of the template (nodes changed, added or removed, tools, edges, tone), then operations on that copy, streamed so the UI can show the graph changing. Every operation and configuration entry cites the requirements it serves; at the end every requirement is carried by a node, the persona or the configuration, or the proposal says why.
+- Diagnosis ([ADR 0015](docs/adr/0015-debugging-by-cause.md)): for each failing check, the broken link in the rule chain. The links include a wrong or missing configuration entry (ADR 0016), decided exactly from the tool results in the failing turn. Wrong place and data-or-tool are decided exactly, from the failing turn's recorded context and the requirement map; overridden and unclear guideline by the model. A failure diagnosed as an unclear guideline becomes a client question, not a fix.
+- Loop: run the workspace tests; for each failure the model proposes 2 to 3 candidate changes (operations or configuration edits) aimed at the broken link; each is checked with `replay_turn` on the failing turn (k = 5); the best is applied and the failing tests are rerun, then all of them. At most 3 rounds, counting full reruns; stop as soon as everything passes. The result is a proposal: the configuration and the operations as a diff on the template, the new agent, the diagnosis per failure, a short rationale, and test results before and after.
 - For each candidate that went on to a full rerun, keep its turn rate and the rerun's result, for the agreement number in #34.
 - Locked tests: the Copilot cannot change an approved test. If it thinks a test is wrong, it says so in the proposal and the user decides.
 - Safety tier: a proposal with a failing safety test is marked blocked and cannot be accepted.
@@ -273,7 +305,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - A test shows that no reference test id or text appears in any prompt or tool result the Copilot receives.
 - A test the Copilot cannot make pass ends as a blocked proposal with an explanation, never as an edited test.
 - The leak check blocks a proposal that names a test caller (unit test).
-- Every failure in a proposal names its broken link; the exact diagnoses (wrong place, data or tool) have unit tests on fixtures.
+- Every failure in a proposal names its broken link; the exact diagnoses (wrong place, data or tool, configuration) have unit tests on fixtures.
+- The proposal is a diff on the template: the number of operations and configuration entries is reported for clinic-a.
 
 ## 31. Copilot UI
 
@@ -283,7 +316,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Scope:**
 - A right-hand column with tabs: Copilot, Tests, Calls (filled in #32) and Test call (the #7 panel, unchanged). It takes the call panel's place instead of adding a fourth column.
-- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the checklist coverage (#38), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
+- Copilot tab: the chat; replies render as cards: requirements (with their source sentence), client questions (with "copy for the client"), the checklist coverage (#38), the clinic configuration as tables (types, providers per type, coverage, fields, fee; editable before approval, #43), the test list (edit, delete, approve), build progress, proposals (diff summary, the diagnosis per failure, test results, the line "N past turns affected" from #33, Accept and Reject) and issues (#32). Buttons such as "Create from guidelines", "Run tests", "Audit calls" and "Fix" call the same endpoints directly, so the demo never depends on the model choosing a tool.
 - Guidelines: a text area in the workspace to paste the client's document.
 - Requirement map: clicking a requirement outlines the nodes that carry it; the node panel shows a node's requirements as read-only chips; requirements with no node or no test appear in the problems list as warnings.
 - Canvas: while the Copilot builds, its operations appear live; a proposal shows as a diff overlay (added, changed, removed nodes and edges). Accept applies it through a new store operation as one undo step and saves a version; Reject leaves the agent as it was.
@@ -345,7 +378,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Goal:** the client explains their rules by talking instead of writing a document. A voice agent generated from the checklist (#38) interviews the clinic manager and asks one follow-up when an answer is vague. Its transcript is an input to the spec step, and the gaps left become a short follow-up call that asks only those items.
 
-**Depends on:** #26, #28, #29, #31, #38. Built after #33; cut after the sentence ablation and the win-probability chart, before the canvas overlay.
+**Depends on:** #26, #28, #29, #31, #38. Built after #33; the first thing to cut, since the interviewer said most time goes to building and checking, not to getting the rules.
 
 **Scope:**
 - `backend/copilot/intake.py`: `build_intake_agent(checklist, items=None)` returns an agent JSON with no model call: one node per section in checklist order (sections with nothing to ask are skipped), a `next_section` edge to the next node, a `stop_early` edge from every node to the wrap-up (a partial interview is fine), and an end node. Persona rules: one question at a time; use the scenario when there is one; one follow-up when an answer names no concrete rule; when the client does not know, read the default and ask whether it is fine (a yes counts as an answer); never suggest an answer before the client has tried; no calendar data. Generated, so the interview and the checklist never drift.
