@@ -1065,10 +1065,14 @@ button.primary:disabled {
     0 0 0 2px #bc4c00,
     0 0 0 4px #0969da;
 }
-.node-card.heated.no-data {
-  border-style: dashed;
+.node-card.heated.no-data,
+.node-card.stage-card.heated.no-data {
+  border: 2px dashed #8c959f;
+  background: repeating-linear-gradient(135deg, #f6f8fa 0 8px, #eef1f4 8px 16px);
+  box-shadow: none;
 }
-.node-card.heated.no-data .node-card-name {
+.node-card.heated.no-data .node-card-name,
+.node-card.heated.no-data .heat-line-main {
   color: #656d76;
 }
 .heat-lines {

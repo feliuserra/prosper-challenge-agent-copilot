@@ -325,6 +325,20 @@ describe("words and colours", () => {
     ]);
   });
 
+  it("say a node had no calls, in any view", () => {
+    const heats = nodeHeats(detection, options, agent);
+    expect(heatLines(detection, heats.get("custom")!, options)).toEqual(["No calls here", heats.get("custom")!.note]);
+    expect(heats.get("custom")!.entered).toBe(0);
+  });
+
+  it("do not call an older version clean in the issues view", () => {
+    const old = { ...options, version: "1", signal: "issues" as const };
+    const heats = nodeHeats(detection, old, agent);
+    expect(heatLines(detection, heats.get("greeting")!, old)).toEqual(["Issues are for v2, running now", "1,000 calls entered"]);
+    const stage = stageHeat(stagesOf(agent)[0], heats, "issues");
+    expect(heatLines(detection, stage, old, 3)).toEqual(["Issues are for v2, running now", "1,000 calls entered"]);
+  });
+
   it("paths read as steps, loops counted", () => {
     expect(pathText([["greeting", 1], ["confirm_name", 1, "x"], ["confirm_name", 2, "correct_spelling"], ["verify", 1, "y"]])).toBe(
       "Greeting › Confirm name ×2 › Verify",

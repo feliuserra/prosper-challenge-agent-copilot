@@ -73,8 +73,8 @@ export function HeatControls() {
         <span className="heat-scale" style={{ background: `linear-gradient(90deg, ${heatColor(0)}, ${heatColor(1)})` }} />
         <span className="muted">
           {options.signal === "issues"
-            ? "tint: extra calls a week from the issues at a node; edge width: calls"
-            : `tint: points above the baseline, up to +${TINT_FULL * 100}; only when unlikely to be chance; edge width: calls`}
+            ? "darkest: the node whose issues add the most calls a week, the others in proportion; dashed: no calls; edge width: calls"
+            : `tint: points above the baseline, darkest at +${TINT_FULL * 100} or more, only when unlikely to be chance; dashed: no calls; edge width: calls`}
         </span>
       </div>
       {oldIssues && <div className="muted">Issues are for the version running now (v{now}).</div>}

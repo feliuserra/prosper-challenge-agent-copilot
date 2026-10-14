@@ -37,7 +37,8 @@ function WrenchIcon() {
 /** The style and class of a card with the call heatmap on (#59). */
 export function heatStyle(heat: NodeHeat | undefined): { className: string | false; style: Record<string, string> } {
   if (!heat) return { className: false, style: {} };
-  const className = ["heated", heat.flagged && "flagged", heat.note && heat.rate === null && "no-data"]
+  // No call went through it (added or renamed since): marked, so it does not read as cool.
+  const className = ["heated", heat.flagged && "flagged", heat.entered === 0 && "no-data"]
     .filter(Boolean)
     .join(" ");
   return { className, style: { "--heat": heatColor(heat.tint) } };

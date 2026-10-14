@@ -248,9 +248,13 @@ const percent = (rate: number) => `${(rate * 100).toFixed(rate < 0.1 ? 1 : 0)}%`
 
 /** The two lines a card shows in place of its task; `steps` for a collapsed stage's card. */
 export function heatLines(detection: Detection, heat: NodeHeat, options: HeatOptions, steps?: number): [string, string] {
+  if (heat.entered === 0) return ["No calls here", heat.note ?? ""];
   if (options.signal === "issues") {
-    if (heat.note) return ["No calls here", heat.note];
-    if (!heat.issues.length) return ["No issues", `${heat.entered.toLocaleString("en-US")} calls entered`];
+    const calls = `${heat.entered.toLocaleString("en-US")} calls entered`;
+    // Issues are found for the version running now: an older one is not "clean".
+    const now = currentVersion(detection, options.clinic);
+    if (now !== null && Number(options.version) !== now) return [`Issues are for v${now}, running now`, calls];
+    if (!heat.issues.length) return ["No issues", calls];
     const names = [...new Set(heat.issues.map((i) => i.shape))].join(", ");
     const extra = heat.issues.reduce((sum, i) => sum + i.extra_per_week, 0);
     return [
