@@ -16,29 +16,34 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
+import { stagesOf } from "../agent/stages";
 import { useCallStore } from "../call/callStore";
 import { useAgentStore } from "../store/agentStore";
 import { useProblems } from "../validation/problems";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
 import {
   edgeId,
+  parseEdgeId,
   stageFrames,
   statusBadges,
   toFlowEdges,
   toFlowNodes,
   type AgentFlowEdge,
-  type AgentFlowNode,
+  type CanvasFlowNode,
   type Dimensions,
 } from "./derive";
 import { FunctionEdge } from "./FunctionEdge";
 import { NodeCard } from "./NodeCard";
 import { ProblemsList } from "./ProblemsList";
+import { StageCard } from "./StageCard";
 import { StageFrames } from "./StageFrames";
+import { canvasView } from "./view";
 
-const nodeTypes = { agent: NodeCard };
+const nodeTypes = { agent: NodeCard, stage: StageCard };
 const edgeTypes = { function: FunctionEdge };
-// Fit small agents at 100% instead of blowing up a single card.
-const fitViewOptions = { maxZoom: 1 };
+// Fit small agents at 100% instead of blowing up a single card. Room at the top for
+// the buttons over the canvas and a stage frame's header, which fitting does not count.
+const fitViewOptions = { maxZoom: 1, padding: { top: "80px", right: "5%", bottom: "5%", left: "5%" } } as const;
 const store = () => useAgentStore.getState();
 
 export function Canvas() {
@@ -57,6 +62,7 @@ function Flow() {
   const agent = useAgentStore((s) => s.agent)!;
   const agentId = useAgentStore((s) => s.agentId);
   const selection = useAgentStore((s) => s.selection);
+  const collapsed = useAgentStore((s) => s.collapsed);
   const problems = useProblems();
   // Where a test call of this agent is; another agent's call is not shown.
   const live = useCallStore((s) => (s.live && s.live.agentId === agentId ? s.live : null));
@@ -69,17 +75,33 @@ function Flow() {
   // Handles are hidden until a card is hovered; while a connection is dragged, all show.
   const connecting = useConnection((c) => c.inProgress);
 
-  const badges = useMemo(() => statusBadges(agent, problems), [agent, problems]);
+  // What is shown with the collapsed stages folded (#51). The change handlers read
+  // the latest one through a ref, so they do not change identity on every render.
+  const view = useMemo(() => canvasView(agent, collapsed, measured), [agent, collapsed, measured]);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const hasStages = useMemo(() => stagesOf(agent).length > 0, [agent]);
+
+  const badges = useMemo(() => statusBadges(agent, problems, view), [agent, problems, view]);
   const nodes = useMemo(
-    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode),
-    [agent, selection, measured, badges, activeNode],
+    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode, view),
+    [agent, selection, measured, badges, activeNode, view],
   );
   const edges = useMemo(
-    () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured),
-    [agent, selection, badges, activeEdge, measured],
+    () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured, view),
+    [agent, selection, badges, activeEdge, measured, view],
   );
-  const frames = useMemo(() => stageFrames(agent, measured), [agent, measured]);
+  const frames = useMemo(() => stageFrames(agent, measured, view), [agent, measured, view]);
   const selectedStage = selection?.kind === "stage" ? selection.name : null;
+
+  // Fit the view after Tidy layout or collapsing stages, once every card shown has
+  // been measured: a stage card that has just appeared has no size until then.
+  const fitPending = useRef(false);
+  useEffect(() => {
+    if (!fitPending.current || !nodes.every((n) => n.measured)) return;
+    fitPending.current = false;
+    void fitView({ ...fitViewOptions, duration: 300 });
+  }, [nodes, fitView]);
 
   // Notices (e.g. a blocked delete) fade after a few seconds.
   useEffect(() => {
@@ -89,22 +111,26 @@ function Flow() {
   }, [notice]);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<AgentFlowNode>[]) =>
-      handleNodeChanges(changes, (name, size) => setMeasured((m) => ({ ...m, [name]: size }))),
+    (changes: NodeChange<CanvasFlowNode>[]) =>
+      handleNodeChanges(changes, (id, size) => setMeasured((m) => ({ ...m, [id]: size })), viewRef.current),
     [],
   );
   const onEdgesChange = useCallback((changes: EdgeChange<AgentFlowEdge>[]) => handleEdgeChanges(changes), []);
 
+  // Edges join nodes, never a collapsed stage's card (its handles do not connect; this is a guard).
+  const isCard = (id: string) => viewRef.current.cardStage.has(id);
+
   const onConnect = useCallback(({ source, target }: Connection) => {
-    store().connect(source, target);
+    if (!isCard(source) && !isCard(target)) store().connect(source, target);
   }, []);
 
   const onReconnect = useCallback((edge: AgentFlowEdge, { source, target }: Connection) => {
-    if (source !== edge.source || target === edge.target || !edge.data) return;
-    store().updateEdge(edge.source, edge.data.function, { target });
+    if (source !== edge.source || target === edge.target || isCard(target) || !edge.data) return;
+    // By the edge's id: `edge.source` is a card when the edge leaves a collapsed stage.
+    store().updateEdge(parseEdgeId(edge.id).source, edge.data.function, { target });
   }, []);
 
-  const onBeforeDelete: OnBeforeDelete<AgentFlowNode, AgentFlowEdge> = useCallback(async ({ nodes }) => {
+  const onBeforeDelete: OnBeforeDelete<CanvasFlowNode, AgentFlowEdge> = useCallback(async ({ nodes }) => {
     const start = store().agent?.initial_node;
     if (nodes.some((n) => n.id === start)) {
       setNotice(`'${start}' is the start node. Choose another start node before deleting it.`);
@@ -113,7 +139,8 @@ function Flow() {
     return true;
   }, []);
 
-  const onDelete: OnDelete<AgentFlowNode, AgentFlowEdge> = useCallback(({ nodes, edges }) => {
+  const onDelete: OnDelete<CanvasFlowNode, AgentFlowEdge> = useCallback(({ nodes, edges }) => {
+    // Stage cards are not deletable, so these are nodes.
     const deleted = new Set(nodes.map((n) => n.id));
     for (const node of nodes) {
       const result = store().deleteNode(node.id);
@@ -121,9 +148,8 @@ function Flow() {
     }
     // Edges into or out of a deleted node went with it (deleteNode cascades).
     for (const edge of edges) {
-      if (!deleted.has(edge.source) && !deleted.has(edge.target) && edge.data) {
-        store().deleteEdge(edge.source, edge.data.function);
-      }
+      const { source, function: fn } = parseEdgeId(edge.id);
+      if (!deleted.has(source) && !deleted.has(edge.target)) store().deleteEdge(source, fn);
     }
   }, []);
 
@@ -138,20 +164,29 @@ function Flow() {
       x: visible.x + visible.width / 2 - NODE_WIDTH / 2,
       y: visible.y + visible.height / 2 - NODE_HEIGHT / 2,
     };
-    const taken = store().agent!.nodes.flatMap((n) => (n.ui ? [n.ui] : []));
-    store().addNode(nearestFreeSpot(centre, taken, visible));
+    // Found among what is shown (nodes and stage cards), then stored as if no stage were collapsed.
+    const taken = nodes.map((n) => n.position);
+    store().addNode(viewRef.current.stored(nearestFreeSpot(centre, taken, visible)));
   }
 
   function tidy() {
     store().tidyLayout();
-    // After React Flow has the new positions.
-    requestAnimationFrame(() => void fitView({ ...fitViewOptions, duration: 300 }));
+    refit();
+  }
+
+  function collapseAll(collapse: boolean) {
+    store().setAllCollapsed(collapse);
+    refit();
+  }
+
+  function refit() {
+    fitPending.current = true;
   }
 
   return (
     <div className="canvas">
       <div className={connecting ? "canvas-flow connecting" : "canvas-flow"} ref={wrapper}>
-        <ReactFlow<AgentFlowNode, AgentFlowEdge>
+        <ReactFlow<CanvasFlowNode, AgentFlowEdge>
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -181,6 +216,16 @@ function Flow() {
             <button onClick={tidy} title="Lay out all nodes again">
               Tidy layout
             </button>
+            {hasStages && (
+              <>
+                <button onClick={() => collapseAll(true)} title="Show each stage as one card">
+                  Collapse stages
+                </button>
+                <button onClick={() => collapseAll(false)} title="Show every node">
+                  Expand stages
+                </button>
+              </>
+            )}
           </Panel>
           {notice && (
             <Panel position="bottom-center" className="notice" role="status">

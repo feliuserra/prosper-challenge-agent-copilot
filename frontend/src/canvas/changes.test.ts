@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Agent } from "../agent/schema";
 import { useAgentStore } from "../store/agentStore";
 import { handleEdgeChanges, handleNodeChanges } from "./changes";
-import type { AgentFlowNode } from "./derive";
+import type { CanvasFlowNode } from "./derive";
+import { canvasView } from "./view";
 
 const exampleText = readFileSync(new URL("../../../backend/tests/fixtures/linear-agent.json", import.meta.url), "utf8");
 
@@ -14,7 +15,7 @@ const history = () => useAgentStore.temporal.getState();
 const ui = (name: string) => store().agent!.nodes.find((n) => n.name === name)!.ui;
 const noop = () => {};
 
-const move = (id: string, x: number, y: number, dragging: boolean): NodeChange<AgentFlowNode> => ({
+const move = (id: string, x: number, y: number, dragging: boolean): NodeChange<CanvasFlowNode> => ({
   type: "position",
   id,
   position: { x, y },
@@ -89,5 +90,31 @@ describe("selection and measurements", () => {
     handleNodeChanges([{ type: "dimensions", id: "greeting", dimensions: { width: 240, height: 61 } }], onMeasured);
     expect(onMeasured).toHaveBeenCalledWith("greeting", { width: 240, height: 61 });
     expect(store().agent).toBe(agent);
+  });
+});
+
+describe("with a collapsed stage", () => {
+  // collect_details and offer_times in stage "Middle", collapsed.
+  beforeEach(() => {
+    store().setStage("collect_details", "Middle");
+    store().setStage("offer_times", "Middle");
+  });
+  const view = () => canvasView(store().agent!, ["Middle"]);
+
+  it("stores a node dragged below the stage where it is with the stage expanded", () => {
+    const shown = view().shown(store().agent!.nodes.find((n) => n.name === "confirm")!);
+    const stored = ui("confirm")!;
+    handleNodeChanges([move("confirm", shown.x + 5, shown.y + 7, false)], noop, view());
+    expect(ui("confirm")).toEqual({ x: stored.x + 5, y: stored.y + 7 });
+  });
+
+  it("moves every node of the stage when its card is dragged, and selects the stage with it", () => {
+    const card = view().cards.get("Middle")!;
+    const [details, offer] = [ui("collect_details")!, ui("offer_times")!];
+    handleNodeChanges([move(card.id, card.position.x + 40, card.position.y - 20, false)], noop, view());
+    expect(ui("collect_details")).toMatchObject({ x: details.x + 40, y: details.y - 20 });
+    expect(ui("offer_times")).toMatchObject({ x: offer.x + 40, y: offer.y - 20 });
+    handleNodeChanges([{ type: "select", id: card.id, selected: true }], noop, view());
+    expect(store().selection).toEqual({ kind: "stage", name: "Middle" });
   });
 });

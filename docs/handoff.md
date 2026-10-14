@@ -30,7 +30,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #45 Canvas polish: edge label pills, quiet edges, dotted background | Merged; checked by the user | #48 |
 | #46 Canvas polish: node card redesign | Merged; checked by the user | #49 |
 | #50 Canvas: stages, frames around groups of nodes | **In review** | #52 |
-| #51 Canvas: collapse a stage into one card | Next, on top of #50 | |
+| #51 Canvas: collapse a stage into one card | **In review**, stacked on #52 | #53 |
 | #47 Canvas polish: Start and End as terminal nodes | Open, after #51 | |
 | #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
 | #11 | Open, moved to the end, after Phase 2 (see section 6) | |

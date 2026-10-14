@@ -1,7 +1,8 @@
 import type { EdgeChange, NodeChange } from "@xyflow/react";
 
 import { useAgentStore } from "../store/agentStore";
-import { parseEdgeId, type AgentFlowEdge, type AgentFlowNode, type Dimensions } from "./derive";
+import { parseEdgeId, type AgentFlowEdge, type CanvasFlowNode, type Dimensions } from "./derive";
+import { flatView, type CanvasView } from "./view";
 
 // React Flow reports what the user did as change lists; each one becomes a store
 // operation, so no graph state lives only in React Flow (ADR 0001). Removals are
@@ -11,15 +12,25 @@ import { parseEdgeId, type AgentFlowEdge, type AgentFlowNode, type Dimensions } 
 const store = () => useAgentStore.getState();
 const history = () => useAgentStore.temporal.getState();
 
+/**
+ * `view` is what the canvas shows (view.ts): a collapsed stage's card moves all
+ * its nodes, and a dragged node's position is stored as if no stage were collapsed.
+ */
 export function handleNodeChanges(
-  changes: NodeChange<AgentFlowNode>[],
-  onMeasured: (name: string, dimensions: Dimensions) => void,
+  changes: NodeChange<CanvasFlowNode>[],
+  onMeasured: (id: string, dimensions: Dimensions) => void,
+  view: CanvasView = flatView,
 ) {
   let dragEnded = false;
   for (const change of changes) {
+    const stage = "id" in change ? view.cardStage.get(change.id) : undefined;
     if (change.type === "position" && change.position) {
-      const { x, y } = change.position;
-      store().moveNode(change.id, { x: Math.round(x), y: Math.round(y) });
+      const position = { x: Math.round(change.position.x), y: Math.round(change.position.y) };
+      if (stage === undefined) store().moveNode(change.id, view.stored(position));
+      else {
+        const card = view.cards.get(stage)!.position;
+        store().moveStage(stage, { x: position.x - card.x, y: position.y - card.y });
+      }
       // One drag, one undo step. Positions are written on every frame; the first
       // write of a drag is recorded (its "before" is the agent before the drag)
       // and history is paused for the rest. Pausing before that first write would
@@ -31,8 +42,10 @@ export function handleNodeChanges(
       onMeasured(change.id, change.dimensions);
     } else if (change.type === "select") {
       const { selection } = store();
-      if (change.selected) store().select({ kind: "node", name: change.id });
-      else if (selection?.kind === "node" && selection.name === change.id) store().select(null);
+      const selects =
+        stage === undefined ? ({ kind: "node", name: change.id } as const) : ({ kind: "stage", name: stage } as const);
+      if (change.selected) store().select(selects);
+      else if (selection?.kind === selects.kind && selection.name === selects.name) store().select(null);
     }
   }
   // After the whole batch: a multi-node drag ends with one change per node.
