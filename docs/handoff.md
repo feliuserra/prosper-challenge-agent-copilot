@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14: #43 merged; #57, #58 and #59 in review, stacked)
+## 0. Status (updated 2026-10-15: #57, #58 and #59 merged; #27 next)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -34,14 +34,14 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #51 Canvas: collapse a stage into one card | Merged; checked by the user | #53 |
 | #47 Canvas polish: Start and End as terminal nodes | Merged (see "What #47 built") | #55 |
 | #56 Hand-in memo (draft) and plan update | Merged: `docs/memo/memo.tex`; #57 to #59 created, #32 rewritten, #33 and #35 trimmed, #38 and #39 closed as cut (see "Hand-in memo and detection") | #60 |
-| #57 Synthetic call logs with planted defects | **In review** (see "What #57 built") | #63 |
-| #58 Call signals and triage | **In review**, branch stacked on #57's (see "What #58 built") | #64 |
-| #59 Call heatmap on the canvas | **In review**, branch stacked on #58's (see "What #59 built") | #59's PR |
-| #27 to #35 | Open, in the order of `PLAN-phase2.md`: #27 next | |
+| #57 Synthetic call logs with planted defects | Merged; checked by the user (`make synth`) | #63 |
+| #58 Call signals and triage | Merged; checked by the user (`make detect-eval`: 6 of 6 found, no false alarms) | #64 |
+| #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
+| #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 next** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** the user checks #63 (`make synth`), #64 (`make detect`, `make detect-eval`) and #59's PR (`make dev`, Call heatmap); merge them in that order (GitHub retargets each next PR to `main` when its base branch is deleted). Then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** #27 (demo clinic, reference suite and `make eval`). Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -224,6 +224,7 @@ What #7 built (`frontend/src/call/`), for reference:
 1. Branch `issue-N-short-name` from `main`, one branch and PR per issue, PR body ends with `Closes #N`.
 2. Build, run `make test`, and verify in the real app (see "Testing without disturbing the user" below).
 3. Commit locally and summarise for the user. **Ask before pushing, opening a PR or merging.** Once the user says "merge", merge with `gh pr merge <n> --merge --delete-branch`, then update local `main`, delete the local branch and create the next one. For #20 and #21, `gh` merged and deleted the remote branch but printed nothing and did not switch or delete the local branch; check with `git branch` and finish by hand (`git fetch --prune`, `git switch main`, `git pull --ff-only`, `git branch -d`).
+   **Stacked PRs** (a PR whose base is another PR's branch, as #64 on #63 and #65 on #64): deleting a base branch with `gh pr merge --delete-branch` **closes** the PR on top of it instead of retargeting it to `main` (it happened to #64 on 2026-10-15; fixed by pushing the deleted branch back at the same commit, `gh pr reopen`, `gh pr edit --base main`, then deleting the branch again). Merge in order, and for every PR but the last: merge without `--delete-branch`, `gh pr edit <next> --base main`, then `git push origin --delete <branch>`. The last one can use `--delete-branch`.
 4. Things that need a mic (a real call) are checked by the user: give them exact steps and what to look for in the terminal and the browser DevTools console (Cmd+Option+J). The user runs `make dev` in a terminal outside the app, so its output is not readable from the session; ask them to paste it.
 
 ## 1. The task
@@ -252,9 +253,12 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 182 tests) + Vitest (frontend, 165 tests) |
+| `make test` | pytest (backend, 269 tests) + Vitest (frontend, 249 tests) |
 | `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
+| `make synth` | Write the synthetic call logs, clinic records and labels to `backend/.synth/` (#57; no model calls, about 6 s) |
+| `make detect` | The ranked issues in the call logs (#58; about 5 s) |
+| `make detect-eval` | Detection measured against the planted defects, with the recall sweep (#58; about 45 s; `--trials 0` skips the sweep) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 
@@ -309,6 +313,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 - **Never format an HTTP client exception with `repr` (`{error!r}`) or log its request info.** An aiohttp `ClientResponseError` repr includes the request headers, so the ElevenLabs key ended up in a test runner log during #5 (the log was deleted; the user was told). `composer_api.py` builds its errors from the HTTP status and ElevenLabs' message only, and logs just the type for anything else.
 
 **Runtime and call**
+- **The runner does not reload on code changes; Vite does.** After pulling or switching to a branch with backend changes, restart `make dev`. A 404 on a new `/composer/...` route (seen with `/composer/detection`) means an old runner is still serving; an old `make dev` left in another terminal also holds 7860 and 5173, so the new one fails to bind (`address already in use`): stop the old one first.
 - **The draft must be sent as `requestData.body`.** `startBotAndConnect({endpoint: "/start", requestData: {body: {agent}}})`. The runner keeps only `body` between `/start` and the offer. The agent's loose TS type needs a documented cast to client-js's `Serializable` (see `CallButton.tsx`).
 - Mic requires localhost or HTTPS; browsers block audio playback until a user click.
 - Pipecat renames APIs often. Read the installed package source rather than blog examples.
