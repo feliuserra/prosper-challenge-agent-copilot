@@ -291,6 +291,72 @@ describe("stages", () => {
   });
 });
 
+describe("collapsing stages", () => {
+  const steps = () => useAgentStore.temporal.getState().pastStates.length;
+  // greeting and collect_details in "Start", offer_times and confirm in "Book".
+  beforeEach(() => {
+    store().setStage("greeting", "Start");
+    store().setStage("collect_details", "Start");
+    store().setStage("offer_times", "Book");
+    store().setStage("confirm", "Book");
+    store().markSaved();
+  });
+
+  it("changes neither the agent nor the undo history", () => {
+    const [before, past] = [agent(), steps()];
+    store().setCollapsed("Start", true);
+    store().setAllCollapsed(true);
+    expect(store().collapsed).toEqual(["Start", "Book"]);
+    store().setCollapsed("Book", false);
+    expect(store().collapsed).toEqual(["Start"]);
+    store().setAllCollapsed(false);
+    expect(store().collapsed).toEqual([]);
+    expect(agent()).toBe(before);
+    expect(steps()).toBe(past);
+    expect(selectIsDirty(store())).toBe(false);
+  });
+
+  it("selects the stage when a node or an edge inside it would be hidden", () => {
+    store().select({ kind: "node", name: "confirm" });
+    store().setCollapsed("Book", true);
+    expect(store().selection).toEqual({ kind: "stage", name: "Book" });
+    store().setCollapsed("Book", false);
+    store().select({ kind: "edge", source: "greeting", function: "choose_intent" });
+    store().setAllCollapsed(true);
+    expect(store().selection).toEqual({ kind: "stage", name: "Start" });
+  });
+
+  it("expands a stage when something inside it is selected, not for an edge leaving it", () => {
+    store().setAllCollapsed(true);
+    store().select({ kind: "edge", source: "collect_details", function: "record_details" });
+    expect(store().collapsed).toEqual(["Start", "Book"]);
+    store().select({ kind: "node", name: "offer_times" });
+    expect(store().collapsed).toEqual(["Start"]);
+    store().select({ kind: "edge", source: "greeting", function: "choose_intent" });
+    expect(store().collapsed).toEqual([]);
+  });
+
+  it("follows a renamed stage, forgets an ungrouped one, and starts expanded on open", () => {
+    store().setAllCollapsed(true);
+    store().renameStage("Start", "Identify");
+    expect(store().collapsed).toEqual(["Identify", "Book"]);
+    store().ungroupStage("Book");
+    expect(store().collapsed).toEqual(["Identify"]);
+    store().open("prosper-scheduler", JSON.parse(exampleText) as Agent);
+    expect(store().collapsed).toEqual([]);
+  });
+
+  it("moveStage moves every node of the stage by the offset, in one step", () => {
+    const [offer, confirm, greeting] = ["offer_times", "confirm", "greeting"].map((name) => node(name)!.ui!);
+    const past = steps();
+    store().moveStage("Book", { x: 30, y: -10 });
+    expect(node("offer_times")?.ui).toMatchObject({ x: offer.x + 30, y: offer.y - 10 });
+    expect(node("confirm")?.ui).toMatchObject({ x: confirm.x + 30, y: confirm.y - 10 });
+    expect(node("greeting")?.ui).toEqual(greeting);
+    expect(steps()).toBe(past + 1);
+  });
+});
+
 describe("patches", () => {
   it("undefined removes a key from a node, an edge or the agent, keeping key order", () => {
     store().updateNode("greeting", { role_message: "Be brief." });

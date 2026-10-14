@@ -94,7 +94,8 @@ function stageOfSelection(agent: Agent, selection: Selection): string | null {
   }
   if (selection?.kind === "edge") {
     const source = findNode(agent, selection.source);
-    const target = source && findNode(agent, edgesOf(source).find((e) => e.function === selection.function)?.target ?? "");
+    const targetName = source && edgesOf(source).find((e) => e.function === selection.function)?.target;
+    const target = targetName ? findNode(agent, targetName) : undefined;
     const stage = source ? stageOf(source) : null;
     return target && stageOf(target) === stage ? stage : null;
   }

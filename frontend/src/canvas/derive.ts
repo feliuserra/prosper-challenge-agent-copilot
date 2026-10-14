@@ -22,7 +22,13 @@ export type AgentNodeData = { node: Node; isStart: boolean; status?: StatusBadge
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /** A collapsed stage's card. `activeStep`: the node in it a test call is in. */
-export type StageCardData = { stage: Stage; status?: StatusBadge[]; isStart: boolean; isEnd: boolean; activeStep: string | null };
+export type StageCardData = {
+  stage: Stage;
+  status?: StatusBadge[];
+  isStart: boolean;
+  isEnd: boolean;
+  activeStep: string | null;
+};
 export type StageFlowNode = FlowNode<StageCardData, "stage">;
 export type CanvasFlowNode = AgentFlowNode | StageFlowNode;
 
@@ -81,7 +87,11 @@ function drawnEdges(agent: Agent, view: CanvasView) {
  * node in a collapsed stage, and of edges inside it, go on the stage's card.
  * Agent-level problems have no badge; the problems list shows them.
  */
-export function statusBadges(agent: Agent, problems: Problem[], view: CanvasView = canvasView(agent, [])): StatusBadges {
+export function statusBadges(
+  agent: Agent,
+  problems: Problem[],
+  view: CanvasView = canvasView(agent, []),
+): StatusBadges {
   const names = new Set(agent.nodes.map((n) => n.name));
   const drawn = new Set(drawnEdges(agent, view).map(({ source, edge }) => edgeId(source, edge.function)));
   const onNodes = new Map<string, Problem[]>();
@@ -176,11 +186,10 @@ export function toFlowEdges(
   const drawn = drawnEdges(agent, view);
   const end = view.endOf;
 
+  const cardSize = (id: string) => measured[id] ?? { width: NODE_WIDTH, height: NODE_HEIGHT };
   const boxes = new Map<string, Box>([
     ...agent.nodes.filter((n) => !view.hiddenIn.has(n.name)).map((n) => [n.name, cardBox(n, measured, view)] as const),
-    ...[...view.cards.values()].map(
-      (card) => [card.id, { ...card.position, ...(measured[card.id] ?? { width: NODE_WIDTH, height: NODE_HEIGHT }) }] as const,
-    ),
+    ...[...view.cards.values()].map((card) => [card.id, { ...card.position, ...cardSize(card.id) }] as const),
   ]);
   const routes = routeBackEdges(
     boxes,

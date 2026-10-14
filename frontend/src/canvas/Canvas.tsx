@@ -41,8 +41,9 @@ import { canvasView } from "./view";
 
 const nodeTypes = { agent: NodeCard, stage: StageCard };
 const edgeTypes = { function: FunctionEdge };
-// Fit small agents at 100% instead of blowing up a single card.
-const fitViewOptions = { maxZoom: 1 };
+// Fit small agents at 100% instead of blowing up a single card. Room at the top for
+// the buttons over the canvas and a stage frame's header, which fitting does not count.
+const fitViewOptions = { maxZoom: 1, padding: { top: "80px", right: "5%", bottom: "5%", left: "5%" } } as const;
 const store = () => useAgentStore.getState();
 
 export function Canvas() {
@@ -92,6 +93,15 @@ function Flow() {
   );
   const frames = useMemo(() => stageFrames(agent, measured, view), [agent, measured, view]);
   const selectedStage = selection?.kind === "stage" ? selection.name : null;
+
+  // Fit the view after Tidy layout or collapsing stages, once every card shown has
+  // been measured: a stage card that has just appeared has no size until then.
+  const fitPending = useRef(false);
+  useEffect(() => {
+    if (!fitPending.current || !nodes.every((n) => n.measured)) return;
+    fitPending.current = false;
+    void fitView({ ...fitViewOptions, duration: 300 });
+  }, [nodes, fitView]);
 
   // Notices (e.g. a blocked delete) fade after a few seconds.
   useEffect(() => {
@@ -169,9 +179,8 @@ function Flow() {
     refit();
   }
 
-  // After React Flow has the new positions.
   function refit() {
-    requestAnimationFrame(() => void fitView({ ...fitViewOptions, duration: 300 }));
+    fitPending.current = true;
   }
 
   return (

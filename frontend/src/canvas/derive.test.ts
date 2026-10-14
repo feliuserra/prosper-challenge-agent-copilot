@@ -15,10 +15,13 @@ import {
   toFlowEdges,
   toFlowNodes,
   type AgentFlowNode,
+  type StageFlowNode,
 } from "./derive";
+import { canvasView } from "./view";
 
 /** The node cards among derived nodes (no stage is collapsed in these tests unless said). */
-const nodeCards = (nodes: ReturnType<typeof toFlowNodes>) => nodes.filter((n): n is AgentFlowNode => n.type === "agent");
+const nodeCards = (nodes: ReturnType<typeof toFlowNodes>) =>
+  nodes.filter((n): n is AgentFlowNode => n.type === "agent");
 
 const agent: Agent = {
   name: "a",
@@ -206,5 +209,55 @@ describe("stageFrames", () => {
       const card = { x: n.ui!.x, y: n.ui!.y, width: NODE_WIDTH, height: cardHeight(n) };
       expect(frames.filter((f) => overlaps(f, card)).map((f) => f.name)).toEqual([n.stage]);
     }
+  });
+});
+
+describe("a collapsed stage", () => {
+  const to = (target: string) => ({ function: `to_${target}`, description: "", target });
+  // a -> b -> c -> d, with b and c in stage S.
+  const staged: Agent = {
+    name: "c",
+    initial_node: "a",
+    nodes: [
+      { name: "a", ui: { x: 0, y: 0 }, edges: [to("b")] },
+      { name: "b", stage: "S", ui: { x: 0, y: 218 }, edges: [to("c")] },
+      { name: "c", stage: "S", ui: { x: 0, y: 436 }, edges: [to("d")], end: true },
+      { name: "d", ui: { x: 0, y: 654 } },
+    ],
+  };
+  const view = canvasView(staged, ["S"]);
+  const card = view.cards.get("S")!.id;
+  const problems: Problem[] = [
+    { severity: "error", message: "No task.", node: "c", edge: null },
+    { severity: "warning", message: "No description.", node: "b", edge: "to_c" },
+    { severity: "warning", message: "Leaves.", node: "c", edge: "to_d" },
+  ];
+
+  it("is one card with its steps and its nodes' badges, in place of its nodes", () => {
+    const badges = statusBadges(staged, problems, view);
+    const nodes = toFlowNodes(staged, null, {}, badges.nodes, "c", view);
+    expect(nodes.map((n) => n.id)).toEqual(["a", "d", card]);
+    const stageCard = nodes[2] as StageFlowNode;
+    expect(stageCard.data).toMatchObject({ isStart: false, isEnd: true, activeStep: "c" });
+    expect(stageCard.data.stage.nodes).toEqual(["b", "c"]);
+    expect(stageCard.data.status?.map((b) => [b.label, b.title])).toEqual([
+      ["1 error", "c: No task."],
+      ["1 warning", "b › to_c: No description."],
+    ]);
+    // An edge leaving the stage is drawn, with its own badge.
+    expect(badges.edges.get(edgeId("c", "to_d"))?.[0].title).toBe("Leaves.");
+  });
+
+  it("hides the edges inside it, and ends the others at its card", () => {
+    const edges = toFlowEdges(staged, { kind: "edge", source: "c", function: "to_d" }, new Map(), null, {}, view);
+    expect(edges.map((e) => [e.id, e.source, e.target, e.selected])).toEqual([
+      ["a::to_b", "a", card, false],
+      ["c::to_d", card, "d", true],
+    ]);
+  });
+
+  it("has no frame", () => {
+    expect(stageFrames(staged, {}, view)).toEqual([]);
+    expect(stageFrames(staged).map((f) => f.name)).toEqual(["S"]);
   });
 });

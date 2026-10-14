@@ -95,7 +95,10 @@ export function canvasView(
   const shift = (y: number) => removed.reduce((sum, [a, b]) => sum + Math.max(0, Math.min(b, y) - a), 0);
 
   const cards = new Map<string, StageCard>(
-    folds.map((f) => [f.stage.name, { id: f.id, stage: f.stage, position: { x: f.first.ui?.x ?? 0, y: f.top - shift(f.top) } }]),
+    folds.map((f) => {
+      const position = { x: f.first.ui?.x ?? 0, y: f.top - shift(f.top) };
+      return [f.stage.name, { id: f.id, stage: f.stage, position }];
+    }),
   );
   return {
     hiddenIn,
