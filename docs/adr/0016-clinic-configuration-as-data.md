@@ -31,6 +31,8 @@
 - A Copilot proposal is a small, reviewable diff: for a small clinic, mostly configuration and tone. The human reviews the configuration as tables.
 - Diagnosis (ADR 0015) gains a broken link, a wrong or missing configuration entry, decided exactly from the tool results in the failing turn. Mutation testing (ADR 0011) gains configuration mutants.
 - The catalog grows from 7 to 10 tools, and `find_slots` and `book_appointment` take `appointment_type`. A clinic without configuration behaves as before.
-- The text runner builds the same per-clinic schemas as the builder.
+- The text runner builds the same per-clinic schemas as the builder: both take them from the clinic (`ClinicWorld.tool_spec`), so they cannot drift.
+- Clinics live in `backend/clinic/clinics/<id>.json` and their live state in `backend/clinic/state/<id>.json`. The agent is told its clinic's name with the date.
+- The template gained a reschedule and cancel branch (built in #43's first PR): the fee rule has nothing to act on in an agent that only books.
 - Some intake checklist items (#38) are answered by configuration entries instead of requirements.
 - Out of scope, stated in the README: hospitals (departments, routing between them) and any rule the tables cannot express.

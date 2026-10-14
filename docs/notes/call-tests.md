@@ -2,13 +2,13 @@
 
 A checklist of calls to make after each change to the voice pipeline or the example agent (`backend/agents/prosper-scheduler.json`). About ten minutes in all.
 
-**Setup:** run `make clinic-reset` once, so the clinic starts from its seed (`backend/clinic/seed.json`: Monday 2026-10-12, 08:30; Dr. Priya Patel, Dr. Daniel Okafor and Grace Kim, NP; patients Ana Lopez, born 1984-03-12, James O'Connor and Mei Chen). Then `make dev`, open `http://localhost:5173`, open "Prosper Scheduler", press **Test call**, then **Call** for each test. Watch three places:
+**Setup:** run `make clinic-reset` once, so the clinic starts from its seed (`backend/clinic/clinics/riverside.json` since #43: Monday 2026-10-12, 08:30; Dr. Priya Patel, Dr. Daniel Okafor and Grace Kim, NP; patients Ana Lopez, born 1984-03-12, James O'Connor and Mei Chen). Then `make dev`, open `http://localhost:5173`, open "Prosper Scheduler", press **Test call**, then **Call** for each test. Watch three places:
 
 - the call panel transcript: what the bot heard and said, a "Transition" row for each step, and a "Tool" row for each tool call (open "Result" to see what the clinic answered);
 - the canvas: the current node is outlined in green, the edge just taken is animated;
 - the `make dev` terminal, which logs each step as `[function] -> target | collected: {...}` and each tool call as `[tool] in node | args: {...} | result: {...}`.
 
-Bookings persist between calls (in `backend/clinic/state.json`) until `make clinic-reset`.
+Bookings persist between calls (in `backend/clinic/state/riverside.json`, one file per clinic since #43) until `make clinic-reset`.
 
 ## 1. New patient with a hard name, one correction, and a booking
 

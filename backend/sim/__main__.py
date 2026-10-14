@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from agent_builder import validate_agent
+from clinic import clinic_of
 
 from . import config
 from .checks import render_transcript
@@ -44,7 +45,8 @@ def main(argv: list[str] | None = None) -> int:
 
     agent = json.loads(args.agent.read_text())
     tests = load_tests(args.tests)
-    errors = [f"agent: {e.message}" for e in validate_agent(agent)] + validate_tests(tests)
+    agent_errors = validate_agent(agent)
+    errors = [f"agent: {e.message}" for e in agent_errors] + (validate_tests(tests, clinic_of(agent)) if not agent_errors else [])
     if args.only:
         tests = [t for t in tests if isinstance(t, dict) and t.get("id") in args.only]
         if not tests:

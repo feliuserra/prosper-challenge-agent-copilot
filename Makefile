@@ -28,8 +28,8 @@ test: ## Run the backend and frontend tests
 	uv run --directory $(PROJECT) pytest
 	npm test --prefix $(FRONTEND)
 
-clinic-reset: ## Restore the live clinic (bookings made in calls) to its seed
-	rm -f $(PROJECT)/clinic/state.json
+clinic-reset: ## Restore the live clinics (bookings made in calls) to their seeds
+	rm -rf $(PROJECT)/clinic/state $(PROJECT)/clinic/state.json
 
 clean: ## Remove the venv, node_modules and Python caches
 	rm -rf $(PROJECT)/.venv $(FRONTEND)/node_modules

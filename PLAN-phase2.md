@@ -177,7 +177,7 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 - Tools: new `list_appointment_types`, `check_coverage(insurance_plan, appointment_type)` and `get_clinic_info`; `find_slots` and `book_appointment` take `appointment_type` and enforce providers, patient eligibility and required fields; `register_patient` takes the clinic's fields; cancel and reschedule inside the fee window need `fee_acknowledged` and the refusal states the fee; `lookup_patient` shows each appointment's type and whether a fee applies now. The schema the model sees is built per clinic (fields as properties, types as an enum).
 - Several clinics under `backend/clinic/clinics/` (the seed becomes `riverside.json`); an optional `clinic` field on the agent (default `riverside`); live state per clinic; schema, validation (unknown clinic) and zod mirror.
 - The text runner (#26) uses the same per-clinic schemas and clinic selection as the builder; test files may set the new keys in `world`.
-- The example agent becomes the scheduling template: no clinic facts in its prompts; it maps the reason to a type, checks coverage when insurance comes up, and collects the fields the tools ask for.
+- The example agent becomes the scheduling template: no clinic facts in its prompts; it maps the reason to a type, checks coverage when insurance comes up, and collects the fields the tools ask for. It also gets a reschedule and cancel branch (added while building), since the fee rule needs one.
 - Riverside's seed gets a configuration: 4 or 5 types (one for new patients only), 2 or 3 plans with different coverage, one extra registration field and one booking field, a 24 h fee.
 
 **Scope, second PR (the Clinic tab):**

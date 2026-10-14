@@ -32,7 +32,8 @@ Thumbs.db
 .vscode/
 *.swp
 
-# ---- Live clinic state (created from backend/clinic/seed.json) ----
+# ---- Live clinic state, one file per clinic (created from backend/clinic/clinics/<id>.json) ----
+backend/clinic/state/
 backend/clinic/state.json
 
 # ---- Text runner results, cached by input hash (backend/sim) ----

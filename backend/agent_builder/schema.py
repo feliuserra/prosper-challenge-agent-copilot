@@ -6,7 +6,8 @@
 # verbatim. What we add is `edges`: transitions expressed as DATA (a string `target`)
 # rather than as Python closures — because a Composer can emit a string, not a
 # callable. `AgentBuilder` turns these strings back into the closures Pipecat wants.
-# Nodes may also list `tools` by name from the clinic catalog (ADR 0008).
+# Nodes may also list `tools` by name from the clinic catalog (ADR 0008), and
+# the agent may name the clinic it runs against (ADR 0016).
 #
 
 from dataclasses import dataclass, field
@@ -75,6 +76,7 @@ class AgentConfig:
     persona: str = ""                    # global role_message, applied to every node
     voice_id: str = DEFAULT_VOICE_ID
     model: str = DEFAULT_MODEL
+    clinic: Optional[str] = None         # a clinic id (clinic/clinics/); None is the default clinic
 
     @classmethod
     def from_dict(cls, d: dict) -> "AgentConfig":
@@ -85,4 +87,5 @@ class AgentConfig:
             persona=d.get("persona", ""),
             voice_id=d.get("voice_id", DEFAULT_VOICE_ID),
             model=d.get("model", DEFAULT_MODEL),
+            clinic=d.get("clinic"),
         )

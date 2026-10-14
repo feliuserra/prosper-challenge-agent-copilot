@@ -220,7 +220,7 @@ describe("stageFrames", () => {
     };
     const laidOut = autoLayout(branched);
     const frames = stageFrames(laidOut);
-    expect(frames.map((f) => f.name)).toEqual(["Identify caller", "Visit", "Book", "Waitlist"]);
+    expect(frames.map((f) => f.name)).toEqual(["Identify caller", "Visit", "Change appointment", "Book", "Waitlist"]);
     type Rect = { x: number; y: number; width: number; height: number };
     const overlaps = (a: Rect, b: Rect) =>
       a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;

@@ -11,8 +11,7 @@ import simfakes
 from simfakes import BOOKING_AGENT, BOOKING_CALLER, TEST, call, caller, say
 from agent_builder import AgentBuilder
 from agent_builder.builder import TRANSFER_TASK
-from clinic import ClinicWorld
-from sim import config
+from clinic import ClinicWorld, load_seed
 from sim.conversation import Conversation
 from sim.runner import simulate
 from sim.testfile import resolve_world
@@ -23,7 +22,7 @@ def run(coro):
 
 
 def seed_world() -> ClinicWorld:
-    return ClinicWorld.from_file(config.SEED)
+    return ClinicWorld(load_seed("riverside"))
 
 
 def booking(example, agent=BOOKING_AGENT, callers=BOOKING_CALLER, test=TEST):

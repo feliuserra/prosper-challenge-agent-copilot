@@ -27,7 +27,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | Client intake plan | Merged: #38 (checklist) and #39 (intake call) added to `PLAN-phase2.md` | #40 |
 | #26 Text runner and test format | Merged; the user's runs passed, and a broken agent failed as expected | #42 |
 | Clinic configuration plan | Merged: #43 created, ADR 0016, `PLAN-phase2.md`; #27, #29, #30, #31, #38 and #39 updated on GitHub | #44 |
-| #43 Clinic configuration | **In progress** on `issue-43-clinic-config`. Scope narrowed on 2026-10-14 (see below); two PRs | |
+| #43 Clinic configuration | First PR (backend) **in review**; the second (the Clinic tab) is next. Scope narrowed on 2026-10-14 (see below) | #61 |
 | #45 Canvas polish: edge label pills, quiet edges, dotted background | Merged; checked by the user | #48 |
 | #46 Canvas polish: node card redesign | Merged; checked by the user | #49 |
 | #50 Canvas: stages, frames around groups of nodes | Merged; checked by the user | #52 |
@@ -38,7 +38,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #43 (clinic configuration) on `issue-43-clinic-config`, before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `main` (the canvas work, #45 to #51) was merged into the branch on 2026-10-14. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits. `issue-27-reference-suite` and `docs/clinic-config-plan` were deleted after the #44 merge.
+**Next step:** #43's second PR, the read-only Clinic tab (`PLAN-phase2.md`), once the user has reviewed #61 and made the real call in its PR. #43 comes before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. `main` (the canvas work, #45 to #51) was merged into the branch on 2026-10-14. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits. `issue-27-reference-suite` and `docs/clinic-config-plan` were deleted after the #44 merge.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -48,13 +48,14 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
 
-What #47 built") | #55 |
-| #43, #27 to #35, #38, #39 | Open, in the order of `PLAN-phase2.md`: #43 before #27, #38 right after #29, #39 after #33 | |
-| #11 | Open, moved to the end, after Phase 2 (see section 6) | |
-
-**Next step:** #47 (Start and End as terminal nodes) is in review as PR #55; the user checks it in the browser. It is the last of the canvas issues the user added on 2026-10-14 (#45, #46, #50, #51 are merged; see "What #45, #46, #50 and #51 built"). After it merges, #43 goes on.
-
-#43 (clinic configuration) is in progress on the local branch `issue-43-clinic-config`, before #27: clinic-a's guidelines, world, reference agent and tests are written against #43's catalog. That branch has an unpushed plan commit (`25b0409`: #43 narrowed, a read-only Clinic tab, two PRs, cheaper mutant runs) whose copy of this section has the details. It was written before the canvas work, so merge `main` into it before going on: this section and the status table will conflict; keep both sides. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits. A separate session is brainstorming how to find problems in calls at scale (workflow 2) before #32 is rewritten: see "Interviewer's answers" below. #11 comes last.
+What #43's first PR built (backend, plus one zod field), for reference:
+- `backend/clinic/config.py`: the configuration keys (appointment types, insurance plans, registration and booking fields, cancellation, facts; patients' `last_visit` and `insurance_plan`, appointments' `appointment_type`) and `validate_clinic`, which returns every problem as `ConfigIssue(path, message)`. `clinic/clinics.py`: one file per clinic in `clinic/clinics/` (the seed is now `riverside.json`), `clinic_ids`, `seed_path`, `load_seed`, `clinic_of(agent)` (default `riverside`).
+- `ClinicWorld.tool_spec(name)` builds what the model sees from the configuration: types as an enum (required by `find_slots` and `book_appointment` when the clinic has types), the clinic's fields as parameters, and `appointment_type` and `fee_acknowledged` removed when the clinic has no types or no fee. `call()` checks required parameters against it. The builder takes every tool's schema from its clinic (`Clinic.tool_spec`), so the bot and the runner cannot drift.
+- Rules: providers per type (find, book, reschedule), types for new or existing patients (new means no `last_visit`), required fields, and a late-change fee: inside the window, cancel and reschedule refuse with the amount until `fee_acknowledged` is true. New tools: `list_appointment_types`, `check_coverage` (plan names match loosely; an unknown plan answers with the accepted ones), `get_clinic_info`. `lookup_patient` shows `new_patient`, the plan, the type and `late_change_fee`. The date line now names the clinic.
+- Agents may name a clinic (`clinic`, validated); the bot keeps live state per clinic in `clinic/state/<id>.json`; the runner resolves a test's world from the agent's clinic, and test files may set the configuration keys and are checked against the clinic's schemas (`validate_tests(tests, clinic)`).
+- The template: no clinic facts; the greeting answers clinic questions with `get_clinic_info`; `collect_reason` maps the reason to a type and checks coverage; `offer_times` collects the booking fields; a new reschedule and cancel branch (`manage_appointment`, `change_confirmed`, stage "Change appointment") handles the fee. The persona forbids stating a policy, fee or fact no tool gave (the agent once invented "we might waive it").
+- Runner: the caller's hang-up rule now waits for the assistant to confirm the goal (it hung up after picking a time or answering the interpreter question; probes of the exact decision: 3/10 hang-ups before, 0/10 after). `RUNNER_VERSION` 43.2. Example tests: 4 (a late cancellation added), all passing.
+- The #25 clinic tests run unchanged on `tests/fixtures/clinic-plain.json` (the old seed); `tests/test_clinic_config.py` has 44 new tests. 226 pytest, 218 Vitest.
 
 What #47 built (frontend only), for reference:
 - Derived only (ADR 0001). `canvas/view.ts` names the pills: `view.terminals` (pill id, the id of its edge, `kind`, and `at`, the node or collapsed stage card it hangs off). Ids are made unique against nodes, cards and edge ids like stage cards' (`:` prefixes); the Start pill's id does not depend on the start node, so React Flow moves it when the start node changes. `derive.ts` places them (`terminalPills`) and adds `terminal` nodes and plain React Flow `default` edges in `toFlowNodes` and `toFlowEdges`. `TerminalNode.tsx` draws them (flag, hang-up icon; `TERMINAL_WIDTH` x `TERMINAL_HEIGHT`, 84x28, in `layout.ts`).

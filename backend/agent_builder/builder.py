@@ -8,9 +8,12 @@
 # and "agent as a running conversation" (what bot.py executes). Keeping the
 # compile + validation here means bot.py never touches the graph internals.
 #
-# Tools (ADR 0008) run against a clinic: anything with `call(name, args)` and
-# `date_line()`, such as the live clinic in bot.py or a fresh ClinicWorld in a
-# test. The clinic's date is added to every node's system message.
+# Tools (ADR 0008) run against a clinic: anything with `call(name, args)`,
+# `date_line()` and `tool_spec(name)`, such as the live clinic in bot.py or a
+# fresh ClinicWorld in the text runner. The clinic's date is added to every
+# node's system message, and each tool's parameters come from the clinic's
+# configuration (ADR 0016), so the bot and the runner give the model the same
+# schemas.
 #
 
 import json
@@ -22,7 +25,7 @@ from loguru import logger
 from pipecat.processors.frameworks.rtvi import RTVIServerMessageFrame
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
-from clinic.catalog import TOOLS
+from clinic.catalog import TOOLS, ToolSpec
 
 from .schema import AgentConfig, Edge, Node
 from .validation import ValidationError, validate_agent
@@ -38,6 +41,7 @@ TRANSFER_TASK = (
 class Clinic(Protocol):
     def call(self, name: str, args: dict) -> dict: ...
     def date_line(self) -> str: ...
+    def tool_spec(self, name: str) -> ToolSpec: ...
 
 
 class AgentBuilder:
@@ -137,8 +141,12 @@ class AgentBuilder:
             handler=handler,
         )
 
+    def _tool_spec(self, tool: str) -> ToolSpec:
+        """The tool as the clinic offers it; the catalog's base spec without a clinic."""
+        return self.clinic.tool_spec(tool) if self.clinic is not None else TOOLS[tool]
+
     def _make_tool_function(self, node: Node, tool: str) -> FlowsFunctionSchema:
-        spec = TOOLS[tool]
+        spec = self._tool_spec(tool)
 
         async def handler(args: dict, flow_manager: FlowManager):
             if self.clinic is None:
