@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-14: #43 merged; #57 in review)
+## 0. Status (updated 2026-10-14: #43 merged; #57 and #58 in review, stacked)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -34,12 +34,13 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #51 Canvas: collapse a stage into one card | Merged; checked by the user | #53 |
 | #47 Canvas polish: Start and End as terminal nodes | Merged (see "What #47 built") | #55 |
 | #56 Hand-in memo (draft) and plan update | Merged: `docs/memo/memo.tex`; #57 to #59 created, #32 rewritten, #33 and #35 trimmed, #38 and #39 closed as cut (see "Hand-in memo and detection") | #60 |
-| #57 Synthetic call logs with planted defects | **In review** (see "What #57 built") | #57's PR |
-| #58, #59, #27 to #35 | Open, in the order of `PLAN-phase2.md`: #58 and #59 (detection, no model calls), then #27 | |
+| #57 Synthetic call logs with planted defects | **In review** (see "What #57 built") | #63 |
+| #58 Call signals and triage | **In review**, branch stacked on #57's (see "What #58 built") | #58's PR |
+| #59, #27 to #35 | Open, in the order of `PLAN-phase2.md`: #59 (the heatmap), then #27 | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** the user checks #57's PR (`make synth`), then #58 and #59 (detection, no model calls), then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** the user checks #63 (`make synth`) and #58's PR (`make detect`, `make detect-eval`); merge #63 first (GitHub then retargets #58's PR to `main`). Then #59, then #27. #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -48,6 +49,16 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #58 built (backend only, no model calls), for reference:
+- `backend/detect/signals.py`: `count(calls, records)` gives a `Cell` per clinic, version, week (Monday's date) and node: events `k` and denominators `n` per signal, exits per edge function, and the call ids behind each event. Signals per call that entered the node: `reentry` (the call went from the node to itself or to a node it reached before this one: a loop counts where it starts, so the second pass Ask name to Confirm name is not a loop of Ask name's), `stall` (a visit over `STALL_TURNS` = 6 agent turns), `hang_up` / `transfer` / `error` (ended there), `tool_error`, `duplicate` (a chart registered there whose birth date and phone match an earlier patient under another name). `callback`: per completed call, the same number within 48 hours (after a hang-up a callback is a retry, which the hang-up already counts; including them made the fleet comparison depend on how calls ended, a false alarm at Riverside's Verify patient). `quick_change`: per booking, changed or cancelled within 24 hours. Callbacks and quick changes count in the week they become known; ones not known by the end of the logs are left out.
+- `backend/detect/stats.py`: one test, `p_greater(k1, n1, k2, n2, ratio)`, conditional on the events on both sides (binomial with p = r n1 / (r n1 + n2)): exact tail below 30 expected events, normal with a continuity correction above. The z-test was replaced after it flagged 17 of 148 transfers at the quiet clinic (z-test p 0.00008, exact 0.001). Treats events as rare, so for common ones it is conservative. `holm`.
+- `backend/detect/triage.py`: `run(counts, week)` tests, per clinic, the version it runs that week (its last 4 weeks at most) against its previous version (`ALLOWANCE` 1.0) and the other clinics in the same weeks (`ALLOWANCE` 1.2: clinics really differ; the quiet clinic's greeting transfers are 1.12 times the fleet's in the data). Flag: Holm per clinic per week at 0.05, at least 5 events, 0.2 points, and 1.2 times the previous version or 1.5 times the fleet. `detect` runs every week; `triage` groups the last week's flags by clinic, node and shape (reentry and stall: stall; hang_up: leak; transfer: detour; error and tool_error: error; duplicate, callback and quick_change: silent), with the excess against the closer baseline, the version and week it started, the weekly trend, a direction, 3 example calls; ranked by severity weight (high 3: duplicate, error; low 1: reentry, stall; medium 2 the rest) times extra calls a week. `report` is what `make detect` prints.
+- `backend/detect/evaluate.py` (the only reader of `labels.json`): found or missed per planted defect, false alarms per clinic-week and per 1,000 calls, the must-not-flag items with the closest test, and `sweep` (recall by rate and volume over seeds, in a process pool). `make detect-eval` writes `backend/.synth/evaluation.json`.
+- `GET /composer/detection` (`detect/api.py`, mounted in `bot.py` on `backend/.synth`): `available` (false with a reason when there are no logs), `week`, `clinics` with versions, `issues`, `example_calls` (their summaries), `nodes[clinic][version][node]` = `entered`, `exits`, and per signal `k`, `n`, `rate`, `version` and `fleet` baselines with a raw p and `flagged`, over the whole version (not the 4-week window), `settings`, `signals` (label and shape). Cached by file times: about 5 s for the first request, 20 ms after. Version keys are strings in JSON.
+- Results on the demo logs: 6 of 6 planted defects found (week found: the stall and the tool errors the week their version started; the callbacks a week later, since callbacks are known 48 hours late), no false alarms in 18 clinic-weeks, no must-not-flag item flagged; Riverside's greeting rise was significant (Holm p 0.04) and stopped by the minimum effect. Sweep (10 seeds per cell): +0.5 points found 0, 10 and 60% of the time at 150, 1,500 and 11,500 calls a week; +2 points 20, 100, 100%; 10 false alarms in 600 clinic-weeks, all against a previous version whose own small sample came out low (Holm p 0.007 to 0.046). `make detect` takes about 5 s, the sweep 40 s on 12 cores.
+- The memo: the results row filled, a rate by volume table under the results, the triage example is now the real one, and the scope table says clinic configuration, signals and triage are built. Still 3 pages.
+- Tests: 269 pytest (22 new in `tests/test_detect.py`; the demo logs are generated once per session, `demo_logs` in `conftest.py`).
 
 What #57 built (backend only, no model calls), for reference:
 - `backend/detect/summary.py`: the call summary that every source reduces to (one JSON line: id, source, clinic, version, start, end, caller, `path` as `[node, turns, via]` per visit, `tools` as `[node, tool, ok]`, `ended` in completed / hang_up / transfer / error). `from_sim_record` reduces a text-runner record (turns in the transfer node are not counted; `max_turns` reads as a hang-up, `agent_loop` as an error). Live records (#28) will get the same.

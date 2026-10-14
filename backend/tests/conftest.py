@@ -27,3 +27,11 @@ def no_model_calls(monkeypatch):
     """`make test` makes no model calls: without a key a real OpenAI client cannot be built,
     so a test that reached one would fail instead of spending."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+
+@pytest.fixture(scope="session")
+def demo_logs():
+    """The synthetic demo logs (#57): calls, records and labels. About 4 s, once per run."""
+    from detect import synth
+
+    return synth.generate()

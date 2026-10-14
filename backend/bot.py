@@ -53,6 +53,8 @@ from pipecat_flows import FlowManager
 from agent_builder import AgentBuilder, ValidationError, ValidationIssue
 from clinic import LiveClinic, clinic_ids, clinic_of
 from composer_api import make_router
+from detect import api as detection_api
+from detect.synth import OUT_DIR as SYNTHETIC_CALLS
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
@@ -73,6 +75,7 @@ CLINIC_STATE_DIR = Path(__file__).parent / "clinic" / "state"
 TURN_STOP_SECS = 1.2
 
 app.include_router(make_router(AGENTS_DIR))
+app.include_router(detection_api.make_router(SYNTHETIC_CALLS))  # #58: issues and per-node numbers
 
 
 transport_params = {

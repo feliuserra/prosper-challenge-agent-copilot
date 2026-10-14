@@ -14,8 +14,8 @@ def small_scenario() -> dict:
 
 
 @pytest.fixture(scope="module")
-def demo():
-    return synth.generate()
+def demo(demo_logs):
+    return demo_logs
 
 
 # ---- the same seed gives the same logs ---------------------------------------------------
