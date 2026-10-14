@@ -12,7 +12,7 @@ const agent: Agent = {
       name: "start",
       ui: { x: 10, y: 20 },
       edges: [
-        { function: "book", description: "", target: "next" },
+        { function: "book", description: "Call when the caller picks a time.", target: "next" },
         { function: "cancel", description: "", target: "next" },
         { function: "lost", description: "", target: "nowhere" },
       ],
@@ -41,6 +41,17 @@ describe("toFlowEdges", () => {
     expect(edges.map((e) => e.selected)).toEqual([false, true]);
     // Only the selected edge can be reconnected.
     expect(edges.map((e) => e.reconnectable)).toEqual([false, "target"]);
+  });
+
+  it("labels an edge with its description, or its function name when it has none", () => {
+    expect(edges.map((e) => e.data!.label)).toEqual(["When the caller picks a time.", "cancel"]);
+  });
+
+  it("draws an open arrowhead, coloured like the edge when selected or taken by a test call", () => {
+    const colours = (flow: typeof edges) => flow.map((e) => (e.markerEnd as { color: string }).color);
+    expect(edges.every((e) => (e.markerEnd as { type: string }).type === "arrow")).toBe(true);
+    expect(colours(edges)).toEqual(["#b6bcc4", "#0969da"]);
+    expect(colours(toFlowEdges(agent, null, new Map(), "start::book"))).toEqual(["#1a7f37", "#b6bcc4"]);
   });
 
   it("gives edges between the same two nodes their own lanes, a lone edge lane 0", () => {

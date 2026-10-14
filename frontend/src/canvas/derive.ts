@@ -1,6 +1,6 @@
 import { MarkerType, type Edge as FlowEdge, type Node as FlowNode } from "@xyflow/react";
 
-import { NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
+import { edgeLabel, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
 import type { Selection } from "../store/agentStore";
 import type { Problem, Severity } from "../validation/problems";
@@ -18,12 +18,14 @@ export type AgentNodeData = { node: Node; isStart: boolean; status?: StatusBadge
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /**
+ * `label`: what the edge's label says (`edgeLabel`).
  * `lane` separates edges that join the same two nodes (see edgePath.ts).
  * `route`: set for a back edge (into a node above), the column it runs up.
  * `active`: the edge a test call took last (#8).
  */
 export type FunctionEdgeData = {
   function: string;
+  label: string;
   lane: number;
   route?: BackRoute;
   status?: StatusBadge[];
@@ -32,6 +34,12 @@ export type FunctionEdgeData = {
 export type AgentFlowEdge = FlowEdge<FunctionEdgeData, "function">;
 
 export type Dimensions = { width: number; height: number };
+
+// Edge colours, as in index.css. Arrowheads are shared SVG markers, so CSS cannot
+// colour them per edge; each colour gets its own marker.
+const EDGE_STROKE = "#b6bcc4";
+const SELECTED_STROKE = "#0969da";
+const ACTIVE_STROKE = "#1a7f37";
 
 export const edgeId = (source: string, fn: string) => `${source}::${fn}`;
 
@@ -143,7 +151,7 @@ export function toFlowEdges(
       id: edgeId(source, edge.function),
       source,
       target: edge.target,
-      label: edge.function,
+      label: edgeLabel(edge),
     })),
   );
 
@@ -168,6 +176,7 @@ export function toFlowEdges(
       target: edge.target,
       data: {
         function: edge.function,
+        label: edgeLabel(edge),
         lane: index - (pairCount.get(pair)! - 1) / 2,
         route: routes.get(id),
         status: status.get(id),
@@ -179,7 +188,10 @@ export function toFlowEdges(
       // moves when several end at the same handle. Only the target end: moving
       // the source would move the edge into another node's function list.
       reconnectable: selected ? "target" : false,
-      markerEnd: { type: MarkerType.ArrowClosed },
+      markerEnd: {
+        type: MarkerType.Arrow,
+        color: active ? ACTIVE_STROKE : selected ? SELECTED_STROKE : EDGE_STROKE,
+      },
     };
   });
 }

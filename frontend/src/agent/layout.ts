@@ -1,6 +1,6 @@
 import dagre from "@dagrejs/dagre";
 
-import type { Agent, Position } from "./schema";
+import type { Agent, Edge, Position } from "./schema";
 
 // Canvas positions (`ui`) for nodes that have none. A full dagre layout runs only
 // when no node has a position; otherwise missing nodes are placed one by one and
@@ -11,17 +11,59 @@ export const NODE_WIDTH = 240;
 /** Approximate card height (name line + task line). Only used for spacing. */
 export const NODE_HEIGHT = 64;
 const NODE_GAP = 60;
-// Room between ranks for an edge's function-name label.
-const RANK_GAP = 90;
+// Room between a card and the next rank's cards, with an edge label in the middle.
+const RANK_GAP = 120;
+
+// Edge labels (FunctionEdge, `.edge-label`). Longer text is cut with an ellipsis.
+export const LABEL_HEIGHT = 24;
+export const LABEL_MAX_WIDTH = 260;
+// Space between the labels of a branch.
+const LABEL_GAP = 20;
+
+/**
+ * What an edge's label says: its description on one line, without the "Call"
+ * of "Call when ..." that descriptions for the model start with, so labels
+ * differ early; or its function name when it has no description.
+ */
+export function edgeLabel(edge: Edge): string {
+  const text = edge.description
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^call (?=(when|once|if|after|as soon as) )/i, "");
+  return text ? text[0].toUpperCase() + text.slice(1) : edge.function;
+}
+
+/** A label's approximate width: 12px sans-serif text, the icon and padding, up to the maximum. */
+export const labelWidth = (text: string) => Math.min(text.length * 6.5 + 38, LABEL_MAX_WIDTH);
 
 const round = ({ x, y }: Position): Position => ({ x: Math.round(x), y: Math.round(y) });
+
+/**
+ * The width each node takes in its rank. A label sits halfway between its two
+ * cards (edgePath.ts), so labels of edges out of one node are half as far apart
+ * as their targets: the targets of a branch take twice their label's width, less
+ * the gap between cards, which leaves LABEL_GAP between neighbouring labels.
+ */
+function slotWidths(agent: Agent): Map<string, number> {
+  const widths = new Map(agent.nodes.map((n) => [n.name, NODE_WIDTH]));
+  for (const node of agent.nodes) {
+    const out = (node.edges ?? []).filter((e) => e.target !== node.name && widths.has(e.target));
+    if (new Set(out.map((e) => e.target)).size < 2) continue;
+    for (const edge of out) {
+      const width = 2 * labelWidth(edgeLabel(edge)) + 2 * LABEL_GAP - NODE_GAP;
+      widths.set(edge.target, Math.max(widths.get(edge.target)!, width));
+    }
+  }
+  return widths;
+}
 
 /** A full top-to-bottom layout: every node gets a new position. */
 export function autoLayout(agent: Agent): Agent {
   const graph = new dagre.graphlib.Graph();
   graph.setGraph({ rankdir: "TB", nodesep: NODE_GAP, ranksep: RANK_GAP });
   graph.setDefaultEdgeLabel(() => ({}));
-  for (const node of agent.nodes) graph.setNode(node.name, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  // A card is centred in its slot: positions come from the centre below.
+  for (const [name, width] of slotWidths(agent)) graph.setNode(name, { width, height: NODE_HEIGHT });
   for (const node of agent.nodes) {
     for (const edge of node.edges ?? []) {
       if (graph.hasNode(edge.target)) graph.setEdge(node.name, edge.target);

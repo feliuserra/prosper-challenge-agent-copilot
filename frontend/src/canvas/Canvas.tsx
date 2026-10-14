@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   Controls,
-  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  useConnection,
   useReactFlow,
   type Connection,
   type EdgeChange,
@@ -64,6 +64,8 @@ function Flow() {
   const [notice, setNotice] = useState("");
   const wrapper = useRef<HTMLDivElement>(null);
   const { fitView, screenToFlowPosition } = useReactFlow();
+  // Handles are hidden until a card is hovered; while a connection is dragged, all show.
+  const connecting = useConnection((c) => c.inProgress);
 
   const badges = useMemo(() => statusBadges(agent, problems), [agent, problems]);
   const nodes = useMemo(
@@ -144,7 +146,7 @@ function Flow() {
 
   return (
     <div className="canvas">
-      <div className="canvas-flow" ref={wrapper}>
+      <div className={connecting ? "canvas-flow connecting" : "canvas-flow"} ref={wrapper}>
         <ReactFlow<AgentFlowNode, AgentFlowEdge>
           nodes={nodes}
           edges={edges}
@@ -180,8 +182,7 @@ function Flow() {
             </Panel>
           )}
           <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
-          <MiniMap pannable zoomable />
-          <Background />
+          <Background color="#d5d9de" gap={16} size={1} />
         </ReactFlow>
       </div>
       {/* Below the graph, not over it, so it never hides a node or its badge. */}
