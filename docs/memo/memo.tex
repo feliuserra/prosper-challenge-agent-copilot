@@ -1,4 +1,4 @@
-% Hand-in memo: at most 3 pages. Build with `make memo` (Tectonic).
+% Hand-in memo: 3 pages plus a 4th for future work. Build with `make memo` (Tectonic).
 % Yellow TBD boxes mark numbers that come from #34; remove \draftnote when final.
 \documentclass[11pt,a4paper]{article}
 
@@ -184,5 +184,14 @@ Calls a week & +0.5 pt & +1 pt & +2 pt & +3 pt & +5 pt \\
 \smallskip
 
 \textbf{What this does not show.} Text tests do not see latency, interruptions, audio, or speech-to-text errors other than the ones replayed from real calls. Synthetic logs prove the statistics and the plumbing, not how real callers behave; real rates and baselines are learned in production. In production the final judge is real outcomes: completed bookings, callbacks and hang-ups.
+
+\section{Future work: say which tools are missing}
+
+The Copilot does not write tools. Each catalog tool stands for an integration with the clinic's scheduling or records system, and the exact tests only mean the same thing on every agent because all agents share the catalog. The Copilot picks tools from it and fits their parameters to the clinic's configuration. What it should add is a report of the tools it needed and did not have, so the gap reaches a person instead of being papered over in a prompt.
+\begin{itemize}
+  \item \textbf{At build time, in the spec.} When no configuration entry, node or catalog tool can carry a requirement (``text the patient a confirmation'', ``put the caller on a waitlist''), the spec marks it \emph{needs a tool}. It cites the guideline sentence and states what the agent does in the meantime: says it cannot, takes a message, or transfers. The reviewer sees it next to the questions for the client. The coverage check already lists requirements that nothing carries; this adds the reason.
+  \item \textbf{In production, on the heatmap.} The judge on a sample (tier 2) tags calls where the caller asked for something the agent had no tool for, along with the transfer or hang-up that followed. Triage counts these by node and by request across the fleet, which is meaningful because every clinic runs the same template: for example, a waitlist asked for at Find slots at every clinic, with its share of calls and example calls. The heatmap gains one more layer: where callers ask for what the agent cannot do.
+  \item \textbf{The output is a ranked integration backlog.} Each entry lists the requirements that need it, the clinics that asked, the calls it would have changed, and quotes. Adding a tool stays a person's decision and an engineer's job. The Copilot shows which one is worth building next.
+\end{itemize}
 
 \end{document}
