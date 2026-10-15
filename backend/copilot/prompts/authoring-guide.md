@@ -53,7 +53,8 @@ An agent is a graph: nodes are steps of the call, edges are functions the model 
 
 - Before ending, ask whether there is anything else.
 - End nodes say one short goodbye and have no edges (the call ends after their first reply). An end node with post-actions must include `end_conversation`, or it never hangs up.
-- A transfer ends the call after one line; do not keep talking after it.
+- A transfer ends the call after one line; do not keep talking after it. `transfer_to_human` does this by itself: no node is needed for it.
+- Nodes have no `role_message` of their own: it would replace the persona as the system message from that node on.
 
 ## Changing an agent
 

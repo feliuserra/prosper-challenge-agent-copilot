@@ -24,6 +24,10 @@ TESTS_PER_BATCH = 5
 # "tomorrow" or "in five hours" means the same on every run and cached results stay valid.
 CLINIC_NOW = "2026-10-19T08:00"
 
+# The build's loop (#30): at most this many rounds of diagnose, change and rerun. A round
+# whose change no failing test passes with costs no full rerun.
+MAX_ROUNDS = 3
+
 PROMPTS = Path(__file__).parent / "prompts"
 
 

@@ -28,7 +28,7 @@ async def ask(
     model: ChatModel,
     messages: list[dict],
     name: str,
-    schema: dict,
+    schema: dict | None,
     check: Check,
     usage: Usage,
     on_repair: Callable[[int, list[str]], None] = lambda attempt, problems: None,
@@ -36,7 +36,10 @@ async def ask(
 ):
     messages = list(messages)
     for attempt in range(max_repairs + 1):
-        request = json_request(config.MODEL, messages, name, schema, temperature=config.TEMPERATURE)
+        if schema is None:  # free-form JSON (operations carry patches no strict schema can describe)
+            request = {"model": config.MODEL, "messages": messages, "response_format": {"type": "json_object"}, "temperature": config.TEMPERATURE}
+        else:
+            request = json_request(config.MODEL, messages, name, schema, temperature=config.TEMPERATURE)
         completion = await model.complete(request)
         usage.add(completion)
         try:

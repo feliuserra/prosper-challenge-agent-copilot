@@ -2,18 +2,23 @@
 # Workspaces API under /copilot (ADR 0013, ADR 0014), served by the runner like the
 # agents API. #28 reads and fills a workspace; #29 adds the spec step, streamed as
 # server-sent events, and the spec changes #31 needs (approve tests, delete a test or a
-# requirement). Test runs come with #30.
+# requirement). #30 adds the build and its proposals.
 #
 #   POST   .../spec                      run the spec step: an event stream (below)
 #   PATCH  .../spec/tests                {"status": "approved"} approves every draft test
 #   PATCH  .../spec/tests/{test_id}      the same for one test
 #   DELETE .../spec/tests/{test_id}
 #   DELETE .../spec/requirements/{id}    and the draft tests that checked only it
+#   POST   .../build                     build the agent and loop: an event stream
+#   GET    .../proposals/last            the newest proposal
+#   POST   .../proposals/{n}/accept      write its agent, clinic and configuration
 #
 # The stream sends `event: <type>` and `data: <json>` per event: `part` (a part running,
 # then done with its result), `repair` (problems sent back to the model), then `done`
-# with the spec, or `error`. Problems before the stream starts (no guidelines, approved
-# tests in the way, a step already running) are plain HTTP errors.
+# with the spec, or `error`. The build adds `operation` (the agent after each one),
+# `tests` (a test run) and `round`, and ends with `done` and the proposal. Problems
+# before the stream starts (no guidelines, approved tests in the way, a step already
+# running) are plain HTTP errors. One step at a time per workspace.
 #
 
 import asyncio
@@ -27,8 +32,10 @@ from loguru import logger
 from openai import OpenAIError
 from pydantic import BaseModel, ConfigDict, Field
 
-from sim.llm import ChatModel, ModelError, OpenAIChat
+from sim.llm import ChatModel, ModelError, Models, OpenAIChat
+from sim.llm import models as real_models
 
+from . import build as build_step
 from . import spec as spec_step
 from .workspace import WORKSPACES_DIR, Workspace
 
@@ -50,9 +57,17 @@ class TestPatch(BaseModel):
     status: Literal["approved"]
 
 
-def make_router(root: Path = WORKSPACES_DIR, model: Callable[[], ChatModel] = lambda: OpenAIChat("copilot")) -> APIRouter:
+def make_router(
+    root: Path = WORKSPACES_DIR,
+    model: Callable[[], ChatModel] = lambda: OpenAIChat("copilot"),
+    test_models: Callable[[], Models] = lambda: real_models("copilot"),
+    agents_dir: Path | None = None,
+    run_tests: build_step.RunTests | None = None,
+) -> APIRouter:
+    """`agents_dir` is where an accepted proposal's agent is written; `run_tests` replaces
+    the runner in the build (unit tests)."""
     router = APIRouter(prefix="/copilot/workspaces/{agent_id}")
-    running: set[str] = set()  # workspaces with a spec step in progress
+    running: set[str] = set()  # workspaces with a spec step or a build in progress
 
     def workspace(agent_id: str) -> Workspace:
         try:
@@ -102,11 +117,40 @@ def make_router(root: Path = WORKSPACES_DIR, model: Callable[[], ChatModel] = la
             raise HTTPException(
                 409, f"{len(approved)} approved test(s) would be replaced. Approved tests are locked: confirm to replace them."
             )
-        return StreamingResponse(
-            stream(ws, model, replace, running),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+        work = lambda emit: _spec(ws, model, replace, emit)
+        return streaming(stream(ws, work, running))
+
+    @router.post("/build")
+    async def run_build(agent_id: str):
+        ws = workspace(agent_id)
+        if agent_id in running:
+            raise HTTPException(409, "A Copilot step is already running for this workspace.")
+        spec = ws.spec()
+        if not spec.get("configuration"):
+            raise HTTPException(400, "The spec has no configuration yet. Run the spec step first.")
+        if not build_step.approved_tests(spec):
+            raise HTTPException(400, "No approved tests yet. Approve the tests the agent must pass first.")
+        work = lambda emit: _build(ws, model, test_models, run_tests, emit)
+        return streaming(stream(ws, work, running))
+
+    @router.get("/proposals/last")
+    async def last_proposal(agent_id: str):
+        proposal = workspace(agent_id).last_proposal()
+        if proposal is None:
+            raise HTTPException(404, f"No proposal for '{agent_id}' yet.")
+        return proposal
+
+    @router.post("/proposals/{number}/accept")
+    async def accept_proposal(agent_id: str, number: int):
+        if agents_dir is None:
+            raise HTTPException(501, "This server does not keep agents.")
+        if agent_id in running:
+            raise HTTPException(409, "A Copilot step is running for this workspace.")
+        try:
+            version = build_step.accept(workspace(agent_id), number, agents_dir)
+        except (build_step.BuildError, spec_step.SpecError) as error:
+            raise HTTPException(error.status, str(error))
+        return {"version": version}
 
     @router.patch("/spec/tests")
     async def approve_all(agent_id: str, body: TestPatch):
@@ -138,15 +182,19 @@ def make_router(root: Path = WORKSPACES_DIR, model: Callable[[], ChatModel] = la
     return router
 
 
-async def stream(ws: Workspace, model: Callable[[], ChatModel], replace_approved: bool, running: set[str]):
-    """Run the spec step and yield its events as server-sent events. A client that goes
-    away cancels the step; nothing is written then."""
+def streaming(events) -> StreamingResponse:
+    return StreamingResponse(events, media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+async def stream(ws: Workspace, work, running: set[str]):
+    """Run a step, `work(emit)`, and yield its events as server-sent events. A client that
+    goes away cancels the step; nothing is written then."""
     if ws.id in running:  # checked and marked with no await in between
-        yield sse({"event": "error", "part": None, "message": "A spec step is already running for this workspace.", "problems": []})
+        yield sse({"event": "error", "part": None, "message": "A Copilot step is already running for this workspace.", "problems": []})
         return
     running.add(ws.id)
     events: asyncio.Queue = asyncio.Queue()
-    task = asyncio.create_task(_run(ws, model, replace_approved, events.put_nowait))
+    task = asyncio.create_task(_guarded(work, events.put_nowait))
     try:
         while True:
             event = await events.get()
@@ -162,12 +210,23 @@ def sse(event: dict) -> str:
     return f"event: {event['event']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
-async def _run(ws: Workspace, model: Callable[[], ChatModel], replace_approved: bool, emit) -> None:
+async def _spec(ws: Workspace, model: Callable[[], ChatModel], replace_approved: bool, emit) -> None:
+    spec = await spec_step.run(ws, model(), emit, replace_approved=replace_approved)
+    emit({"event": "done", "spec": {**spec, "gaps": spec_step.gaps(spec)}})
+
+
+async def _build(ws: Workspace, model, test_models, run_tests, emit) -> None:
+    # The build emits its own `done` with the proposal.
+    await build_step.run(ws, model(), None if run_tests else test_models(), emit, run_tests=run_tests)
+
+
+async def _guarded(work, emit) -> None:
     try:
-        spec = await spec_step.run(ws, model(), emit, replace_approved=replace_approved)
-        emit({"event": "done", "spec": {**spec, "gaps": spec_step.gaps(spec)}})
+        await work(emit)
     except spec_step.SpecError as error:
         emit({"event": "error", "part": error.part, "message": str(error), "problems": error.problems})
+    except build_step.BuildError as error:
+        emit({"event": "error", "part": "build", "message": str(error), "problems": error.problems})
     except ModelError as error:
         emit({"event": "error", "part": None, "message": f"The model could not be reached: {error}", "problems": []})
     except OpenAIError as error:  # no key: the client cannot be built
@@ -175,5 +234,5 @@ async def _run(ws: Workspace, model: Callable[[], ChatModel], replace_approved: 
     except asyncio.CancelledError:
         raise
     except Exception as error:  # never leave the stream without an end
-        logger.exception("spec step failed")
+        logger.exception("Copilot step failed")
         emit({"event": "error", "part": None, "message": f"{type(error).__name__}: {error}", "problems": []})
