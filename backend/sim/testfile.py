@@ -33,8 +33,8 @@ ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 
 # Check type -> {parameter: required?}
 CHECKS = {
-    "tool_called": {"tool": True, "args": False},
-    "tool_not_called": {"tool": True, "args": False},
+    "tool_called": {"tool": True, "args": False, "result": False},
+    "tool_not_called": {"tool": True, "args": False, "result": False},
     "tool_order": {"tools": True},
     "call_ended": {"reason": False},
     "transferred": {},
@@ -148,6 +148,8 @@ def validate_check(check, world: ClinicWorld | None = None) -> list[str]:
             else:
                 spec = world.tool_spec(check["tool"]) if world is not None else TOOLS[check["tool"]]
                 errors += [f"{check['tool']} has no parameter '{a}'." for a in check["args"] if a not in spec.properties]
+        if "result" in check and (not isinstance(check["result"], dict) or not check["result"]):
+            errors.append("result must be a non-empty object: part of what the tool answers.")
     if kind == "tool_order":
         tools = check["tools"]
         if not isinstance(tools, list) or len(tools) < 2:

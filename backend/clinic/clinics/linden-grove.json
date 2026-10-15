@@ -1,0 +1,365 @@
+{
+  "clinic": {
+    "name": "Linden Grove Family Practice",
+    "now": "2026-10-19T08:00",
+    "days_ahead": 28
+  },
+  "providers": [
+    {
+      "id": "dr-alvarez",
+      "name": "Dr. Sofia Alvarez",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "mon": [
+          "08:30-12:00",
+          "13:00-16:30"
+        ],
+        "tue": [
+          "08:30-12:00",
+          "13:00-16:30"
+        ],
+        "wed": [
+          "08:30-12:00",
+          "13:00-16:30"
+        ],
+        "thu": [
+          "08:30-12:00",
+          "13:00-16:30"
+        ]
+      }
+    },
+    {
+      "id": "dr-reed",
+      "name": "Dr. Marcus Reed",
+      "specialty": "Family medicine",
+      "slot_minutes": 30,
+      "schedule": {
+        "tue": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "wed": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ],
+        "fri": [
+          "09:00-12:00",
+          "13:00-17:00"
+        ]
+      }
+    },
+    {
+      "id": "np-brooks",
+      "name": "Nina Brooks",
+      "specialty": "Nurse practitioner",
+      "slot_minutes": 20,
+      "schedule": {
+        "mon": [
+          "12:00-18:00"
+        ],
+        "wed": [
+          "12:00-18:00"
+        ],
+        "thu": [
+          "12:00-17:00"
+        ],
+        "sat": [
+          "09:00-12:00"
+        ]
+      }
+    }
+  ],
+  "patients": [
+    {
+      "id": "pat-001",
+      "full_name": "Daniel Ortiz",
+      "date_of_birth": "1979-08-14",
+      "phone": "555-014-3101",
+      "insurance_plan": "aetna",
+      "last_visit": "2026-03-02"
+    },
+    {
+      "id": "pat-002",
+      "full_name": "Kevin Walsh",
+      "date_of_birth": "1986-01-23",
+      "phone": "555-014-3102",
+      "insurance_plan": "bcbs",
+      "last_visit": "2025-10-07"
+    },
+    {
+      "id": "pat-003",
+      "full_name": "Harold Becker",
+      "date_of_birth": "1948-02-09",
+      "phone": "555-014-3103",
+      "insurance_plan": "medicare",
+      "last_visit": "2026-09-14"
+    },
+    {
+      "id": "pat-004",
+      "full_name": "Denise Carter",
+      "date_of_birth": "1972-05-30",
+      "phone": "555-014-3104",
+      "insurance_plan": "unitedhealthcare",
+      "last_visit": "2026-06-18"
+    },
+    {
+      "id": "pat-005",
+      "full_name": "Marisol Vega",
+      "date_of_birth": "1990-11-11",
+      "phone": "555-014-3105",
+      "insurance_plan": "aetna",
+      "last_visit": "2026-08-25"
+    },
+    {
+      "id": "pat-006",
+      "full_name": "Tomas Lindqvist",
+      "date_of_birth": "1983-07-04",
+      "phone": "555-014-3106",
+      "insurance_plan": "bcbs",
+      "last_visit": "2025-10-20"
+    },
+    {
+      "id": "pat-007",
+      "full_name": "Siobhan Murphy",
+      "date_of_birth": "1995-03-17",
+      "phone": "555-014-3107",
+      "insurance_plan": "unitedhealthcare",
+      "last_visit": "2026-05-11"
+    },
+    {
+      "id": "pat-008",
+      "full_name": "Aisha Rahman",
+      "date_of_birth": "1988-09-02",
+      "phone": "555-014-3108",
+      "insurance_plan": "aetna",
+      "last_visit": "2026-10-05"
+    },
+    {
+      "id": "pat-009",
+      "full_name": "Ruth Feldman",
+      "date_of_birth": "1951-12-06",
+      "phone": "555-014-3109",
+      "insurance_plan": "humana",
+      "last_visit": "2026-04-22"
+    },
+    {
+      "id": "pat-010",
+      "full_name": "Frank DeLuca",
+      "date_of_birth": "1965-04-19",
+      "phone": "555-014-3110",
+      "insurance_plan": "bcbs",
+      "last_visit": "2026-01-30"
+    },
+    {
+      "id": "pat-011",
+      "full_name": "Ivan Petrov",
+      "date_of_birth": "1977-10-28",
+      "phone": "555-014-3111",
+      "insurance_plan": "unitedhealthcare",
+      "last_visit": "2026-07-09"
+    },
+    {
+      "id": "pat-012",
+      "full_name": "Beatriz Santos",
+      "date_of_birth": "1993-06-21",
+      "phone": "555-014-3112",
+      "insurance_plan": "aetna",
+      "last_visit": "2026-09-28"
+    },
+    {
+      "id": "pat-013",
+      "full_name": "Walter Greene",
+      "date_of_birth": "1948-06-15",
+      "phone": "555-014-3113",
+      "insurance_plan": "medicare",
+      "last_visit": "2026-08-03"
+    },
+    {
+      "id": "pat-014",
+      "full_name": "Mark Hughes",
+      "date_of_birth": "1961-02-27",
+      "phone": "555-014-3114",
+      "insurance_plan": "bcbs",
+      "last_visit": "2026-09-21"
+    },
+    {
+      "id": "pat-015",
+      "full_name": "Jordan Ellis",
+      "date_of_birth": "1985-08-08",
+      "phone": "555-014-3115",
+      "insurance_plan": "aetna",
+      "last_visit": "2026-02-16"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "appt-0001",
+      "patient_id": "pat-003",
+      "provider_id": "dr-reed",
+      "start": "2026-10-21T10:00",
+      "reason": "Blood pressure check",
+      "status": "booked",
+      "appointment_type": "follow_up"
+    },
+    {
+      "id": "appt-0002",
+      "patient_id": "pat-004",
+      "provider_id": "dr-alvarez",
+      "start": "2026-10-19T13:30",
+      "reason": "Sinus infection",
+      "status": "booked",
+      "appointment_type": "sick_visit"
+    },
+    {
+      "id": "appt-0003",
+      "patient_id": "pat-005",
+      "provider_id": "np-brooks",
+      "start": "2026-10-19T15:00",
+      "reason": "Medication check",
+      "status": "booked",
+      "appointment_type": "follow_up"
+    },
+    {
+      "id": "appt-0004",
+      "patient_id": "pat-006",
+      "provider_id": "dr-alvarez",
+      "start": "2026-10-22T09:00",
+      "reason": "Annual physical",
+      "status": "booked",
+      "appointment_type": "annual_physical"
+    }
+  ],
+  "appointment_types": [
+    {
+      "id": "new_patient",
+      "name": "New Patient Visit",
+      "description": "Anyone's first visit with us, whatever it is for (a cough, a physical, a flu shot): a longer visit that takes their history.",
+      "patients": "new",
+      "providers": [
+        "dr-alvarez",
+        "np-brooks"
+      ]
+    },
+    {
+      "id": "annual_physical",
+      "name": "Annual Physical",
+      "description": "A yearly checkup. Medicare wellness visits are booked as this too.",
+      "patients": "existing",
+      "providers": [
+        "dr-alvarez",
+        "dr-reed"
+      ]
+    },
+    {
+      "id": "sick_visit",
+      "name": "Sick Visit",
+      "description": "Something new: a cough, a rash, an infection or a minor injury.",
+      "patients": "existing",
+      "providers": [
+        "dr-alvarez",
+        "dr-reed",
+        "np-brooks"
+      ]
+    },
+    {
+      "id": "follow_up",
+      "name": "Follow-Up Visit",
+      "description": "Going over test results, checking on an ongoing problem, or a medication check.",
+      "patients": "existing",
+      "providers": [
+        "dr-alvarez",
+        "dr-reed",
+        "np-brooks"
+      ]
+    },
+    {
+      "id": "vaccine",
+      "name": "Vaccine Visit",
+      "description": "A flu shot or another vaccine.",
+      "patients": "existing",
+      "providers": [
+        "np-brooks"
+      ]
+    }
+  ],
+  "insurance_plans": [
+    {
+      "id": "aetna",
+      "name": "Aetna",
+      "covers": [
+        "new_patient",
+        "annual_physical",
+        "sick_visit",
+        "follow_up",
+        "vaccine"
+      ]
+    },
+    {
+      "id": "bcbs",
+      "name": "Blue Cross Blue Shield",
+      "covers": [
+        "new_patient",
+        "annual_physical",
+        "sick_visit",
+        "follow_up",
+        "vaccine"
+      ]
+    },
+    {
+      "id": "unitedhealthcare",
+      "name": "UnitedHealthcare",
+      "covers": [
+        "new_patient",
+        "annual_physical",
+        "sick_visit",
+        "follow_up",
+        "vaccine"
+      ]
+    },
+    {
+      "id": "medicare",
+      "name": "Medicare",
+      "covers": [
+        "new_patient",
+        "annual_physical",
+        "sick_visit",
+        "follow_up",
+        "vaccine"
+      ]
+    },
+    {
+      "id": "humana",
+      "name": "Humana",
+      "covers": [
+        "sick_visit",
+        "follow_up"
+      ]
+    }
+  ],
+  "registration_fields": [
+    {
+      "name": "insurance_plan",
+      "description": "The caller's insurance plan as they name it, or 'self-pay' if they will pay themselves.",
+      "required": true
+    }
+  ],
+  "booking_fields": [
+    {
+      "name": "reminder",
+      "description": "How the patient wants the reminder the day before: 'text', 'call' or 'none'.",
+      "required": true
+    }
+  ],
+  "cancellation": {
+    "window_hours": 24,
+    "fee": 50
+  },
+  "facts": {
+    "address": "418 Main Street.",
+    "phone": "(555) 014-2200. Fax (555) 014-2201, for medical records only.",
+    "hours": "Phones and front desk: Monday to Friday, 8 AM to 5 PM. Nina Brooks sees patients until 6 PM on Mondays and Wednesdays, and on Saturday mornings from 9 to noon. Closed on Sundays, on Thanksgiving and on the Friday after it.",
+    "parking": "A free lot behind the building, entered from Birch Street. Street parking on Main Street is two hours at most, and they do ticket.",
+    "self_pay": "Without insurance, or when a plan does not cover the visit: a New Patient Visit is $175, any other visit $125, a flu shot $45."
+  }
+}

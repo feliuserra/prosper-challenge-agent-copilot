@@ -4,7 +4,10 @@
 #
 # Tool arguments are compared loosely: strings ignoring case, accents, spaces and
 # punctuation (the clinic's own name matching), so "ana lopez" matches "Ana López".
-# Only the arguments a check lists are compared.
+# Only the arguments a check lists are compared. A check may also give `result`:
+# part of what the tool answered (nested objects compared key by key, values
+# loosely), which only a call that succeeded can match. It says what the clinic
+# did, such as which provider a booking went to (#27).
 #
 # The judge sees the spoken words and the catalog tool calls with their results,
 # never the agent's prompts or its edge functions, so a rule reads the same on
@@ -69,6 +72,13 @@ def args_match(expected: dict, actual: dict) -> bool:
     return all(key in actual and _loose(actual[key]) == _loose(value) for key, value in expected.items())
 
 
+def result_match(expected, actual) -> bool:
+    """`expected` is part of `actual`: objects key by key, other values loosely."""
+    if isinstance(expected, dict):
+        return isinstance(actual, dict) and all(k in actual and result_match(v, actual[k]) for k, v in expected.items())
+    return _loose(actual) == _loose(expected)
+
+
 def _loose(value):
     return normalize_name(value) if isinstance(value, str) else value
 
@@ -129,6 +139,18 @@ def check_tool_called(record: dict, check: dict) -> dict:
     named = [c for c in tool_calls(record) if c["name"] == tool]
     matching = [c for c in named if args_match(expected, c["args"])]
     succeeded = [c for c in matching if not failed(c)]
+    if "result" in check and succeeded:
+        found = [c for c in succeeded if result_match(check["result"], c["result"])]
+        if not found:
+            call = succeeded[0]
+            return _result(
+                check,
+                False,
+                f"{tool} succeeded at turn {call['turn']}, but its result has no {json.dumps(check['result'], ensure_ascii=False)}.",
+                call["turn"],
+                render_call(call, with_result=True),
+            )
+        succeeded = found
     if succeeded:
         call = succeeded[0]
         return _result(check, True, f"{tool} called at turn {call['turn']}.", call["turn"], render_call(call))
@@ -146,12 +168,18 @@ def check_tool_called(record: dict, check: dict) -> dict:
 
 
 def check_tool_not_called(record: dict, check: dict) -> dict:
+    """No call (attempts count) with these arguments; with `result`, no call that succeeded with it."""
     tool, expected = check["tool"], check.get("args", {})
     matching = [c for c in tool_calls(record) if c["name"] == tool and args_match(expected, c["args"])]
     with_args = f" with {json.dumps(expected, ensure_ascii=False)}" if expected else ""
+    if "result" in check:
+        matching = [c for c in matching if not failed(c) and result_match(check["result"], c.get("result"))]
+        with_args += f" and succeeded with {json.dumps(check['result'], ensure_ascii=False)}"
     if matching:
         call = matching[0]
-        return _result(check, False, f"{tool} was called{with_args} at turn {call['turn']}.", call["turn"], render_call(call))
+        return _result(
+            check, False, f"{tool} was called{with_args} at turn {call['turn']}.", call["turn"], render_call(call, with_result="result" in check)
+        )
     return _result(check, True, f"{tool} was not called{with_args}.")
 
 

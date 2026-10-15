@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #27's spend log in review)
+## 0. Status (updated 2026-10-15: #27's spend log and reference suite in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -37,12 +37,13 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #57 Synthetic call logs with planted defects | Merged; checked by the user (`make synth`) | #63 |
 | #58 Call signals and triage | Merged; checked by the user (`make detect-eval`: 6 of 6 found, no false alarms) | #64 |
 | #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
-| #27 Spend log (first of 3 PRs: spend log; clinic, tests and `make eval`; mutants and judge) | In review (see "What #27's spend log built") | (this PR) |
+| #27 Spend log (first of 3 PRs: spend log; clinic, tests and `make eval`; mutants and judge) | In review (see "What #27's spend log built") | #67 |
+| #27 Clinic, reference suite and `make eval` (second of 3) | In review, stacked on #67 (see "What #27's reference suite built") | (this PR) |
 | #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 in progress** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #27's second PR (clinic, tests, reference agent and `make eval`), after the spend log PR merges. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** #27's third PR (mutants and judge calibration), after #67 and the reference suite PR merge. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -51,6 +52,17 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #27's reference suite built (the second of #27's three PRs), for reference:
+- The drafts were reworked for #43 and reviewed by the user on 2026-10-15 (`backend/eval/clinic-a/tests-outline.md` records the decisions): Linden Grove's guidelines gained a Humana plan that covers only sick and follow-up visits, a reminder booking field, and existing-patient-only types; the gaps (minors, double booking, nothing fits) stay out on purpose.
+- `backend/clinic/clinics/linden-grove.json` (the id #57's logs use): Dr. Alvarez (Mon to Thu), Dr. Reed (Tue, Wed, Fri, after the guidelines' Oct 1 update), Nina Brooks (20-minute slots, Saturday mornings); 5 types (New Patient Visit for new patients, the rest for existing); 5 plans; `insurance_plan` to register, `reminder` to book; the $50 fee inside 24 hours; facts including self-pay prices. Clinic time Monday 2026-10-19 08:00.
+- `eval/clinic-a/tests.json`: 20 tests (5 safety), 8 judge rules written once. `eval/clinic-a/reference-agent.json`: the scheduling template with Linden Grove prompts (emergencies, no medical advice, privacy, transfers at every step, a "Shall I book...?" read-back, the new-patient arrival note) and `transfer_to_human` in every node but the two end nodes; `check_coverage` in the greeting, `get_clinic_info` in collect_reason. Built as JSON edits on the template, not in the editor.
+- Test format: `tool_called` and `tool_not_called` take an optional `result`, part of the tool's answer, matched only by calls that succeeded (which provider a booking went to; a cancellation that went through). Not allowed on turn checks (sampled calls do not run). ADR 0010 amended.
+- Runner: the caller no longer hangs up when the assistant reads its choice back for confirmation (a probe of the exact turn: 7/10 hang-ups before, 0/10 after); `RUNNER_VERSION` 27.1. Agent read-backs that said "is scheduled" before booking made callers hang up too (10/10 at one turn), which is the agent's fault: its prompt now asks "Shall I book...?".
+- `make eval [AGENT=path] [NO_CACHE=1] [ONLY=id]` (`python -m eval`): `sim.__main__.run_tests` with source `eval`, results in `backend/eval/results/` (gitignored). The CLI's summary now has a line per tier.
+- A trap found here: `OPENAI_API_KEY= make eval` is not a dry run, `backend/.env` is loaded with `override=True` (it cost $2.22).
+- Result (2026-10-15, uncached): 19 passed and 1 flaky (physical-not-with-nina: in one run the agent offered the doctors without saying Nina does not do physicals, and searched this week for "next week"), safety 5/5, about 60 s, $1.88.
+- Tests: 289 pytest (3 new in `test_sim_checks.py`, 6 in `test_eval.py`), 249 Vitest.
 
 What #27's spend log built (the first of #27's three PRs), for reference:
 - #27 is split in three PRs, agreed with the user on 2026-10-15: the spend log (no model calls to build it, so every paid run after it is logged); the clinic (`backend/clinic/clinics/linden-grove.json`, since the loader reads only that folder and #57's logs already use the id), guidelines, tests, reference agent and `make eval`, ending with the user's review of the guidelines and tests; the mutants and judge calibration, ending with the review of the labels.

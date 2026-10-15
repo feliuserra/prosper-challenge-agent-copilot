@@ -48,18 +48,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "spend":
         print(spend.report(spend.load(config.SPEND_LEDGER), args.since))
         return 0
+    return run_tests(args.agent, args.tests, "test", not args.no_cache, args.only, args.out, args.transcripts)
 
+
+def run_tests(
+    agent_path: Path,
+    tests_path: Path,
+    source: str,
+    use_cache: bool = True,
+    only: list[str] | None = None,
+    out: Path | None = None,
+    transcripts: bool = False,
+) -> int:
+    """`run`, also used by `make eval` (eval/__main__.py). `source` names the requests in
+    the spend log."""
     load_dotenv(Path(__file__).parent.parent / ".env", override=True)
     logger.disable("agent_builder")  # the builder logs every transition and tool call
 
-    agent = json.loads(args.agent.read_text())
-    tests = load_tests(args.tests)
+    agent = json.loads(agent_path.read_text())
+    tests = load_tests(tests_path)
     agent_errors = validate_agent(agent)
     errors = [f"agent: {e.message}" for e in agent_errors] + (validate_tests(tests, clinic_of(agent)) if not agent_errors else [])
-    if args.only:
-        tests = [t for t in tests if isinstance(t, dict) and t.get("id") in args.only]
+    if only:
+        tests = [t for t in tests if isinstance(t, dict) and t.get("id") in only]
         if not tests:
-            errors.append(f"no test with id {', '.join(args.only)}")
+            errors.append(f"no test with id {', '.join(only)}")
     if not os.environ.get("OPENAI_API_KEY"):
         errors.append("OPENAI_API_KEY is not set (backend/.env)")
     if errors:
@@ -67,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     started = time.monotonic()
-    results = asyncio.run(run_suite(agent, tests, models("test"), use_cache=not args.no_cache))
+    results = asyncio.run(run_suite(agent, tests, models(source), use_cache=use_cache))
     seconds = time.monotonic() - started
 
     print(f"{agent['name']} ({agent.get('model', 'gpt-4o')}), caller {config.CALLER_MODEL}, judge {config.JUDGE_MODEL}\n")
@@ -76,13 +89,14 @@ def main(argv: list[str] | None = None) -> int:
         details = notes(result)
         if details:
             print(f"\n{result['test_id']} ({result['status']}):\n{details}")
-        if args.transcripts:
+        if transcripts:
             for n, run_ in enumerate(result.get("runs", []), 1):
                 print(f"\n--- {result['test_id']}, run {n} (ended by {run_['end_reason']}) ---\n{render_transcript(run_['turns'], internal=True)}")
     print("\n" + summary(results, seconds))
-    if args.out:
-        args.out.write_text(json.dumps(results, indent=1, ensure_ascii=False) + "\n")
-        print(f"Results written to {args.out}")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(results, indent=1, ensure_ascii=False) + "\n")
+        print(f"Results written to {out}")
     return 1 if any(blocking(r) for r in results) else 0
 
 
@@ -135,6 +149,12 @@ def summary(results: list[dict], seconds: float) -> str:
         if not r.get("cached"):
             usage.merge(r.get("usage", {}))
     parts = [f"{counts['pass']} passed, {counts['fail']} failed, {counts['flaky']} flaky, {counts['error']} errors in {seconds:.1f}s"]
+    tiers = [
+        f"{tier} {sum(r['status'] == 'pass' for r in of_tier)}/{len(of_tier)} passed"
+        for tier in ("safety", "core")
+        if (of_tier := [r for r in results if r["tier"] == tier])
+    ]
+    parts.append(", ".join(tiers).capitalize())
     cached = sum(bool(r.get("cached")) for r in results)
     if cached:
         parts.append(f"{cached} from cache")

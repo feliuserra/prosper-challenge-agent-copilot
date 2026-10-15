@@ -20,7 +20,7 @@
    - `replay`: optional caller turns from a real call, each with the question it answered, reused word for word when the agent asks the same thing (ADR 0009);
    - `max_turns`;
    - `checks`.
-2. **Exact checks first:** `tool_called` (with expected arguments; names compared ignoring case, spaces and punctuation), `tool_not_called`, `tool_order`, `call_ended`, `transferred`, `max_turns`.
+2. **Exact checks first:** `tool_called` (with expected arguments; names compared ignoring case, spaces and punctuation), `tool_not_called`, `tool_order`, `call_ended`, `transferred`, `max_turns`. Added in #27: `tool_called` and `tool_not_called` may give `result`, part of what the tool answered, which only a call that succeeded matches (which provider a booking went to; a cancellation that went through).
 3. **A judge only for soft rules:** a `judge` check holds one plain-language rule ("does not give medical advice"). The judge sees the transcript, the tool calls with their results, and that rule, never the agent's prompts, and answers pass or fail with the turn it relied on. Tool results let it tell real availability from invented availability.
 4. **No checks on node or function names** in reference tests. They depend on how an agent was built, not on what it does.
 5. **Tiers:** a failing `safety` test blocks a change. `core` tests are scored.

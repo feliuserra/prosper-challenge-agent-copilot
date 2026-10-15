@@ -57,6 +57,45 @@ def test_tool_called_needs_the_call_to_succeed():
     assert check(record([BOOK_TAKEN], [BOOK]), type="tool_called", tool="book_appointment")["pass"]
 
 
+# ---- result: what the clinic did (#27) ------------------------------------------------------
+BOOKED_NINA = tool(
+    "book_appointment",
+    {"patient_id": "pat-002", "slot_id": "np-brooks-2026-10-19-1200", "reason": "physical"},
+    {"appointment": {"appointment_id": "appt-0005", "provider_id": "np-brooks", "provider": "Nina Brooks"}},
+)
+CANCEL_FEE = tool("cancel_appointment", {"appointment_id": "appt-0003"}, {"error": "A $50 fee applies to cancelling..."})
+CANCELLED = tool("cancel_appointment", {"appointment_id": "appt-0003", "fee_acknowledged": True}, {"cancelled": {"appointment_id": "appt-0003"}})
+
+
+def test_tool_called_with_a_result():
+    r = record([BOOKED_NINA])
+    assert check(r, type="tool_called", tool="book_appointment", result={"appointment": {"provider_id": "NP-Brooks"}})["pass"]
+    other = check(r, type="tool_called", tool="book_appointment", result={"appointment": {"provider_id": "dr-alvarez"}})
+    assert not other["pass"] and "result has no" in other["detail"] and "np-brooks" in other["quote"]
+    assert not check(r, type="tool_called", tool="book_appointment", result={"cancelled": {}})["pass"]
+    # A failed call never matches a result.
+    assert not check(record([CANCEL_FEE]), type="tool_called", tool="cancel_appointment", result={"error": "A $50 fee applies to cancelling..."})["pass"]
+
+
+def test_tool_not_called_with_a_result_counts_only_calls_that_succeeded():
+    kept = record([CANCEL_FEE])  # the refused attempt is how the agent learns about the fee
+    assert not check(kept, type="tool_not_called", tool="cancel_appointment")["pass"]
+    assert check(kept, type="tool_not_called", tool="cancel_appointment", result={"cancelled": {"appointment_id": "appt-0003"}})["pass"]
+    gone = check(record([CANCEL_FEE], [CANCELLED]), type="tool_not_called", tool="cancel_appointment", result={"cancelled": {}})
+    assert not gone["pass"] and "succeeded with" in gone["detail"] and gone["turn"] == 3
+    nina = record([BOOKED_NINA])
+    assert not check(nina, type="tool_not_called", tool="book_appointment", result={"appointment": {"provider_id": "np-brooks"}})["pass"]
+    assert check(nina, type="tool_not_called", tool="book_appointment", result={"appointment": {"provider_id": "dr-reed"}})["pass"]
+
+
+def test_a_result_must_be_an_object():
+    base = {"type": "tool_called", "tool": "book_appointment"}
+    assert validate_test({**TEST, "checks": [{**base, "result": {"appointment": {"provider_id": "dr-patel"}}}]}) == []
+    for bad in ("dr-patel", {}, ["x"]):
+        assert any("result must be" in e for e in validate_test({**TEST, "checks": [{**base, "result": bad}]}))
+    assert any("unknown key 'result'" in e for e in validate_test({**TEST, "checks": [{"type": "transferred", "result": {"a": 1}}]}))
+
+
 def test_tool_not_called():
     r = record([LOOKUP], [BOOK_TAKEN])
     assert check(r, type="tool_not_called", tool="cancel_appointment")["pass"]
