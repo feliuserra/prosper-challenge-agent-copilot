@@ -76,16 +76,19 @@ async def run(
     emit: Emit = lambda event: None,
     run_tests: RunTests | None = None,
     use_cache: bool = True,
+    loop: bool = True,
 ) -> dict:
     """Build the workspace's agent and loop until its approved tests pass. Emits progress
-    events; stores and returns the proposal. `run_tests` replaces the runner (unit tests)."""
+    events; stores and returns the proposal. `run_tests` replaces the runner (unit tests).
+    With `loop` false the workspace tests are not run at all: the proposal is the build
+    alone, blocked as untested (to measure the build on its own, `make eval COPILOT=1 NO_LOOP=1`)."""
     spec = ws.spec()
     tests = approved_tests(spec)
     if not tests:
         raise BuildError("No approved tests yet. Approve the tests the agent must pass first.")
     if not spec.get("configuration"):
         raise BuildError("The spec has no configuration. Run the spec step first.")
-    if run_tests is None:
+    if run_tests is None and loop:
         if test_models is None:
             raise BuildError("No models to run the tests with.")
         run_tests = lambda agent, chosen, clinic: run_suite(agent, chosen, test_models, use_cache, clinic=clinic)
@@ -125,11 +128,11 @@ async def run(
     # 3. the loop
     operations = list(authored["operations"])
     configuration_changes: list[dict] = []
-    results = await test(agent, tests, configuration, "before")
+    results = await test(agent, tests, configuration, "before") if loop else []
     before = results
     rounds: list[dict] = []
     diagnosed: tuple[str, list[dict]] | None = None  # (what was diagnosed, diagnoses)
-    while len(rounds) < config.MAX_ROUNDS:
+    while loop and len(rounds) < config.MAX_ROUNDS:
         failing = [r for r in results if blocking(r) and r["status"] != "error"]
         if not failing:
             break
@@ -204,7 +207,7 @@ async def run(
         "questions": [{"test": d["test"], "question": d["question"]} for d in diagnoses if d.get("question")],
         "concerns": list(chain(*(r.get("concerns", []) for r in rounds))),
         "rounds": rounds,
-        "results": {"before": summarize(before), "after": summarize(results)},
+        "results": {"before": summarize(before), "after": summarize(results)} if loop else None,
         "leaks": found,
         "meta": {
             "model": config.MODEL,
@@ -213,10 +216,11 @@ async def run(
             "cost": {"copilot": usage.cost(), "tests": test_usage.cost()},
         },
     }
-    proposal["blocked"] = blockers(proposal, results)
+    proposal["blocked"] = blockers(proposal, results) + ([] if loop else ["The workspace tests were not run (built without the loop)."])
     proposal["status"] = "blocked" if proposal["blocked"] else "ready"
     ws.save_proposal(proposal)
-    ws.save_run({"created": now(), "agent_hash": agent_hash(agent), "proposal": proposal["number"], "results": compact(results)})
+    if loop:
+        ws.save_run({"created": now(), "agent_hash": agent_hash(agent), "proposal": proposal["number"], "results": compact(results)})
     emit({"event": "done", "proposal": proposal})
     return proposal
 
@@ -294,6 +298,8 @@ def check_build(answer: dict, draft: dict, spec: dict, known: list[str]) -> tupl
     applied = apply_operations(draft, operations, spec.get("carriers") or empty_carriers(), known)
     problems += applied.errors
     problems += _kept_fixed(applied.agent, draft)
+    if applied.ok:
+        problems += guide_problems(applied.agent)
     if applied.ok:
         carried = carried_ids(applied.carriers)
         explained = {u.get("requirement") for u in uncarried if isinstance(u.get("reason"), str) and u["reason"].strip()}
@@ -419,6 +425,8 @@ def check_fix(answer, agent, configuration, carriers, known, failing_ids, all_te
     applied = apply_operations(agent, operations, carriers, known)
     problems += applied.errors
     problems += _kept_fixed(applied.agent, agent)
+    if applied.ok:
+        problems += guide_problems(applied.agent)
     clinic, carriers_after = copy.deepcopy(configuration), applied.carriers
     for edit in edits:
         key = edit.get("key") if isinstance(edit, dict) else None
@@ -456,6 +464,23 @@ def carry_configuration(carriers: dict, key: str, value, cited: list[str]) -> No
         del mapping[entry]
     for entry in entries_now:
         mapping[entry] = mapping.get(entry, []) + [i for i in cited if i not in mapping.get(entry, [])]
+
+
+def guide_problems(agent: dict) -> list[str]:
+    """Rules of the authoring guide that code can check. Every node that is not an end node
+    offers transfer_to_human: a caller can ask for a person at any step, and the persona's
+    rules to transfer work only where the tool is offered."""
+    missing = [
+        n["name"]
+        for n in agent.get("nodes", [])
+        if isinstance(n, dict) and not n.get("end") and "transfer_to_human" not in (n.get("tools") or [])
+    ]
+    if not missing:
+        return []
+    return [
+        f"transfer_to_human must be offered in every node that is not an end node; missing in {', '.join(missing)}. "
+        "Use set_tools with the node's current tools plus transfer_to_human."
+    ]
 
 
 def _kept_fixed(agent: dict, before: dict) -> list[str]:

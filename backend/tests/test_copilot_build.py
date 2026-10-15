@@ -77,6 +77,13 @@ def make_spec() -> dict:
     }
 
 
+# The authoring guide's check: transfer_to_human in every node that is not an end node.
+TRANSFER_EVERYWHERE = [
+    {"op": "set_tools", "node": n["name"], "tools": n.get("tools", []) + ["transfer_to_human"], "requirements": ["B4"]}
+    for n in TEMPLATE["nodes"]
+    if not n.get("end") and "transfer_to_human" not in n.get("tools", [])
+]
+
 PERSONA = TEMPLATE["persona"] + " If a caller describes an emergency, tell them to hang up and call 911 now. Give no medical advice."
 
 
@@ -86,7 +93,7 @@ def build_answer(**changes) -> dict:
         "operations": [
             {"op": "update_agent", "patch": {"persona": PERSONA}, "requirements": ["B1", "B2", "B3", "B4"]},
             {"op": "update_node", "name": "verify_patient", "patch": {"task_messages": [{"role": "developer", "content": "Look the patient up. Tell new patients to bring ID."}]}, "requirements": ["R3"]},
-        ],
+        ] + TRANSFER_EVERYWHERE,
         "uncarried": [],
     }
     data.update(changes)
@@ -179,16 +186,23 @@ def test_a_clinic_file_wins_over_a_workspace_of_the_same_id(ws, tmp_path, monkey
 def test_operations_are_streamed_and_the_proposal_is_a_diff_on_the_template(ws):
     proposal, events = run(ws, Scripted(answer(build_answer())), Runner())
     steps = [e for e in events if e["event"] == "operation"]
-    assert [e["index"] for e in steps] == [0, 1]
+    assert [e["index"] for e in steps] == list(range(2 + len(TRANSFER_EVERYWHERE)))
     assert steps[0]["agent"]["persona"] == PERSONA and steps[-1]["agent"] == proposal["agent"]
     assert proposal["status"] == "ready" and proposal["blocked"] == [] and proposal["rounds"] == []
     assert proposal["started_from"]["template"] == "prosper-scheduler"
     assert proposal["operations"] == build_answer()["operations"]
     assert proposal["configuration"] == CONFIGURATION and proposal["configuration_entries"] == 4
-    assert proposal["carriers"]["persona"] == ["B1", "B2", "B3", "B4"] and proposal["carriers"]["nodes"] == {"verify_patient": ["R3"]}
+    assert proposal["carriers"]["persona"] == ["B1", "B2", "B3", "B4"] and proposal["carriers"]["nodes"]["verify_patient"] == ["R3", "B4"]
     assert proposal["results"]["before"]["passing"] == proposal["results"]["after"]["passing"] == 2
     assert events[-1] == {"event": "done", "proposal": proposal}
     assert ws.last_proposal() == proposal and ws.last_run()["proposal"] == proposal["number"] == 1
+
+
+def test_without_the_loop_no_test_runs_and_the_proposal_is_blocked(ws):
+    runner = Runner()
+    proposal = asyncio.run(build.run(ws, Scripted(answer(build_answer())), run_tests=runner, loop=False))
+    assert runner.calls == [] and proposal["results"] is None and ws.last_run() is None
+    assert proposal["blocked"] == ["The workspace tests were not run (built without the loop)."]
 
 
 def test_only_approved_tests_run(ws):
@@ -198,7 +212,7 @@ def test_only_approved_tests_run(ws):
 
 
 def test_every_requirement_is_carried_or_explained(ws):
-    lazy = build_answer(operations=build_answer()["operations"][:1])  # nothing carries R3
+    lazy = build_answer(operations=build_answer()["operations"][:1] + TRANSFER_EVERYWHERE)  # nothing carries R3
     model = Scripted(answer(lazy), answer(build_answer(operations=lazy["operations"], uncarried=[{"requirement": "R3", "reason": "Not this agent's job."}])))
     proposal, events = run(ws, model, Runner())
     repair = next(e for e in events if e["event"] == "repair")
@@ -212,6 +226,14 @@ def test_operations_that_do_not_apply_are_sent_back(ws):
     proposal, events = run(ws, model, Runner())
     assert "Operation 1 (delete_node): No node 'nowhere'" in next(e for e in events if e["event"] == "repair")["problems"][0]
     assert proposal["status"] == "ready"
+
+
+def test_every_node_but_the_ends_offers_transfer_to_human(ws):
+    partial = build_answer(operations=build_answer()["operations"][:-1])
+    proposal, events = run(ws, Scripted(answer(partial), answer(build_answer())), Runner())
+    problem = next(e for e in events if e["event"] == "repair")["problems"][0]
+    assert problem.startswith("transfer_to_human must be offered in every node that is not an end node; missing in manage_appointment.")
+    assert all("transfer_to_human" in n.get("tools", []) for n in proposal["agent"]["nodes"] if not n.get("end"))
 
 
 def test_the_clinic_and_the_model_stay(ws):
@@ -386,7 +408,7 @@ def test_the_api_streams_the_build_and_accepts(ws, tmp_path):
     response = api.post("/copilot/workspaces/harbor/build")
     assert response.status_code == 200 and "event: operation\ndata: " in response.text
     events = events_of(response)
-    assert [e["event"] for e in events] == ["part", "operation", "operation", "part", "tests", "done"]
+    assert [e["event"] for e in events] == ["part"] + ["operation"] * len(build_answer()["operations"]) + ["part", "tests", "done"]
     number = events[-1]["proposal"]["number"]
     assert api.get("/copilot/workspaces/harbor/proposals/last").json()["number"] == number
     assert api.post(f"/copilot/workspaces/harbor/proposals/{number}/accept").json()["version"]["number"] == 1

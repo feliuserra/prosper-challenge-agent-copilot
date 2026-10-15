@@ -3,7 +3,7 @@
 # make eval MUTANTS=1:  uv run python -m eval --mutants [--no-cache]
 # make eval JUDGE=m:    uv run python -m eval --judge MODEL [--only LABEL_ID]
 # make eval SPEC=ws:    uv run python -m eval --spec WORKSPACE
-# make eval COPILOT=1:  uv run python -m eval --copilot [--workspace ID] [--respec] [--no-cache]
+# make eval COPILOT=1:  uv run python -m eval --copilot [--workspace ID] [--respec] [--no-loop] [--no-cache]
 #
 # Runs clinic-a's reference suite (eval/clinic-a/tests.json) against an agent, by
 # default the reference agent, and prints the runner's table and summary. Results go
@@ -28,6 +28,8 @@
 # the Copilot's configuration names its own way, so the built agent runs against Linden
 # Grove's clinic file: the suite measures the graph and its prompts, and --spec measures
 # the configuration. Records the pass rate, rounds, time and cost in eval/results/.
+# --no-loop builds without running the workspace tests (the build call alone, then the
+# reference suite): about $2.20 instead of $10 or more.
 #
 
 import argparse
@@ -82,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--copilot", action="store_true", help="spec, approve, build, then the reference suite on the result")
     parser.add_argument("--workspace", default="clinic-a", help="the workspace --copilot uses (default: clinic-a)")
     parser.add_argument("--respec", action="store_true", help="with --copilot, run the spec step even if the workspace has a spec")
+    parser.add_argument("--no-loop", action="store_true", help="with --copilot, build without running the workspace tests")
     args = parser.parse_args(argv)
     if args.spec:
         spec = Workspace(args.spec).spec()
@@ -89,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     stamp = f"{datetime.now():%Y-%m-%dT%H%M%S}"
     if args.copilot:
-        return run_copilot(args.workspace, args.respec, not args.no_cache, RESULTS / f"{stamp}-copilot.json")
+        return run_copilot(args.workspace, args.respec, not args.no_cache, not args.no_loop, RESULTS / f"{stamp}-copilot.json")
     if args.judge:
         return run_judge(args.judge, args.only, RESULTS / f"{stamp}-judge-{args.judge}.json")
     if args.mutants:
@@ -155,7 +158,7 @@ def run_judge(model: str, only: list[str] | None, out: Path) -> int:
     return 0 if judge.passes(rows) else 1
 
 
-def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int:
+def run_copilot(workspace: str, respec: bool, use_cache: bool, loop: bool, out: Path) -> int:
     load_dotenv(HERE.parent / ".env", override=True)
     logger.disable("agent_builder")  # the builder logs every transition and tool call
     if not os.environ.get("OPENAI_API_KEY"):
@@ -163,12 +166,12 @@ def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int
         return 2
     reference = load_tests(TESTS)
     ws = Workspace(workspace)
-    loop = asyncio.Runner()  # one event loop for every step, so the model clients close in it
+    runner = asyncio.Runner()  # one event loop for every step, so the model clients close in it
     started = time.monotonic()
     spec_cost = None
     if respec or not ws.spec().get("configuration"):
         ws.save_guidelines(GUIDELINES.read_text())  # a person pasting the client's document
-        spec = loop.run(spec_step.run(ws, OpenAIChat("copilot"), show_step, replace_approved=True))
+        spec = runner.run(spec_step.run(ws, OpenAIChat("copilot"), show_step, replace_approved=True))
         spec_cost = spec["meta"]["cost"]
     else:
         print(f"Reusing the stored spec of '{workspace}' ({ws.spec()['meta']['created']}); --respec runs the step again.")
@@ -178,7 +181,7 @@ def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int
     print(f"Approved {len(approved)} test(s); {len(build_step.approved_tests(spec))} approved in all.")
 
     try:
-        proposal = loop.run(run_build(ws, use_cache))
+        proposal = runner.run(run_build(ws, use_cache, loop))
     except build_step.BuildError as error:
         print(f"error: {error}", file=sys.stderr)
         for problem in error.problems:
@@ -193,7 +196,7 @@ def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int
         print("\n".join(errors), file=sys.stderr)
         return 2
     suite_started = time.monotonic()
-    results = loop.run(run_suite(agent, reference, models("eval"), use_cache=use_cache))
+    results = runner.run(run_suite(agent, reference, models("eval"), use_cache=use_cache))
     suite_seconds = time.monotonic() - suite_started
     print(f"\nReference suite on proposal {proposal['number']} (clinic {TRUTH_CLINIC})\n")
     print(sim_table(results))
@@ -218,7 +221,7 @@ def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int
         "reference": {"passed": passed, "flaky": sum(r["status"] == "flaky" for r in results), "total": len(results),
                       "safety_passed": sum(r["status"] == "pass" for r in safety), "safety_total": len(safety)},
         "workspace_tests": {"before": proposal["results"]["before"]["passing"], "after": proposal["results"]["after"]["passing"],
-                            "total": proposal["results"]["after"]["total"]},
+                            "total": proposal["results"]["after"]["total"]} if proposal["results"] else None,
         "rounds": len(proposal["rounds"]),
         "kept": sum(r.get("kept", False) for r in proposal["rounds"]),
         "operations": len(proposal["operations"]),
@@ -229,7 +232,7 @@ def run_copilot(workspace: str, respec: bool, use_cache: bool, out: Path) -> int
         "cost": {**costs, "total": sum(c for c in costs.values() if c is not None)},
         "results": results,
     }
-    loop.close()
+    runner.close()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
     print(

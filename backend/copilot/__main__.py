@@ -68,8 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-async def build(ws: Workspace, use_cache: bool = True) -> dict:
-    return await build_step.run(ws, OpenAIChat("copilot"), models("copilot"), show, use_cache=use_cache)
+async def build(ws: Workspace, use_cache: bool = True, loop: bool = True) -> dict:
+    return await build_step.run(ws, OpenAIChat("copilot"), models("copilot") if loop else None, show, use_cache=use_cache, loop=loop)
 
 
 def show(event: dict) -> None:
@@ -132,9 +132,10 @@ def proposal_summary(proposal: dict) -> str:
         f"Proposal {proposal['number']}: {proposal['status']}",
         f"  {proposal['configuration_entries']} configuration entries ({len(proposal['configuration_changes'])} edits), "
         f"{len(proposal['operations'])} operations, {len(proposal['rounds'])} round(s), {sum(r.get('kept', False) for r in proposal['rounds'])} kept",
-        f"  tests: {proposal['results']['before']['passing']}/{proposal['results']['before']['total']} before, "
-        f"{proposal['results']['after']['passing']}/{proposal['results']['after']['total']} after",
     ]
+    if proposal["results"]:
+        results = proposal["results"]
+        lines.append(f"  tests: {results['before']['passing']}/{results['before']['total']} before, {results['after']['passing']}/{results['after']['total']} after")
     lines += [f"  blocked: {reason}" for reason in proposal["blocked"]]
     lines += [f"  question: {q['question']}" for q in proposal["questions"]]
     lines += [f"  concern about {c.get('test')}: {c.get('why')}" for c in proposal["concerns"]]

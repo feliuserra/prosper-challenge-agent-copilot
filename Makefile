@@ -41,8 +41,8 @@ detect: ## Print the ranked issues found in the call logs (#58; no model calls)
 detect-eval: ## Measure detection against the planted defects, with recall by rate and volume (#58)
 	uv run --directory $(PROJECT) python -m detect eval
 
-eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id; MUTANTS=1 for the mutants; JUDGE=model to calibrate a judge; SPEC=workspace to check a spec (#29); COPILOT=1 to build clinic-a's agent and test it (#30; about $3 to $5 uncached; WORKSPACE=id, RESPEC=1)
-	uv run --directory $(PROJECT) python -m eval $(if $(COPILOT),--copilot $(if $(WORKSPACE),--workspace $(WORKSPACE)) $(if $(RESPEC),--respec)) $(if $(SPEC),--spec $(SPEC)) $(if $(JUDGE),--judge $(JUDGE)) $(if $(MUTANTS),--mutants) $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
+eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id; MUTANTS=1 for the mutants; JUDGE=model to calibrate a judge; SPEC=workspace to check a spec (#29); COPILOT=1 to build clinic-a's agent and test it (#30; about $12 uncached; WORKSPACE=id, RESPEC=1, NO_LOOP=1 for the build alone, about $2.20)
+	uv run --directory $(PROJECT) python -m eval $(if $(COPILOT),--copilot $(if $(WORKSPACE),--workspace $(WORKSPACE)) $(if $(RESPEC),--respec) $(if $(NO_LOOP),--no-loop)) $(if $(SPEC),--spec $(SPEC)) $(if $(JUDGE),--judge $(JUDGE)) $(if $(MUTANTS),--mutants) $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
 
 spec: ## Write a workspace's spec from its guidelines (#29; model calls, about $0.35): WORKSPACE=id, GUIDELINES=path to paste a file first
 	uv run --directory $(PROJECT) python -m copilot spec $(WORKSPACE) $(if $(GUIDELINES),--guidelines $(abspath $(GUIDELINES)))
