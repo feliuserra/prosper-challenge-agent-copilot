@@ -41,8 +41,8 @@ detect: ## Print the ranked issues found in the call logs (#58; no model calls)
 detect-eval: ## Measure detection against the planted defects, with recall by rate and volume (#58)
 	uv run --directory $(PROJECT) python -m detect eval
 
-eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id
-	uv run --directory $(PROJECT) python -m eval $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
+eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id; MUTANTS=1 for the mutants; JUDGE=model to calibrate a judge
+	uv run --directory $(PROJECT) python -m eval $(if $(JUDGE),--judge $(JUDGE)) $(if $(MUTANTS),--mutants) $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
 
 spend: ## Print the estimated model spend by day and source from the spend log (#27; SINCE=YYYY-MM-DD)
 	uv run --directory $(PROJECT) python -m sim spend $(if $(SINCE),--since $(SINCE))

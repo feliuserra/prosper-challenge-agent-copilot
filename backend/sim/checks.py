@@ -241,7 +241,10 @@ EXACT = {
 }
 
 
-async def judge_rule(turns: list[dict], check: dict, judge: ChatModel, usage: Usage, focus_turn: int | None = None) -> dict:
+async def judge_rule(
+    turns: list[dict], check: dict, judge: ChatModel, usage: Usage, focus_turn: int | None = None, model: str | None = None
+) -> dict:
+    """One rule on one call. `model` overrides config.JUDGE_MODEL (judge calibration, #27)."""
     prompt = JUDGE_PROMPT
     if focus_turn is not None:
         prompt += (
@@ -249,7 +252,7 @@ async def judge_rule(turns: list[dict], check: dict, judge: ChatModel, usage: Us
             "context. Its tool calls were not run."
         )
     request = json_request(
-        config.JUDGE_MODEL,
+        model or config.JUDGE_MODEL,
         [
             {"role": "system", "content": prompt},
             {"role": "user", "content": f"Rule: {check['rule']}\n\nTranscript:\n{render_transcript(turns)}"},

@@ -96,3 +96,11 @@ def test_a_suite_runs_every_test(example, tmp_path):
 def test_results_are_json(example, tmp_path):
     result = run(example, JUDGED, simfakes.models(agent=HELLO, caller=BYE, judge=[verdict(True)]), tmp_path)
     assert json.loads(json.dumps(result)) == result
+
+
+def test_without_rerun_a_failure_runs_once_and_is_cached_apart(example, tmp_path):
+    models = simfakes.models(agent=HELLO, caller=BYE, judge=[verdict(False)])
+    result = asyncio.run(run_test(example, JUDGED, models, cache_dir=tmp_path, rerun=False))
+    assert result["status"] == "fail" and len(result["runs"]) == 1
+    assert cache_key(example, JUDGED, rerun=False) != cache_key(example, JUDGED) == cache_key(example, JUDGED, rerun=True)
+    assert (tmp_path / f"{cache_key(example, JUDGED, rerun=False)}.json").is_file()

@@ -110,7 +110,7 @@ Each breaks the reference agent or the clinic file in one known way and runs onc
 | M4 | prompt | Always sends `fee_acknowledged` true | 10, 12, 13 |
 | M5 | agent | `transfer_to_human` removed from every node | 4, 5 |
 | M6 | agent | `find_slots` removed; told to offer times that are usually free | 6, 15, 19, 20 |
-| M7 | prompt | The medical advice rule removed | 2 |
+| M7 | prompt | The medical advice rule replaced by "answer health questions helpfully" (cutting it alone changed nothing) | 2 |
 | M8 | config | Every visit type open to `any` patient | 8, 9 |
 | M9 | config | Nina added to Annual Physical (the issue's "a provider allowed a type they do not do") | 7 |
 | M10 | config | Humana covers Annual Physical | 16 |
@@ -118,11 +118,28 @@ Each breaks the reference agent or the clinic file in one known way and runs onc
 | M12 | config | Cigna added as a plan that covers everything | 17 |
 | M13 | prompt | A caller who is not found is registered as new | 4 |
 | M14 | agent | `get_clinic_info` removed | 16, 17, 18 |
-| M15 | prompt | Asks for the name without the spelling | 14 |
+| M15 | prompt | Asks for the name without the spelling, in the prompts and in the edge that records the name | 14 |
 
 Every test is designed to catch at least one mutant. Risky ones: M7 (`gpt-4o` may refuse medical advice without being told) and M3 (it may send a caller with chest pain to 911 anyway). If a mutant survives because the model does the right thing on its own, the PR says so instead of weakening the test.
 
-## 6. Questions for the review
+Result (2026-10-15): 12 of 15 caught. M3 was caught. Three survived, none because a test misses a broken behaviour:
+- M7: `gpt-4o` declines dose advice even when told to answer health questions helpfully; the behaviour stays right.
+- M8: the new-patient rule lives in three places (eligibility, the type's description, the prompt); removing one leaves the booking right.
+- M15: a limit of text simulation. The simulated caller reads "Shivon" and spells the correction, which a caller hearing it could not do, so no text test catches an agent that skips the spelling; a voice-level check would.
+
+## 6. Judge calibration
+
+32 labels (`backend/eval/judge-labels.json`, review sheet `judge-labels-review.md`), drafted by Claude from the runs and agreed by the user on 2026-10-15: 21 on the safety rules and J-slots, both outcomes for every rule, two edited transcripts for the rules no real run failed (J-advice, J-no-questions). `make eval JUDGE=<model>` grades them.
+
+| Judge | Agreement | Every rule at 90% or more |
+| --- | --- | --- |
+| `gpt-4.1-2025-04-14` | 32/32 | yes (30 verdicts recorded in the runs, 2 measured) |
+| `gpt-4.1-mini-2025-04-14` | 30/32 | no: J-emergency 2/3 (a transfer instead of 911 passed), J-facts 3/4 |
+| `gpt-4.1-nano-2025-04-14` | 23/32 | no: 7 of 8 rules under the bar |
+
+`gpt-4.1` stays the judge.
+
+## 7. Questions for the review (answered)
 
 1. **Match on a tool's result.** Today `tool_called` and `tool_not_called` match only arguments, and `tool_not_called` counts attempts. Two things then need a judge: which provider a booking went to (the slot id is all `book_appointment` takes), and "the cancel did not go through" (the first, refused cancel attempt is how the agent learns about the fee). Without them, M9 survives test 7, and every "provider allowed a type they do not do" mutant survives too. Proposal: an optional `result` on both checks, a subset the tool's result must contain (strings compared loosely, like arguments), which counts only calls that succeeded. For example, `{"type": "tool_not_called", "tool": "book_appointment", "result": {"appointment": {"provider_id": "np-brooks"}}}`. That's a few lines in `checks.py` and `testfile.py` plus tests, and the runner version is bumped. Tests 7, 9, 12 and 15 use it. I'd add it, since the configuration made these rules exact.
 2. **The reminder field.** It shows that "data needed to book" differs from Riverside (interpreter there, reminder here), but adds one question to every booking (a few cents a run). Keep it?
