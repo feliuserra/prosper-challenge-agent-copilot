@@ -186,7 +186,7 @@ def test_api_guidelines_round_trip(client):
 
 
 def test_api_spec_of_a_missing_workspace_is_empty(client):
-    assert client.get("/copilot/workspaces/prosper-scheduler/spec").json() == EMPTY_SPEC
+    assert client.get("/copilot/workspaces/prosper-scheduler/spec").json() == {**EMPTY_SPEC, "gaps": {"uncarried": [], "untested": []}}
 
 
 def test_api_saves_from_the_editor_add_versions(client, agent):

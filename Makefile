@@ -5,7 +5,7 @@ PROJECT := backend
 FRONTEND := frontend
 TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset synth detect detect-eval eval spend memo clean
+.PHONY: help install run dev test clinic-reset synth detect detect-eval eval spec spend memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -41,8 +41,11 @@ detect: ## Print the ranked issues found in the call logs (#58; no model calls)
 detect-eval: ## Measure detection against the planted defects, with recall by rate and volume (#58)
 	uv run --directory $(PROJECT) python -m detect eval
 
-eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id; MUTANTS=1 for the mutants; JUDGE=model to calibrate a judge
-	uv run --directory $(PROJECT) python -m eval $(if $(JUDGE),--judge $(JUDGE)) $(if $(MUTANTS),--mutants) $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
+eval: ## Run the reference suite (#27; model calls, cached): AGENT=path for another agent, NO_CACHE=1, ONLY=test-id; MUTANTS=1 for the mutants; JUDGE=model to calibrate a judge; SPEC=workspace to check a spec (#29)
+	uv run --directory $(PROJECT) python -m eval $(if $(SPEC),--spec $(SPEC)) $(if $(JUDGE),--judge $(JUDGE)) $(if $(MUTANTS),--mutants) $(if $(AGENT),--agent $(abspath $(AGENT))) $(if $(NO_CACHE),--no-cache) $(if $(ONLY),--only $(ONLY))
+
+spec: ## Write a workspace's spec from its guidelines (#29; model calls, about $0.20): WORKSPACE=id, GUIDELINES=path to paste a file first
+	uv run --directory $(PROJECT) python -m copilot spec $(WORKSPACE) $(if $(GUIDELINES),--guidelines $(abspath $(GUIDELINES)))
 
 spend: ## Print the estimated model spend by day and source from the spend log (#27; SINCE=YYYY-MM-DD)
 	uv run --directory $(PROJECT) python -m sim spend $(if $(SINCE),--since $(SINCE))

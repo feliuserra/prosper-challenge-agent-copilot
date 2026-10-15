@@ -1,0 +1,162 @@
+{
+  "description": "Nodes and edges are added in order, and their citations go to the node (an edge's to its node).",
+  "operations": [
+    {
+      "op": "add_node",
+      "name": "confirm",
+      "stage": "Book",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Read the name back."
+        }
+      ],
+      "requirements": [
+        "R3"
+      ]
+    },
+    {
+      "op": "add_edge",
+      "node": "confirm",
+      "function": "confirmed",
+      "target": "end",
+      "description": "Once the caller says yes."
+    },
+    {
+      "op": "add_edge",
+      "node": "ask",
+      "function": "name_given",
+      "target": "confirm",
+      "description": "Once the caller says a name.",
+      "properties": {
+        "full_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "full_name"
+      ],
+      "requirements": [
+        "R1",
+        "R4"
+      ]
+    }
+  ],
+  "requirements": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R9"
+  ],
+  "expected": {
+    "name": "Tiny",
+    "model": "gpt-4o",
+    "persona": "You are a scheduling assistant.",
+    "initial_node": "start",
+    "nodes": [
+      {
+        "name": "start",
+        "stage": "Hello",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Greet the caller."
+          }
+        ],
+        "edges": [
+          {
+            "function": "go_ask",
+            "description": "Once the caller has said hello.",
+            "target": "ask"
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "ask",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's name."
+          }
+        ],
+        "edges": [
+          {
+            "function": "done",
+            "description": "Once the name is known.",
+            "target": "end"
+          },
+          {
+            "function": "again",
+            "description": "If the name was unclear.",
+            "target": "ask"
+          },
+          {
+            "function": "name_given",
+            "description": "Once the caller says a name.",
+            "target": "confirm",
+            "properties": {
+              "full_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "full_name"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "end",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say goodbye."
+          }
+        ],
+        "edges": [],
+        "end": true
+      },
+      {
+        "name": "confirm",
+        "stage": "Book",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Read the name back."
+          }
+        ],
+        "edges": [
+          {
+            "function": "confirmed",
+            "description": "Once the caller says yes.",
+            "target": "end"
+          }
+        ]
+      }
+    ]
+  },
+  "carriers": {
+    "configuration": {
+      "cancellation": [
+        "R9"
+      ]
+    },
+    "nodes": {
+      "ask": [
+        "R1",
+        "R4"
+      ],
+      "end": [
+        "R2"
+      ],
+      "confirm": [
+        "R3"
+      ]
+    },
+    "persona": []
+  }
+}

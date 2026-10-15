@@ -1,0 +1,17 @@
+{
+  "description": "An edge to a node that does not exist yet is refused: add the node first.",
+  "operations": [
+    {
+      "op": "add_edge",
+      "node": "ask",
+      "function": "to_confirm",
+      "target": "confirm",
+      "description": "Later."
+    },
+    {
+      "op": "add_node",
+      "name": "confirm"
+    }
+  ],
+  "error": "Operation 1 (add_edge): No target node 'confirm'."
+}

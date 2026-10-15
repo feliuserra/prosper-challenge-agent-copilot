@@ -1,0 +1,13 @@
+{
+  "description": "Only catalog tools.",
+  "operations": [
+    {
+      "op": "set_tools",
+      "node": "ask",
+      "tools": [
+        "send_sms"
+      ]
+    }
+  ],
+  "error": "Unknown tool 'send_sms'."
+}

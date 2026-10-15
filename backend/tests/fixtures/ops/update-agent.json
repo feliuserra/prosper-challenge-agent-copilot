@@ -1,0 +1,92 @@
+{
+  "description": "update_agent changes the persona (its citations go to the persona) and null removes a key.",
+  "operations": [
+    {
+      "op": "update_agent",
+      "patch": {
+        "persona": "You are Linden Grove's scheduling assistant. Short, warm answers.",
+        "model": null
+      },
+      "requirements": [
+        "R7"
+      ]
+    }
+  ],
+  "expected": {
+    "name": "Tiny",
+    "persona": "You are Linden Grove's scheduling assistant. Short, warm answers.",
+    "initial_node": "start",
+    "nodes": [
+      {
+        "name": "start",
+        "stage": "Hello",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Greet the caller."
+          }
+        ],
+        "edges": [
+          {
+            "function": "go_ask",
+            "description": "Once the caller has said hello.",
+            "target": "ask"
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "ask",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's name."
+          }
+        ],
+        "edges": [
+          {
+            "function": "done",
+            "description": "Once the name is known.",
+            "target": "end"
+          },
+          {
+            "function": "again",
+            "description": "If the name was unclear.",
+            "target": "ask"
+          }
+        ]
+      },
+      {
+        "name": "end",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say goodbye."
+          }
+        ],
+        "edges": [],
+        "end": true
+      }
+    ]
+  },
+  "carriers": {
+    "configuration": {
+      "cancellation": [
+        "R9"
+      ]
+    },
+    "nodes": {
+      "ask": [
+        "R1"
+      ],
+      "end": [
+        "R2"
+      ]
+    },
+    "persona": [
+      "R7"
+    ]
+  }
+}

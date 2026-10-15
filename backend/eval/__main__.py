@@ -2,6 +2,7 @@
 # make eval:            uv run python -m eval [--agent PATH] [--no-cache] [--only ID]
 # make eval MUTANTS=1:  uv run python -m eval --mutants [--no-cache]
 # make eval JUDGE=m:    uv run python -m eval --judge MODEL [--only LABEL_ID]
+# make eval SPEC=ws:    uv run python -m eval --spec WORKSPACE
 #
 # Runs clinic-a's reference suite (eval/clinic-a/tests.json) against an agent, by
 # default the reference agent, and prints the runner's table and summary. Results go
@@ -14,6 +15,9 @@
 #
 # --judge grades the reviewed judge labels (eval/judge-labels.json) with a model and
 # prints agreement per rule; --only picks label ids.
+#
+# --spec compares a workspace's spec (#29) with clinic-a's truth (eval/spec_check.py):
+# the extracted configuration against Linden Grove's file, entry by entry. No model calls.
 #
 
 import argparse
@@ -36,7 +40,9 @@ from sim.llm import Usage, models
 from sim.runner import cache_key, run_pairs, run_suite
 from sim.testfile import load_tests, validate_tests
 
-from . import judge, mutants
+from copilot.workspace import Workspace
+
+from . import judge, mutants, spec_check
 
 HERE = Path(__file__).parent
 REFERENCE_AGENT = HERE / "clinic-a" / "reference-agent.json"
@@ -51,7 +57,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only", action="append", metavar="ID", help="run only this test id (repeatable)")
     parser.add_argument("--mutants", action="store_true", help="run each mutant once against its own tests")
     parser.add_argument("--judge", metavar="MODEL", help="grade the reviewed judge labels with this model")
+    parser.add_argument("--spec", metavar="WORKSPACE", help="compare a workspace's spec with clinic-a's truth")
     args = parser.parse_args(argv)
+    if args.spec:
+        spec = Workspace(args.spec).spec()
+        print(spec_check.report(spec))
+        return 0
     stamp = f"{datetime.now():%Y-%m-%dT%H%M%S}"
     if args.judge:
         return run_judge(args.judge, args.only, RESULTS / f"{stamp}-judge-{args.judge}.json")

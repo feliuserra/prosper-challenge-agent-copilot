@@ -1,0 +1,13 @@
+{
+  "description": "update_node cannot touch edges, tools or the name: they have their own operations.",
+  "operations": [
+    {
+      "op": "update_node",
+      "name": "start",
+      "patch": {
+        "edges": []
+      }
+    }
+  ],
+  "error": "Cannot set 'edges' on a node here."
+}

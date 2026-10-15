@@ -1,0 +1,86 @@
+{
+  "description": "Renaming the start node moves initial_node.",
+  "operations": [
+    {
+      "op": "rename_node",
+      "name": "start",
+      "new_name": "greeting"
+    }
+  ],
+  "expected": {
+    "name": "Tiny",
+    "model": "gpt-4o",
+    "persona": "You are a scheduling assistant.",
+    "initial_node": "greeting",
+    "nodes": [
+      {
+        "name": "greeting",
+        "stage": "Hello",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Greet the caller."
+          }
+        ],
+        "edges": [
+          {
+            "function": "go_ask",
+            "description": "Once the caller has said hello.",
+            "target": "ask"
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "ask",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's name."
+          }
+        ],
+        "edges": [
+          {
+            "function": "done",
+            "description": "Once the name is known.",
+            "target": "end"
+          },
+          {
+            "function": "again",
+            "description": "If the name was unclear.",
+            "target": "ask"
+          }
+        ]
+      },
+      {
+        "name": "end",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say goodbye."
+          }
+        ],
+        "edges": [],
+        "end": true
+      }
+    ]
+  },
+  "carriers": {
+    "configuration": {
+      "cancellation": [
+        "R9"
+      ]
+    },
+    "nodes": {
+      "ask": [
+        "R1"
+      ],
+      "end": [
+        "R2"
+      ]
+    },
+    "persona": []
+  }
+}

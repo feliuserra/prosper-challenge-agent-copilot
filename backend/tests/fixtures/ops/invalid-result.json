@@ -1,0 +1,25 @@
+{
+  "description": "Every operation applies, but the agent they make is invalid: reported, ok is false.",
+  "operations": [
+    {
+      "op": "update_node",
+      "name": "ask",
+      "patch": {
+        "task_messages": [
+          {
+            "content": "No role."
+          }
+        ]
+      }
+    },
+    {
+      "op": "update_edge",
+      "node": "ask",
+      "function": "done",
+      "patch": {
+        "target": null
+      }
+    }
+  ],
+  "error": "Invalid agent (node 'ask'): Each task message needs a role."
+}
