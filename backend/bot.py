@@ -77,7 +77,7 @@ CLINIC_STATE_DIR = Path(__file__).parent / "clinic" / "state"
 TURN_STOP_SECS = 1.2
 
 app.include_router(make_router(AGENTS_DIR, workspaces_dir=WORKSPACES_DIR))  # saves add versions (#28)
-app.include_router(copilot_api.make_router(WORKSPACES_DIR))  # #28: workspaces
+app.include_router(copilot_api.make_router(WORKSPACES_DIR, agents_dir=AGENTS_DIR))  # #28: workspaces; #30: the build
 app.include_router(detection_api.make_router(SYNTHETIC_CALLS))  # #58: issues and per-node numbers
 
 

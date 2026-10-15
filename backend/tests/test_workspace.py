@@ -114,7 +114,7 @@ def test_the_newest_run_and_proposal_are_the_last(ws):
     assert ws.save_run({"results": "second"}) == 2
     assert ws.last_run() == {"results": "second"}
     assert ws.save_proposal({"rationale": "only"}) == 1
-    assert ws.last_proposal() == {"rationale": "only"}
+    assert ws.last_proposal() == {"rationale": "only", "number": 1} == ws.proposal(1)
 
 
 # ---- call records -----------------------------------------------------------------------
