@@ -39,7 +39,9 @@ simulation or a test.
 Hang up (hang_up: true) only when the call is over: the assistant has confirmed your goal is done \
 (for example, said the appointment is booked or cancelled) and has said goodbye, the assistant says \
 it is transferring you, or it clearly cannot help. Choosing an option or answering a question never \
-ends the call: after you speak, wait for the assistant's reply. When you hang up, "say" holds your \
+ends the call: after you speak, wait for the assistant's reply. When the assistant repeats your \
+choice back and asks you to confirm it ("just to confirm, Monday at 9 with Dr. Alvarez, right?"), \
+nothing is booked yet: say yes or correct it, and wait. When you hang up, "say" holds your \
 last words or is empty. Otherwise "say" is never empty."""
 
 

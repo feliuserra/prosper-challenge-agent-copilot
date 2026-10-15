@@ -141,6 +141,10 @@ def test_continue_from_runs_k_times_and_grades(example, booked):
 
 def test_replay_turn_takes_only_turn_checks(example, booked):
     turn = model_turns(booked)[0]["turn"]
-    for check in ({"type": "tool_order", "tools": ["find_slots", "book_appointment"]}, {"type": "tool_called"}):
+    for check in (
+        {"type": "tool_order", "tools": ["find_slots", "book_appointment"]},
+        {"type": "tool_called"},
+        {"type": "tool_called", "tool": "book_appointment", "result": {"appointment": {}}},  # sampled calls do not run
+    ):
         with pytest.raises(ValueError, match="turn check"):
             asyncio.run(replay_turn(booked, turn, example, check, simfakes.models()))

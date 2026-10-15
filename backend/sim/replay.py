@@ -56,6 +56,8 @@ def _rebuild(record: dict, turn: int, agent: dict, models: Models) -> Conversati
 
 async def replay_turn(record: dict, turn: int, agent: dict, check: dict, models: Models, k: int = 5) -> dict:
     problems = validate_check(check)
+    if "result" in check:
+        problems.append("A sampled turn's calls are not run, so a turn check cannot match a result.")
     if problems or check["type"] not in TURN_CHECKS:
         raise ValueError(f"A turn check is one of {', '.join(TURN_CHECKS)} with its parameters. {' '.join(problems)}".strip())
     record = as_record(record)
