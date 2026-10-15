@@ -33,7 +33,6 @@ flowchart TD
     end
     verify_patient --> collect_reason
     verify_patient --> manage_appointment
-    manage_appointment --> collect_reason
 
     classDef hot fill:#f6a560,stroke:#c2410c,stroke-width:2px,color:#1c1917
     classDef calm fill:#f8fafc,stroke:#94a3b8,color:#0f172a
@@ -42,11 +41,10 @@ flowchart TD
     linkStyle 0,1,4 stroke-width:4px
     linkStyle 5,6,8 stroke-width:3px
     linkStyle 7,9 stroke-width:2px
-    linkStyle 10 stroke-width:1px
     linkStyle 2,3 stroke:#c2410c,stroke-width:2.5px
 ```
 
-<sub>Riverside, version 3 against version 2, from the synthetic logs (`make synth`). Edge width is traffic: about 10,700 calls a week on the busiest edge, about 115 on the rarest. Only one node is tinted: the others are within noise of their baseline.</sub>
+<sub>Riverside, version 3 against version 2, from the synthetic logs (`make synth`). Edge width is traffic, up to about 10,700 calls a week; the rare edge from Manage appointment back to Collect reason (about 115 a week) is left out. Only one node is tinted: the others are within noise of their baseline.</sub>
 
 The detector flagged it the week version 3 went live, and `make detect` lists it first:
 
