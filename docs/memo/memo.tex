@@ -1,5 +1,5 @@
-% Hand-in memo: at most 3 pages. Build with `make memo` (Tectonic).
-% Yellow TBD boxes mark numbers that come from #34; remove \draftnote when final.
+% Hand-in memo: 3 pages plus a 4th for future work. Build with `make memo` (Tectonic).
+% Status words in the scope table: Built, Mocked, Designed (specified in its issue, not built), Left out.
 \documentclass[11pt,a4paper]{article}
 
 \usepackage[margin=1.9cm,top=1.6cm,bottom=1.7cm]{geometry}
@@ -22,8 +22,6 @@
 \setlength{\parindent}{0pt}
 \renewcommand{\arraystretch}{1.15}
 
-\newcommand{\tbd}[1]{\colorbox{yellow!45}{\scriptsize\sffamily TBD: #1}}
-\newcommand{\draftnote}[1]{\par\colorbox{yellow!25}{\parbox{\dimexpr\linewidth-2\fboxsep}{\footnotesize\sffamily Draft: #1}}\par}
 \newcommand{\code}[1]{\texttt{\small #1}}
 
 \definecolor{ink}{HTML}{2B2B2B}
@@ -33,7 +31,6 @@
 {\raggedright\LARGE\bfseries Agent Copilot: build voice agents like software, watch them at scale\par}
 \vspace{2pt}
 {\small Prosper challenge, Phase 2 \quad·\quad Feliu Serra Burriel \quad·\quad October 2026}
-\draftnote{written before the build, to fix the story and the scope. Numbers come from the final runs.}
 
 \section{The problem}
 
@@ -65,7 +62,7 @@ So there are two bottlenecks. \textbf{The team's:} building an agent and checkin
   \node[box,below=11mm of g] (k) {Client tickets};
   \draw[arr] (g) -- (r);
   \draw[arr] (r) -- node[above,lab]{human\\reviews} (t);
-  \draw[arr] (t) -- node[above,lab]{build, loop\\until green} (a);
+  \draw[arr] (t) -- node[above,lab]{build,\\loop} (a);
   \draw[arr] (a) -- node[right,lab]{deploy} (c);
   \draw[arr] (c) -- node[above,lab]{signals,\\judge,\\triage} (i);
   \draw[arr] (k) -- (f.west);
@@ -86,11 +83,11 @@ So there are two bottlenecks. \textbf{The team's:} building an agent and checkin
   \item \textbf{Clinic rules are data, not prompts.} Tables and numbers (appointment types, providers per type, coverage, required fields, the cancellation fee) go into a validated clinic configuration that the tools enforce: \code{book\_appointment} refuses a visit the provider does not do, with a reason the model can act on. A new clinic is a configuration plus a small diff on the scheduling template, not a new graph, and the human reviews the configuration as tables.
   \item \textbf{Requirements are the spec.} The Copilot turns guidelines into numbered requirements, each citing the sentence it came from, plus questions for the client where the guidelines are silent, each with the safe default used meanwhile. A healthcare baseline is always added: emergencies, no medical advice, identity before any booking, a human on request.
   \item \textbf{The human reviews tests, not prompts.} Checking 20 one-line tests against the guidelines takes minutes; reading every prompt in a graph takes an hour. Tests are approved before the graph exists and then locked, so the Copilot cannot pass by editing them.
-  \item \textbf{Facts are checked before tone.} A small model plays a caller with a persona, a goal and facts, through a text runner that follows the voice runtime's rules. Checks are exact where possible: which tools were called, with which arguments, in which order, and how the call ended. A model judge is used only for soft rules such as tone.
-  \item \textbf{Loop until green, then one diff.} The Copilot edits through validated operations, reruns the failing tests (at most 3 rounds) and proposes one diff that you accept or reject like a pull request.
+  \item \textbf{Exact checks first, a judge for the rest.} A small model plays a caller with a persona, a goal and facts, through a text runner that follows the voice runtime's rules. What the agent did is checked exactly: tools called, their arguments and order, and how the call ended. A model judge checks what it said: read-backs, privacy, emergencies, medical advice, and that every time and fact came from a tool.
+  \item \textbf{Loop, then one diff.} The Copilot edits through validated operations, reruns the failing tests (at most 3 rounds) and proposes one diff to accept or reject like a pull request; while tests fail, the proposal is blocked and says why (the broken link per failure, client questions, tests it doubts). The loop has not paid off yet: \$12.38 against \$2.11 without it, for the same score.
 \end{itemize}
 
-\textbf{Why ``all tests pass'' means something.} A model writes the agent, plays the caller and grades the call, so it can agree with itself. Against that: a 20-test reference suite the Copilot never sees; mutation testing (deliberately broken agents must each fail a test); a judge calibrated on hand-labelled calls (below 90\% agreement, a rule becomes an exact check); a check that no test data (names, birth dates) appears in the agent; and a second clinic written by a person and kept out of the repo until the final run.
+\textbf{Why ``all tests pass'' means something.} A model writes the agent, plays the caller and grades the call, so it can agree with itself. Against that: a 20-test reference suite the Copilot never sees; mutation testing (12 of 15 broken agents fail a test; of the 3 that pass, two drop a rule that holds anyway, and one skips the spelling, which a simulated caller can check by reading but a real one cannot); a judge calibrated on hand-labelled calls (below 90\% agreement, a rule becomes an exact check); a check that no test data (names, birth dates) appears in the agent; and, designed but not yet run, a second clinic written by a person and kept out of the repo until a single final run.
 
 \section{Workflow 2: finding problems in 500,000 calls a month}
 
@@ -101,10 +98,11 @@ A call through our agents is not a free-form conversation: it is a path through 
 \toprule
 \textbf{Shape} & \textbf{What it looks like} & \textbf{Found by} \\
 \midrule
-Stall & many turns in one node: repeated questions, a name that speech-to-text keeps garbling & transitions \\
-Leak & hang-ups or transfers from a node that should not end calls & transitions \\
-Detour & unexpected edges, loops back to an earlier node & transitions \\
-Silent failure & the path looks perfect but the outcome is wrong: booked under the wrong name, an invented slot & judge, clinic records \\
+Stall & back to the same or an earlier node, or a long visit: a name speech-to-text keeps garbling & transitions \\
+Leak & hang-ups in a node where callers should not hang up & transitions \\
+Detour & an edge taken more often than it should be, such as needless transfers & transitions \\
+Tool error & a tool keeps refusing: a booking field the agent never asks for & tool results \\
+Silent failure & the path looks right, the outcome is wrong: the wrong name, an invented slot & judge, clinic records \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -112,22 +110,22 @@ Silent failure & the path looks perfect but the outcome is wrong: booked under t
 Three tiers, cheapest first:
 \begin{enumerate}[leftmargin=1.4em]
   \item \textbf{Signals on every call, no model.} Per node: entries, exits per edge, turns spent, re-entries, hang-ups, transfers, tool errors. From the clinic system: the same number calling back within 48 hours, a booking cancelled or changed within a day, a new patient record that matches an existing one's birth date and phone under another name. That last one is the ticket ``Mrs.\ Lopez was booked under someone else's name'', found without reading a transcript.
-  \item \textbf{A model judge on a sample.} Calls flagged by tier 1, plus a random sample, are checked against the clinic's requirements and a general checklist. Each issue gets a severity, the requirement, the node and quotes. A random sample of 300 calls contains at least one example of any failure that affects 1\% of calls with 95\% probability ($1-0.99^{300}$); for an agent at 50,000 calls a month that is under 3\% of a week's traffic.
+  \item \textbf{A model judge on a sample (designed).} Calls flagged by tier 1, plus a random sample, are checked against the clinic's requirements and a general checklist. Each issue gets a severity, the requirement, the node and quotes. A random sample of 300 calls contains at least one example of any failure that affects 1\% of calls with 95\% probability ($1-0.99^{300}$); for an agent at 50,000 calls a month that is under 3\% of a week's traffic.
   \item \textbf{Triage.} Issues are grouped by node, requirement and shape, and ranked by severity, calls affected and trend. The output is a short list per person, not a dashboard, for example (from the synthetic logs): \emph{Riverside, Confirm name: re-entries at 8.9\% of calls since version 3, against 2.0\% in version 2 and 2.4\% at other clinics, about 680 more calls a week, 3 example calls.}
 \end{enumerate}
 
 \begin{figure}[b]
 \centering
-\includegraphics[width=0.8\linewidth]{heatmap.png}
+\includegraphics[width=0.72\linewidth]{heatmap.png}
 \caption{The call heatmap on the synthetic logs (crop): Riverside, version 3 against 2, re-entries. Confirm name, the planted stall, is the only tinted node (8.9\% against 2.0\%). Edge width is traffic; right, the ranked issues.}
 \label{fig:heat}
 \end{figure}
 
 \textbf{Baselines make a rate mean something.} Hang-ups after a cancellation are normal. Each node is compared with itself in the previous version, so an accepted change that makes things worse raises an alarm, and with the same template node in other clinics: because agents come from a template, Confirm name at clinic A can be compared with Confirm name everywhere else. Templates give a fleet-wide baseline for free. A two-proportion test with a minimum effect size keeps a busy agent from flagging tiny differences and a quiet one from flagging noise.
 
-\textbf{The heatmap is the view, not the detector.} Opening a ranked issue shows the canvas with nodes tinted by their distance from the baseline, edges drawn by traffic, and collapsed stages rolling up their nodes (Figure~\ref{fig:heat}). From there: the example calls at the quoted turn, then \emph{fix from this issue}: reproduce the call in the text runner from the words speech-to-text heard, find the turn that decided it, fix, and keep the reproduction as a regression test.
+\textbf{The heatmap is the view, not the detector.} Opening a ranked issue shows the canvas with nodes tinted by their distance from the baseline, edges drawn by traffic, and collapsed stages rolling up their nodes (Figure~\ref{fig:heat}). Designed next: \emph{fix from this issue} reproduces the call in the text runner from the words speech-to-text heard, finds the turn that decided it, fixes it, and keeps the reproduction as a regression test.
 
-\section{Scope: built, mocked, left out}
+\section{Scope: built, mocked, designed, left out}
 
 \begin{center}\small
 \begin{tabularx}{\linewidth}{@{}>{\raggedright}p{0.33\linewidth} l X@{}}
@@ -137,14 +135,14 @@ Three tiers, cheapest first:
 Graph editor, test calls with live node highlighting & Built & Phase 1: everything else sits on it. \\
 Clinic tools and calendar & Mocked & No access to a real clinic system; tools are where clinic rules are enforced. \\
 Text runner and test format & Built & A simulated call costs cents and runs in seconds. \\
-Clinic configuration, scheduling template & Built & The interviewer's answer 2: clinics differ mostly in tables. \\
-Spec, tests, build loop, Copilot UI & \tbd{planned} & Workflow 1, where the team's time goes. \\
-Production calls & Mocked & No real call data: 85,000 synthetic call logs, 3 clinics from one template (one at 50,000 calls a month), defects planted at known rates; plus about 20 simulated calls with silent failures. \\
+Clinic configuration and template & Built & The interviewer's answer 2: clinics differ mostly in tables. \\
+Spec, tests, build, loop & Built & Workflow 1, where the team's time goes. Run from \code{make} and the API; its UI is designed. \\
+Production calls & Mocked & No real call data: 85,000 synthetic call logs from 3 clinics on one template (one at 50,000 calls a month), defects planted at known rates. \\
 Signals, triage, heatmap & Built & Workflow 2, the part the brief left open. \\
-Judge on a sample & \tbd{planned} & Failures the path cannot show. \\
-Fix from an issue: reproduce, fix, regression test & \tbd{planned} & Closes the loop. No forecast of how the call would have gone. \\
-Intake call and checklist with the client & Left out & Getting the rules is not the bottleneck (answer 1). \\
-Telephony, staged rollout and rollback, auth, PHI redaction, languages other than English & Left out & Production infrastructure, not the Copilot. \\
+Judge on a sample & Designed & Failures the path cannot show: a wrong name, an invented slot. \\
+Fix from an issue: reproduce, fix, regression test & Designed & Closes the loop. No forecast of how the call would have gone. \\
+Intake call and client checklist & Left out & Getting the rules is not the bottleneck (answer 1). \\
+Telephony, rollout and rollback, auth, PHI redaction, other languages & Left out & Production infrastructure, not the Copilot. \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -156,12 +154,11 @@ Telephony, staged rollout and rollback, auth, PHI redaction, languages other tha
 \toprule
 \textbf{Measure} & \textbf{Result} \\
 \midrule
-Reference suite, Copilot-built agent: clinic A, and clinic B held out until the final run & \tbd{\#34} \\
-Broken agents caught by the tests; judge agreement with hand labels & \tbd{\#27} \\
+Reference suite, Copilot-built agent for clinic A. Misses: two read-backs (fixed in the template since, not rerun), two insurance questions, a request outside opening hours & 13 of 20 (target 18) \\
+Broken agents caught by the tests; judge agreement with hand labels & 12 of 15; 32 of 32 \\
 Planted defects found by signals and triage; false alarms & 6 of 6; none in 18 clinic-weeks \\
-Silent failures found by the judge on the 20 simulated calls & \tbd{\#32} \\
-Minutes from guidelines to all tests passing, and from issue to accepted fix & \tbd{\#34} \\
-Cost per test run and per judged call & \tbd{spend log} \\
+Spec step on clinic A's guidelines: requirements, tests, client questions, time & 45, 25, 5 in 136 s \\
+Cost: one simulated test call (judge included), the spec step, one build & \$0.09, \$0.38, \$2.11 \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -184,5 +181,14 @@ Calls a week & +0.5 pt & +1 pt & +2 pt & +3 pt & +5 pt \\
 \smallskip
 
 \textbf{What this does not show.} Text tests do not see latency, interruptions, audio, or speech-to-text errors other than the ones replayed from real calls. Synthetic logs prove the statistics and the plumbing, not how real callers behave; real rates and baselines are learned in production. In production the final judge is real outcomes: completed bookings, callbacks and hang-ups.
+
+\section{Future work: say which tools are missing}
+
+The Copilot does not write tools. Each catalog tool stands for an integration with the clinic's scheduling or records system, and the exact tests only mean the same thing on every agent because all agents share the catalog. The Copilot picks tools from it and fits their parameters to the clinic's configuration. What it should add is a report of the tools it needed and did not have, so the gap reaches a person instead of being papered over in a prompt.
+\begin{itemize}
+  \item \textbf{At build time, next to the client questions.} The build already lists every requirement it leaves uncarried, each with a free-text reason, but the list mixes ``the template or the tools already do this'' with ``the agent cannot do this''. The second becomes a kind of its own, \emph{needs a tool}: it names the missing capability (``text the patient a confirmation'', ``put the caller on a waitlist''), cites the guideline sentence and states what the agent does in the meantime: says it cannot, takes a message, or transfers. The reviewer sees it next to the questions for the client.
+  \item \textbf{In production, on the heatmap.} The judge on a sample (tier 2) tags calls where the caller asked for something the agent had no tool for, along with the transfer or hang-up that followed. Triage counts these by node and by request across the fleet, which is meaningful because every clinic runs the same template: for example, a waitlist asked for at Find slots at every clinic, with its share of calls and example calls. The heatmap gains one more layer: where callers ask for what the agent cannot do.
+  \item \textbf{The output is a ranked integration backlog.} Each entry lists the requirements that need it, the clinics that asked, the calls it would have changed, and quotes. Adding a tool stays a person's decision and an engineer's job. The Copilot shows which one is worth building next.
+\end{itemize}
 
 \end{document}
