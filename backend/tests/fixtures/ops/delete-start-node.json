@@ -1,0 +1,10 @@
+{
+  "description": "The start node cannot be deleted.",
+  "operations": [
+    {
+      "op": "delete_node",
+      "name": "start"
+    }
+  ],
+  "error": "This is the start node."
+}

@@ -12,7 +12,8 @@
 #   facts                {label: text}  address, hours, parking, phone
 #
 # Patients may carry `last_visit` (a patient without one is new) and
-# `insurance_plan`; appointments may carry `appointment_type`.
+# `insurance_plan`; appointments may carry `appointment_type`. Providers need a
+# name, and their weekly hours as {day: ["HH:MM-HH:MM", ...]}.
 #
 # `validate_clinic` returns every problem with its path, like validate_agent, so
 # a configuration the Copilot extracts from guidelines (#29) can be repaired.
@@ -35,6 +36,8 @@ CONFIG_KEYS = (
 PATIENT_KINDS = ("new", "existing", "any")
 ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 FIELD_RE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+HOURS_RE = re.compile(r"((?:[01]\d|2[0-3]):[0-5]\d)-((?:[01]\d|2[0-3]):[0-5]\d)")
 # Parameters the tools already have, and keys of the records fields are stored on.
 RESERVED_FIELDS = {
     "id", "full_name", "date_of_birth", "phone", "last_visit", "patient_id", "slot_id", "reason",
@@ -74,6 +77,7 @@ def validate_clinic(data: Any) -> list[ConfigIssue]:
             issue("clinic.now", "Needs the clinic's current time as YYYY-MM-DDTHH:MM.")
 
     providers = _ids(data, "providers", issue, required=True)
+    _validate_providers(data.get("providers"), issue)
     types = _validate_types(data.get("appointment_types"), providers, issue)
     _validate_plans(data.get("insurance_plans"), types, issue)
     for key in ("registration_fields", "booking_fields"):
@@ -96,6 +100,29 @@ def validate_clinic(data: Any) -> list[ConfigIssue]:
         if kind is not None and kind not in types:
             issue(f"appointments[{i}].appointment_type", f"Unknown appointment type '{kind}'.")
     return issues
+
+
+def _validate_providers(value: Any, issue) -> None:
+    """Names and weekly hours, which the slots are made from (a configuration the Copilot
+    extracts from guidelines writes them too, #29)."""
+    for i, provider in enumerate(_list(value)):
+        if not isinstance(provider, dict):
+            continue
+        path = f"providers[{i}]"
+        if not _text(provider.get("name")):
+            issue(f"{path}.name", "Needs the provider's name.")
+        length = provider.get("slot_minutes", 30)
+        if not isinstance(length, int) or isinstance(length, bool) or not 5 <= length <= 240:
+            issue(f"{path}.slot_minutes", "Must be a whole number of minutes from 5 to 240.")
+        schedule = provider.get("schedule", {})
+        if not isinstance(schedule, dict):
+            issue(f"{path}.schedule", f"Must be an object of weekday ({', '.join(WEEKDAYS)}) to hours.")
+            continue
+        for day, blocks in schedule.items():
+            if day not in WEEKDAYS:
+                issue(f"{path}.schedule.{day}", f"Unknown day. Days: {', '.join(WEEKDAYS)}.")
+            elif not isinstance(blocks, list) or not all(_hours(b) for b in blocks):
+                issue(f"{path}.schedule.{day}", "Must be a list of hours as HH:MM-HH:MM, the start before the end.")
 
 
 def _validate_types(value: Any, providers: set[str], issue) -> set[str]:
@@ -228,6 +255,11 @@ def _check_id(value: Any, path: str, seen: set[str], issue, pattern: bool = True
         issue(path, f"Duplicate id '{value}'.")
     else:
         seen.add(value)
+
+
+def _hours(value: Any) -> bool:
+    match = HOURS_RE.fullmatch(value) if isinstance(value, str) else None
+    return bool(match) and match[1] < match[2]
 
 
 def _list(value: Any) -> list:

@@ -158,3 +158,18 @@ def test_calibration_measures_agreement_per_rule():
     assert rules["J-emergency"] in model.requests[0]["messages"][1]["content"]
     text = judge.report(rows, "gpt-4.1-mini-2025-04-14", usage)
     assert "J-emergency      2/3" in text and "labelled fail, judge said pass" in text
+
+
+def test_spec_check_matches_entries_by_name_not_id():
+    """eval --spec (#29): an extracted configuration with its own ids still matches Linden Grove's."""
+    from eval import spec_check
+
+    truth = load_seed("linden-grove")
+    assert spec_check.compare(truth, truth)[1] == []
+    renamed = json.loads(json.dumps(truth).replace("np-brooks", "nina-brooks").replace("annual_physical", "physical"))
+    renamed["insurance_plans"][-1]["covers"].append("physical")  # Humana covers physicals: wrong
+    same, diffs = spec_check.compare(renamed, truth)
+    assert diffs == [
+        'plan Humana: covers: extracted ["annual_physical", "follow_up", "sick_visit"], truth ["follow_up", "sick_visit"]'
+    ]
+    assert same > 20

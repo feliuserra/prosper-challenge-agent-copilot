@@ -1,0 +1,13 @@
+{
+  "description": "Function names are unique per node.",
+  "operations": [
+    {
+      "op": "add_edge",
+      "node": "ask",
+      "function": "again",
+      "target": "end",
+      "description": "Twice."
+    }
+  ],
+  "error": "'again' is already used by another edge of node 'ask'."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "Arguments are checked before anything applies.",
+  "operations": [
+    {
+      "op": "add_edge",
+      "node": "ask",
+      "function": "x",
+      "target": "end"
+    }
+  ],
+  "error": "Needs `description`."
+}

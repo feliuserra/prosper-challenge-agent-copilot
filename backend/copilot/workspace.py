@@ -5,7 +5,8 @@
 #   workspaces/<agent-id>/
 #     guidelines.md        the client's document, pasted in
 #     spec.json            requirements, client questions, the clinic configuration
-#                          draft, and tests, each "draft" or "approved" (#29)
+#                          draft, what carries each requirement, and tests, each
+#                          "draft" or "approved" (#29, copilot/spec.py)
 #     versions/0001.json   a snapshot per editor save or accepted proposal
 #     runs/0001.json       test runs (#30); the newest is the last result (#31)
 #     proposals/0001.json  Copilot proposals (#30); the newest is the one shown
@@ -30,7 +31,14 @@ from storage import AGENT_ID_RE, write_atomic
 
 WORKSPACES_DIR = Path(__file__).resolve().parent.parent / "workspaces"
 
-EMPTY_SPEC = {"requirements": [], "questions": [], "configuration": None, "tests": []}
+EMPTY_SPEC = {
+    "requirements": [],
+    "set_aside": [],
+    "questions": [],
+    "configuration": None,
+    "carriers": {"configuration": {}, "nodes": {}, "persona": []},
+    "tests": [],
+}
 VERSION_SOURCES = ("editor", "copilot")
 CALL_SOURCES = ("live", "simulated", "production-mock")
 

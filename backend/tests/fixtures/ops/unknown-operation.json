@@ -1,0 +1,10 @@
+{
+  "description": "An operation the Copilot does not have.",
+  "operations": [
+    {
+      "op": "rewrite_agent",
+      "agent": {}
+    }
+  ],
+  "error": "Each operation needs an `op`"
+}

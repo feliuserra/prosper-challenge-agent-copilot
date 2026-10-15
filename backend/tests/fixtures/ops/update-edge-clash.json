@@ -1,0 +1,14 @@
+{
+  "description": "Renaming an edge onto a sibling's function name is refused.",
+  "operations": [
+    {
+      "op": "update_edge",
+      "node": "ask",
+      "function": "again",
+      "patch": {
+        "function": "done"
+      }
+    }
+  ],
+  "error": "'done' is already used by another edge of node 'ask'."
+}

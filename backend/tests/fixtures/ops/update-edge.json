@@ -1,0 +1,91 @@
+{
+  "description": "An edge can be renamed and retargeted.",
+  "operations": [
+    {
+      "op": "update_edge",
+      "node": "ask",
+      "function": "again",
+      "patch": {
+        "function": "spell_again",
+        "target": "start",
+        "description": "If the caller wants to start over."
+      }
+    }
+  ],
+  "expected": {
+    "name": "Tiny",
+    "model": "gpt-4o",
+    "persona": "You are a scheduling assistant.",
+    "initial_node": "start",
+    "nodes": [
+      {
+        "name": "start",
+        "stage": "Hello",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Greet the caller."
+          }
+        ],
+        "edges": [
+          {
+            "function": "go_ask",
+            "description": "Once the caller has said hello.",
+            "target": "ask"
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "ask",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's name."
+          }
+        ],
+        "edges": [
+          {
+            "function": "done",
+            "description": "Once the name is known.",
+            "target": "end"
+          },
+          {
+            "function": "spell_again",
+            "description": "If the caller wants to start over.",
+            "target": "start"
+          }
+        ]
+      },
+      {
+        "name": "end",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say goodbye."
+          }
+        ],
+        "edges": [],
+        "end": true
+      }
+    ]
+  },
+  "carriers": {
+    "configuration": {
+      "cancellation": [
+        "R9"
+      ]
+    },
+    "nodes": {
+      "ask": [
+        "R1"
+      ],
+      "end": [
+        "R2"
+      ]
+    },
+    "persona": []
+  }
+}

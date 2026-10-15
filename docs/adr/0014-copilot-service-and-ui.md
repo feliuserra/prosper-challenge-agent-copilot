@@ -1,6 +1,6 @@
 # ADR 0014: Copilot service and UI
 
-- **Status:** Accepted, 2026-10-05
+- **Status:** Accepted, 2026-10-05. Amended 2026-10-15 (#29, see the end): no chat yet; the spec step as built.
 - **Date:** 2026-10-05
 
 ## Context
@@ -34,3 +34,15 @@
 - One process and one port as in Phase 1; the Vite proxy adds `/copilot`.
 - At 1024px the canvas is narrow while the column is open, as with the call panel today.
 - The Copilot's quality depends on prompts we tune on clinic A; the second clinic in ADR 0011 checks whether that generalises.
+
+## Amendment (2026-10-15, #29)
+
+Act 1 (#27 to #31) was cut to the minimum on 2026-10-15:
+
+- **No chat yet** (points 3 and 7). Buttons call the endpoints (point 4 was already the demo path), and the Copilot panel is rebuilt from the workspace state, so there is no `chat.json`. If time is left after #31, one text box may send "change the spec" instructions and get a spec diff back, with no tools.
+- **The model:** `gpt-4.1-2025-04-14` at temperature 0, pinned in `backend/copilot/config.py`, with strict structured outputs (a JSON schema per call). It goes through the runner's model client, so its requests land in the spend log as `copilot`. The prompts are in `backend/copilot/prompts/`, with the authoring guide that #30's build reads.
+- **The spec step** (`POST /copilot/workspaces/{id}/spec`, `backend/copilot/spec.py`) makes one call per part, each checked by code and repaired on its own: requirements, set-aside sentences and client questions (sources must be quotes; every sentence of the guidelines is quoted or set aside with a reason; every question has a requirement for its default); the clinic configuration (the clinic loader decides, and each entry cites the requirements it carries); the tests (a plan whose coverage code checks, then the planned tests in batches of 5 written at the same time, each checked with `validate_tests`). The healthcare baseline (B1 to B4) is fixed text in code. The spec is written once, when every part is valid.
+- **Streaming:** server-sent events over a POST (`event: part | repair | done | error`), read in the browser with `fetch`, since `EventSource` only does GET. A client that goes away cancels the step, and nothing is written.
+- **Approved tests are locked** in the API: the only change a test accepts is its approval; a new spec step refuses to replace approved tests unless the request says so; every spec write is checked against the stored one.
+- **What the Copilot reads** (point 9): its workspace, its prompts and the tool catalog. Guidelines go into prompts delimited as data. A test runs the spec step through the API on clinic-a's guidelines with an audit hook on file opens: nothing under `backend/eval/` and no clinic file is opened, and no reference test's id, title or judge rule reaches the model.
+

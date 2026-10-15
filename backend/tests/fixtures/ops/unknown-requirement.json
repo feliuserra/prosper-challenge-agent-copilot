@@ -1,0 +1,20 @@
+{
+  "description": "Citations must name requirements of the spec.",
+  "operations": [
+    {
+      "op": "update_node",
+      "name": "ask",
+      "patch": {
+        "role_message": "x"
+      },
+      "requirements": [
+        "R99"
+      ]
+    }
+  ],
+  "requirements": [
+    "R1",
+    "R2"
+  ],
+  "error": "Unknown requirement id 'R99'."
+}

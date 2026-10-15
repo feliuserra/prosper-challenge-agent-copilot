@@ -17,6 +17,7 @@
 # test's clinic offers them (its own fields included).
 #
 
+import copy
 import json
 import re
 from pathlib import Path
@@ -49,15 +50,16 @@ def load_tests(path) -> list[dict]:
     return data["tests"] if isinstance(data, dict) and "tests" in data else data
 
 
-def resolve_world(test: dict, clinic: str = DEFAULT_CLINIC) -> dict:
-    """The clinic a test starts from: the clinic's seed with the test's top-level keys replaced."""
-    world = load_seed(clinic)
+def resolve_world(test: dict, clinic: str | dict = DEFAULT_CLINIC) -> dict:
+    """The clinic a test starts from: the clinic's seed with the test's top-level keys replaced.
+    `clinic` is a clinic id, or a clinic file itself (the Copilot's draft configuration, #29)."""
+    world = copy.deepcopy(clinic) if isinstance(clinic, dict) else load_seed(clinic)
     world.update(test.get("world") or {})
     return world
 
 
-def validate_tests(tests, clinic: str = DEFAULT_CLINIC) -> list[str]:
-    """Every problem with a list of tests for an agent of `clinic`. Empty means valid."""
+def validate_tests(tests, clinic: str | dict = DEFAULT_CLINIC) -> list[str]:
+    """Every problem with a list of tests for an agent of `clinic` (an id or a clinic file). Empty means valid."""
     if not isinstance(tests, list):
         return ["Tests must be a list."]
     errors, seen = [], set()
@@ -70,7 +72,7 @@ def validate_tests(tests, clinic: str = DEFAULT_CLINIC) -> list[str]:
     return errors
 
 
-def validate_test(test, clinic: str = DEFAULT_CLINIC) -> list[str]:
+def validate_test(test, clinic: str | dict = DEFAULT_CLINIC) -> list[str]:
     if not isinstance(test, dict):
         return ["a test must be an object."]
     errors = []

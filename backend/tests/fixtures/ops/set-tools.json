@@ -1,0 +1,99 @@
+{
+  "description": "set_tools replaces a node's list, and an empty list removes the key.",
+  "operations": [
+    {
+      "op": "set_tools",
+      "node": "start",
+      "tools": []
+    },
+    {
+      "op": "set_tools",
+      "node": "ask",
+      "tools": [
+        "lookup_patient",
+        "register_patient"
+      ],
+      "requirements": [
+        "R6"
+      ]
+    }
+  ],
+  "expected": {
+    "name": "Tiny",
+    "model": "gpt-4o",
+    "persona": "You are a scheduling assistant.",
+    "initial_node": "start",
+    "nodes": [
+      {
+        "name": "start",
+        "stage": "Hello",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Greet the caller."
+          }
+        ],
+        "edges": [
+          {
+            "function": "go_ask",
+            "description": "Once the caller has said hello.",
+            "target": "ask"
+          }
+        ]
+      },
+      {
+        "name": "ask",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's name."
+          }
+        ],
+        "edges": [
+          {
+            "function": "done",
+            "description": "Once the name is known.",
+            "target": "end"
+          },
+          {
+            "function": "again",
+            "description": "If the name was unclear.",
+            "target": "ask"
+          }
+        ],
+        "tools": [
+          "lookup_patient",
+          "register_patient"
+        ]
+      },
+      {
+        "name": "end",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say goodbye."
+          }
+        ],
+        "edges": [],
+        "end": true
+      }
+    ]
+  },
+  "carriers": {
+    "configuration": {
+      "cancellation": [
+        "R9"
+      ]
+    },
+    "nodes": {
+      "ask": [
+        "R1",
+        "R6"
+      ],
+      "end": [
+        "R2"
+      ]
+    },
+    "persona": []
+  }
+}

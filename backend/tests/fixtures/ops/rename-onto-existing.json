@@ -1,0 +1,11 @@
+{
+  "description": "A rename onto another node's name is refused and nothing is applied.",
+  "operations": [
+    {
+      "op": "rename_node",
+      "name": "ask",
+      "new_name": "end"
+    }
+  ],
+  "error": "A node called 'end' already exists."
+}
