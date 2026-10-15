@@ -90,7 +90,7 @@ So there are two bottlenecks. \textbf{The team's:} building an agent and checkin
   \item \textbf{Loop, then one diff.} The Copilot edits through validated operations, reruns the failing tests (at most 3 rounds) and proposes one diff to accept or reject like a pull request; while tests fail, the proposal is blocked and says why (the broken link per failure, client questions, tests it doubts). The loop has not paid off yet: \$12.38 against \$2.11 without it, for the same score.
 \end{itemize}
 
-\textbf{Why ``all tests pass'' means something.} A model writes the agent, plays the caller and grades the call, so it can agree with itself. Against that: a 20-test reference suite the Copilot never sees; mutation testing (12 of 15 broken agents fail a test; of the 3 that pass, two drop a rule that holds anyway, and one skips the spelling, which a simulated caller can check by reading but a real one cannot); a judge calibrated on hand-labelled calls (below 90\% agreement, a rule becomes an exact check); a check that no test data (names, birth dates) appears in the agent; and a second clinic written by a person and kept out of the repo until the final run.
+\textbf{Why ``all tests pass'' means something.} A model writes the agent, plays the caller and grades the call, so it can agree with itself. Against that: a 20-test reference suite the Copilot never sees; mutation testing (12 of 15 broken agents fail a test; of the 3 that pass, two drop a rule that holds anyway, and one skips the spelling, which a simulated caller can check by reading but a real one cannot); a judge calibrated on hand-labelled calls (below 90\% agreement, a rule becomes an exact check); a check that no test data (names, birth dates) appears in the agent; and, \tbd{planned}, a second clinic written by a person and kept out of the repo until the final run.
 
 \section{Workflow 2: finding problems in 500,000 calls a month}
 
@@ -157,7 +157,7 @@ Telephony, rollout and rollback, auth, PHI redaction, other languages & Left out
 \toprule
 \textbf{Measure} & \textbf{Result} \\
 \midrule
-Reference suite, Copilot-built agent: clinic A, and clinic B held out until the final run & A: 13 of 20 so far; \tbd{\#34} \\
+Reference suite, Copilot-built agent: clinic A; clinic B, held out until the final run, is \tbd{planned} & A: 13 of 20 so far; \tbd{\#34} \\
 Broken agents caught by the tests; judge agreement with hand labels & 12 of 15; 32 of 32 \\
 Planted defects found by signals and triage; false alarms & 6 of 6; none in 18 clinic-weeks \\
 Silent failures found by the judge on the 20 simulated calls & \tbd{\#32} \\
