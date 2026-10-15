@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #27's spend log and reference suite merged, mutants and judge in review; #28 next)
+## 0. Status (updated 2026-10-15: #27 merged; #28 in review, built minimal after the Act 1 cuts; #29 next)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -39,12 +39,13 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
 | #27 Spend log (first of 3 PRs) | Merged (see "What #27's spend log built") | #67 |
 | #27 Clinic, reference suite and `make eval` (second of 3) | Merged (see "What #27's reference suite built") | #68 |
-| #27 Mutants and judge calibration (third of 3) | In review; closes #27 (see "What #27's mutants and judge calibration built") | (this PR) |
-| #28 to #35 | Open, in the order of `PLAN-phase2.md`: **#28 next** | |
+| #27 Mutants and judge calibration (third of 3) | Merged; closes #27 (see "What #27's mutants and judge calibration built") | #69 |
+| #28 Workspaces and versions (minimal, cuts of 2026-10-15) | In review (see "What #28 built") | (this PR) |
+| #29 to #35 | Open, in the order of `PLAN-phase2.md`; each of #27 to #31 has an "Approach and cuts" section on GitHub (2026-10-15) that wins over its scope: **#29 next** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #28 (workspaces, versions and recorded calls), once the #27 mutants and judge PR merges. A side session (2026-10-15) is measuring `gpt-4.1-mini` as the agent model on the reference suite (`gpt-4o` is about 90% of a run's cost); its result decides whether the template and live bot switch, which is the user's call. The older notes below on #27 are kept for reference. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** #29 (the spec step and the edit operations), once #28 merges. Read its "Approach and cuts" section on GitHub first: Act 1 (#27 to #31) was cut to the minimum on 2026-10-15 (`PLAN-phase2.md`, "Time and cuts"), and the section wins over the scope above it. A side session (2026-10-15) is measuring `gpt-4.1-mini` as the agent model on the reference suite (`gpt-4o` is about 90% of a run's cost); its result decides whether the template and live bot switch, which is the user's call. The older notes below on #27 are kept for reference. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -128,6 +129,13 @@ What #43's first PR built (backend, plus one zod field), for reference:
 - The template: no clinic facts; the greeting answers clinic questions with `get_clinic_info`; `collect_reason` maps the reason to a type and checks coverage; `offer_times` collects the booking fields; a new reschedule and cancel branch (`manage_appointment`, `change_confirmed`, stage "Change appointment") handles the fee. The persona forbids stating a policy, fee or fact no tool gave (the agent once invented "we might waive it").
 - Runner: the caller's hang-up rule now waits for the assistant to confirm the goal (it hung up after picking a time or answering the interpreter question; probes of the exact decision: 3/10 hang-ups before, 0/10 after). `RUNNER_VERSION` 43.2. Example tests: 4 (a late cancellation added), all passing.
 - The #25 clinic tests run unchanged on `tests/fixtures/clinic-plain.json` (the old seed); `tests/test_clinic_config.py` has 44 new tests. 226 pytest, 218 Vitest.
+
+What #28 built, for reference (minimal; Act 1 was cut on 2026-10-15, see `PLAN-phase2.md` "Time and cuts" and each issue's "Approach and cuts"):
+- `backend/copilot/workspace.py`: `Workspace(agent_id, root)` over `backend/workspaces/<id>/` (gitignored): `guidelines.md`, `spec.json` (`EMPTY_SPEC` when missing; its shape is #29's), `versions/0001.json`, `runs/`, `proposals/` (numbered, the newest is "last"), `calls/<id>.json`. Reads of a missing workspace give empty values and create nothing; writes are atomic (`storage.write_atomic`, moved out of `composer_api.py` with `AGENT_ID_RE`).
+- Versions: `add_version(agent, source, message)` with source `editor` or `copilot`; the hash (`agent_hash`) drops node `ui` and `stage` like the runner's cache key, so moving cards adds no version. Only the newest version is compared. `version_of(agent)` finds the newest version with the same hash. `PUT /composer/agents/{id}` adds an `editor` version when the router has a workspaces folder (bot.py passes it) and returns `version`.
+- Call records: `save_call(record, agent, source)` stores a runner record plus `id`, `source` (`live`, `simulated`, `production-mock`), `version`, `agent_hash`, `start`, `end`, and the whole agent under `agent` (the record's agent name is replaced). `replay_turn`, `continue_from` and `detect.summary.from_sim_record` read a call record as it is (tested). Nothing writes calls yet: the bot does not record live calls (cut).
+- API (`backend/copilot/api.py`, mounted in bot.py; Vite proxies `/copilot`): `GET`/`PUT /copilot/workspaces/{id}/guidelines` (`{"text"}`), `GET .../spec`, `GET .../versions`, `GET .../versions/{n}`.
+- Tests: `backend/tests/test_workspace.py`. No model calls.
 
 What #47 built (frontend only), for reference:
 - Derived only (ADR 0001). `canvas/view.ts` names the pills: `view.terminals` (pill id, the id of its edge, `kind`, and `at`, the node or collapsed stage card it hangs off). Ids are made unique against nodes, cards and edge ids like stage cards' (`:` prefixes); the Start pill's id does not depend on the start node, so React Flow moves it when the start node changes. `derive.ts` places them (`terminalPills`) and adds `terminal` nodes and plain React Flow `default` edges in `toFlowNodes` and `toFlowEdges`. `TerminalNode.tsx` draws them (flag, hang-up icon; `TERMINAL_WIDTH` x `TERMINAL_HEIGHT`, 84x28, in `layout.ts`).
@@ -386,7 +394,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 ## 5. Open items not tracked in an issue yet
 
 - **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. Now part of #25 (turn timing).
-- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked). To be decided in #28.
+- **Agents saved from the editor** were decided in #28: `backend/agents/*.json` is gitignored except the template (`prosper-scheduler.json`).
 - **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
 - **Canvas, from #45 to #51:** fit view frames cards, not edge labels, so in a narrow window a back edge's pill on the far right can be cut off until you pan. Stage colours follow stage order, so adding or removing a stage shifts the colours after it. The 7-step template fits at about 50% zoom in a 1440px window when expanded (`RANK_GAP` is the cheapest lever; collapsing stages is the other). Inter is not bundled (`@fontsource-variable/inter` would make it the same on every machine). A node added later can overlap a frame until the next Tidy layout.

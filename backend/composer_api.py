@@ -4,13 +4,12 @@
 # Agents are JSON files in one folder. The URL id is the file stem, kept separate
 # from the agent's display name so a rename never moves the file. Files are stored
 # exactly as received (after validation), so editor-only keys such as node `ui`
-# positions round-trip untouched (ADR 0002).
+# positions round-trip untouched (ADR 0002). With a workspaces folder, each save that
+# changes what the agent does also adds a version to its workspace (ADR 0013, #28).
 #
 
 import json
 import os
-import re
-import tempfile
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
@@ -21,9 +20,9 @@ from loguru import logger
 
 from agent_builder import validate_agent
 from clinic import catalog, clinic_ids, seed_path, validate_clinic
+from copilot.workspace import Workspace
+from storage import AGENT_ID_RE, write_atomic
 
-# Lowercase slug. Rules out path separators and '..', so ids are safe file names.
-AGENT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 REQUIRED_KEYS = ("OPENAI_API_KEY", "ELEVENLABS_API_KEY")
 
 ELEVENLABS_VOICES_URL = "https://api.elevenlabs.io/v2/voices"
@@ -68,7 +67,9 @@ async def fetch_elevenlabs_voices(api_key: str) -> list[dict]:
     return voices
 
 
-def make_router(agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_voices) -> APIRouter:
+def make_router(
+    agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_voices, workspaces_dir: Path | None = None
+) -> APIRouter:
     router = APIRouter(prefix="/composer")
     voices_cache: list[dict] = []
 
@@ -106,8 +107,11 @@ def make_router(agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_
         errors = validate_agent(agent)
         if errors:
             return validation_response(errors)
-        _write_atomic(path, json.dumps(agent, indent=2, ensure_ascii=False) + "\n")
-        return {"id": agent_id, "name": agent["name"]}
+        write_atomic(path, json.dumps(agent, indent=2, ensure_ascii=False) + "\n")
+        if workspaces_dir is None:
+            return {"id": agent_id, "name": agent["name"]}
+        version, _ = Workspace(agent_id, workspaces_dir).add_version(agent, "editor")
+        return {"id": agent_id, "name": agent["name"], "version": version["number"]}
 
     @router.post("/validate")
     async def validate(agent: Any = Body(...)):
@@ -176,15 +180,3 @@ def make_router(agents_dir: Path, fetch_voices: VoiceFetcher = fetch_elevenlabs_
 
     return router
 
-
-def _write_atomic(path: Path, text: str) -> None:
-    """Write via a temp file in the same folder, so readers never see a half-written agent."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(text)
-        os.replace(tmp, path)
-    except BaseException:
-        os.unlink(tmp)
-        raise

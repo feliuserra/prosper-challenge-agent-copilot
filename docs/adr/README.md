@@ -16,7 +16,7 @@ Each record explains one decision: the context, what we chose, what we rejected 
 | [0010](0010-test-format-and-grading.md) | Test format and grading (Phase 2) | Accepted |
 | [0011](0011-trusting-the-tests.md) | Trusting the tests (Phase 2) | Accepted |
 | [0012](0012-copilot-edits-through-operations.md) | The Copilot changes agents through validated operations (Phase 2) | Accepted |
-| [0013](0013-workspaces-versions-and-calls.md) | Workspaces, versions and recorded calls (Phase 2) | Accepted |
+| [0013](0013-workspaces-versions-and-calls.md) | Workspaces, versions and recorded calls (Phase 2) | Accepted, amended 2026-10-15 (#28) |
 | [0014](0014-copilot-service-and-ui.md) | Copilot service and UI (Phase 2) | Accepted |
 | [0015](0015-debugging-by-cause.md) | Debugging by cause: rule chains, turn replay and what-if forecasts (Phase 2) | Accepted, amends 0002, 0009 to 0013 |
 | [0016](0016-clinic-configuration-as-data.md) | Clinic configuration as data, agents from a template (Phase 2) | Accepted, amends 0008, 0012, 0015 |

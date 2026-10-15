@@ -63,7 +63,7 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 | Copilot edits | Validated edit operations, for creation too; loop until green (at most 3 rounds); one diff to accept | [0012](docs/adr/0012-copilot-edits-through-operations.md) |
 | Concurrent edits | The Copilot works on the draft sent with each request; the canvas is locked while it runs, and a proposal based on an older draft cannot be accepted | [0012](docs/adr/0012-copilot-edits-through-operations.md) |
 | Live clinic state | Live calls share one clinic calendar that persists until reset, so "book, then call back to reschedule" works; tests always start from their own world. The agent is told the clinic's date | [0008](docs/adr/0008-node-tools-from-a-mock-catalog.md) |
-| Storage | One workspace per agent next to the agent file: guidelines, spec, versions, calls, tickets; the bot records every call | [0013](docs/adr/0013-workspaces-versions-and-calls.md) |
+| Storage | One workspace per agent next to the agent file: guidelines, spec, versions, test runs, proposals, calls in the runner's format. Recording live calls in the bot was cut on 2026-10-15 | [0013](docs/adr/0013-workspaces-versions-and-calls.md) |
 | Copilot service and UI | Backend under `/copilot` on the same runner, OpenAI only, chat with a few tools plus buttons that call the same endpoints, a tabbed right-hand column | [0014](docs/adr/0014-copilot-service-and-ui.md) |
 | Cost | Cheap runs: a small model plays the caller, one run per test plus one rerun on failure, cached results. `make test` makes no model calls | [0010](docs/adr/0010-test-format-and-grading.md) |
 | Live demo | Everything runs live; any long step can switch to results cached during the rehearsal | [0014](docs/adr/0014-copilot-service-and-ui.md) |
@@ -77,7 +77,9 @@ There is no technical guarantee: an agent written by a model, tested by a model 
 
 ## Time and cuts
 
-Cut on 2026-10-14, when the hand-in memo (#56) was drafted: the client intake (#38, #39), the what-if forecast and the past-call line in #33, and the canvas overlay of affected turns in #35. Detection at scale (#57, #58, #59) gets that time. If we fall behind, cut next in this order: sentence ablation, the win-probability chart, the second clinic (if there is no time to write it), any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them. Never cut the planted-defect measurement of detection: it is the only evidence the signals work.
+Cut on 2026-10-14, when the hand-in memo (#56) was drafted: the client intake (#38, #39), the what-if forecast and the past-call line in #33, and the canvas overlay of affected turns in #35. Detection at scale (#57, #58, #59) gets that time. If we fall behind, cut next in this order: sentence ablation, the win-probability chart, the second clinic (if there is no time to write it), any UI for versions, the client-question cards (plain text in the chat instead). Never cut mutation testing, the held-out reference suite or locked tests: those decide whether "20/20" means anything. Never cut the flight recorder, turn replay or the requirement map either: finding causes rests on them (narrowed on 2026-10-15, below). Never cut the planted-defect measurement of detection: it is the only evidence the signals work.
+
+Cut on 2026-10-15, to keep Act 1 (#27, then a minimal #28, #29, #30 and a thin #31) small enough to leave time for #34 and #11. Each issue has an "Approach and cuts" section that wins over its scope here. In short: #27 finishes part 3 with no new tests, rules or mutants. #28 drops the bot recording live calls (the runner's flight recorder stays; live recording moves to #32 if needed), usage per call, `chat.json` and tickets. #29 drops the TypeScript operations and the shared cases, `requirements` lists in the agent schema (the requirement map lives in the workspace and the proposal instead) and the free-form chat (buttons call the endpoints). #30 starts with a simple loop, one change per failure, and adds the candidates checked by turn replay only if clinic-a does not reach 18 of 20; exact diagnosis classifiers are cut. #31 has two tabs (Copilot, Test call) and drops requirement outlining, editing tables and tests, the Tests tab and the full diff overlay.
 
 ## Prerequisites (user)
 
@@ -273,6 +275,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Goal:** a fixed, trusted measure: hand-written tests that a good agent passes and broken agents fail. It is the acceptance gate for the Copilot.
 
+**Approach and cuts (2026-10-15):** see the "Approach and cuts" section in [#27](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/27); it narrows the scope below.
+
 **Depends on:** #26, #43.
 
 **Scope:**
@@ -301,6 +305,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Goal:** everything the Copilot works from lives next to the agent: guidelines, requirements, tests, versions, calls and tickets.
 
+**Approach and cuts (2026-10-15):** see the "Approach and cuts" section in [#28](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/28); it narrows the scope below.
+
 **Depends on:** #25 (#26 for the comparison with the runner, #27 for the spend log).
 
 **Scope:**
@@ -321,6 +327,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 ## 29. Copilot service: edit operations and the spec step
 
 **Goal:** the Copilot backend can change agents safely and turns guidelines into the spec a human reviews: requirements, client questions and tests.
+
+**Approach and cuts (2026-10-15):** see the "Approach and cuts" section in [#29](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/29); it narrows the scope below.
 
 **Depends on:** #26, #28, #43.
 
@@ -348,6 +356,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 
 **Goal:** from approved tests, the Copilot customizes the scheduling template with a configuration and operations and fixes it until its tests pass. This is the "initial implementation" workflow.
 
+**Approach and cuts (2026-10-15):** see the "Approach and cuts" section in [#30](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/30); it narrows the scope below.
+
 **Depends on:** #27, #29, #43.
 
 **Scope:**
@@ -371,6 +381,8 @@ Then [#11](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/
 ## 31. Copilot UI
 
 **Goal:** the Copilot inside the editor: a chat with cards, the graph building live, diff review and the tests.
+
+**Approach and cuts (2026-10-15):** see the "Approach and cuts" section in [#31](https://github.com/feliuserra/prosper-challenge-agent-copilot/issues/31); it narrows the scope below.
 
 **Depends on:** #29 (#30 for the build cards).
 

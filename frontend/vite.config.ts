@@ -14,6 +14,7 @@ export default defineConfig({
       "/sessions": runner,
       "/api": runner,
       "/composer": runner,
+      "/copilot": runner,
     },
   },
 });

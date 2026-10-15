@@ -42,6 +42,13 @@ backend/.sim-cache/
 # ---- Spend log: one line per model request (backend/sim/spend.py) ----
 backend/.spend/
 
+# ---- Agents saved from the editor: only the scheduling template is tracked (#28) ----
+backend/agents/*.json
+!backend/agents/prosper-scheduler.json
+
+# ---- Copilot workspaces: guidelines, spec, versions, runs, calls (ADR 0013, #28) ----
+backend/workspaces/
+
 # ---- Reference suite results (make eval, #27) ----
 backend/eval/results/
 

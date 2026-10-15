@@ -29,5 +29,6 @@ Open `http://localhost:5173`: pick an agent, edit the graph, and press **Test ca
 | `backend/bot.py` | The voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM). Runs the agent sent with the connect request, or the default agent. No graph logic lives here. |
 | `backend/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `validation.py` = every problem with an agent, as `{message, node, edge}` records; `builder.py` = `AgentBuilder`, which validates the JSON and compiles it into a Pipecat Flows graph. |
 | `backend/composer_api.py` | The editor's agents API, served by the runner under `/composer` (list, get, save, validate, health). |
-| `backend/agents/` | Agents **as data**, one JSON file each. `prosper-scheduler.json` is the example clinic scheduler and the default agent. |
-| `frontend/` | The graph editor and test-call panel (Vite + React + TypeScript). In development Vite proxies `/composer`, `/start`, `/sessions` and `/api` to the runner. |
+| `backend/agents/` | Agents **as data**, one JSON file each. `prosper-scheduler.json` is the example clinic scheduler and the default agent; agents saved from the editor are gitignored. |
+| `backend/copilot/` | The Copilot (Phase 2). `workspace.py` = one workspace per agent in `backend/workspaces/<id>/` (guidelines, spec, versions, test runs, proposals, call records; gitignored); `api.py` = its API under `/copilot`. Each save from the editor adds a version when the agent changed. |
+| `frontend/` | The graph editor and test-call panel (Vite + React + TypeScript). In development Vite proxies `/composer`, `/copilot`, `/start`, `/sessions` and `/api` to the runner. |
