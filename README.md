@@ -133,9 +133,9 @@ browser mic  ->  ElevenLabs STT  ->  OpenAI LLM  ->  ElevenLabs TTS  ->  browser
 Detection at scale makes no model calls:
 
 ```bash
-make synth        # 85,000 synthetic calls for 3 clinics, with defects planted at known rates (about 6 s)
-make detect       # the ranked issues (about 5 s)
-make detect-eval  # found or missed per planted defect, false alarms, and where detection stops (the sweep takes about 40 s on 12 cores)
+make synth        # 85,000 synthetic calls, defects planted at known rates (6 s)
+make detect       # the ranked issues (5 s)
+make detect-eval  # recall, false alarms, where detection stops (40 s)
 ```
 
 Then run `make dev`, open an agent and press **Call heatmap** on the canvas: the ranked issues appear on the right, and the graph is tinted by how far each node is from its baseline.
