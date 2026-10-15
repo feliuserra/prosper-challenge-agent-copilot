@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #28 merged; #29 in review: the spec step and the edit operations; #30 next)
+## 0. Status (updated 2026-10-15: #29 merged; #30 in review: the build and its loop, 13 of 20 reference tests; #31 next)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -41,12 +41,22 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #27 Clinic, reference suite and `make eval` (second of 3) | Merged (see "What #27's reference suite built") | #68 |
 | #27 Mutants and judge calibration (third of 3) | Merged; closes #27 (see "What #27's mutants and judge calibration built") | #69 |
 | #28 Workspaces and versions (minimal, cuts of 2026-10-15) | Merged (see "What #28 built") | #70 |
-| #29 Spec step and edit operations (cuts of 2026-10-15) | In review (see "What #29 built") | (this PR) |
-| #30 to #35 | Open, in the order of `PLAN-phase2.md`; each of #27 to #31 has an "Approach and cuts" section on GitHub (2026-10-15) that wins over its scope: **#30 next** | |
+| #29 Spec step and edit operations (cuts of 2026-10-15) | Merged (see "What #29 built") | #71 |
+| #30 Build from the template and loop (cuts of 2026-10-15) | In review (see "What #30 built"): 13 of 20 reference tests, below the 18 asked | (this PR) |
+| #31 to #35 | Open, in the order of `PLAN-phase2.md`; each of #27 to #31 has an "Approach and cuts" section on GitHub (2026-10-15) that wins over its scope: **#31 next** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #30 (build from the template and loop until green), once #29 merges. Read its "Approach and cuts" section on GitHub first; it wins over the scope above it. #30 starts from what #29 left: `copilot/ops.py` (`apply_operations`, `tool_schemas`), `copilot/repair.py` (`ask`), the authoring guide in `copilot/prompts/`, and a real spec of clinic-a in `backend/workspaces/clinic-a/spec.json` (gitignored; `make spec WORKSPACE=clinic-a GUIDELINES=backend/eval/clinic-a/guidelines.md` writes it again for about $0.35). Where the approved configuration lives so the runner finds it (`clinic.json` in the workspace, the loader looking there) is #30's to settle. The older notes on #27 below the #29 section are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+**Next step:** #31 (the thin Copilot panel), and a decision on #30's gap to 18 of 20 (see "What #30 built": the cheapest next fix is a "Shall I book...?" read-back in the template's `offer_times`, then `make eval COPILOT=1 NO_LOOP=1`, about $2.20). Read #31's "Approach and cuts" on GitHub first. The build streams SSE from `POST /copilot/workspaces/{id}/build` and stores proposals in the workspace; `POST .../proposals/{n}/accept` writes one. The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+
+What #30 built (backend only; cuts of 2026-10-15, see the issue's "Approach and cuts"), for reference:
+- `backend/copilot/build.py`: the approved configuration is written to `workspaces/<id>/clinic.json`, and the agent is a copy of `prosper-scheduler.json` with `clinic` set to the workspace id. One `gpt-4.1` call (JSON object mode through `repair.ask`, `schema=None`) returns an outline, operations citing requirements, and `uncarried` with reasons; code checks that operations apply, that every requirement is carried or explained, that `clinic`, `model` and `voice_id` stay, and that every node but the end nodes offers `transfer_to_human` (`guide_problems`). The agent is emitted after each operation.
+- The loop, at most `MAX_ROUNDS` = 3: run the approved tests (cached); one call names a link per failing test from `LINKS` (configuration, node_instruction, tool_not_offered, overridden, unclear_guideline; an unclear guideline needs a client question) and returns one change (operations and/or configuration edits replacing a top-level key, checked by `validate_clinic`); the failing tests rerun, and only if one passes all of them; kept when more pass and no safety test is lost. A final diagnose-only call when the last change was kept and tests still fail. ADR 0015 amended.
+- Proposal (`workspaces/<id>/proposals/`): configuration, entries count, edits, outline, operations, agent, carriers, uncarried, diagnoses, client questions, concerns about tests, rounds, results before and after, leaks, usage and cost, `blocked` reasons, `status` ready or blocked. Blocked by any failing test, a failing safety test, or the leak check (`leaks`: caller names, birth dates in several spellings, phone digits from any workspace test, in the agent or the configuration). Approved tests are never written; `accept` refuses a blocked proposal.
+- Clinic loader (`clinic/clinics.py`): lists `workspaces/*/clinic.json` under the workspace id; a file in `clinics/` wins on a clash. `tests/conftest.py` points it at an empty folder. The runner takes `clinic=` (a clinic dict) for configuration edits under trial. ADR 0016 amended.
+- `make build WORKSPACE=id`; `make eval COPILOT=1 [NO_LOOP=1] [RESPEC=1]`: reuses the stored spec unless RESPEC, approves every test, builds, then runs the reference suite with the agent's clinic swapped to `linden-grove` (the reference tests name Linden Grove's ids; the configuration is measured by `make eval SPEC=`). NO_LOOP skips the workspace tests.
+- Results on clinic-a: run 1 (with the loop) $12.38, workspace tests 14 to 15 of 25 in 3 rounds (1 kept), reference 13/20 (1 flaky), safety 4/5. Run 2 (after the transfer check, no loop) $2.11, reference 13/20 (2 flaky), safety 5/5. Still failing in run 2: two read-backs (the template's `offer_times` has none and the build did not add one), Humana and Cigna (`check_coverage` and `get_clinic_info` not offered where the caller asks), outside-hours (the spec's Q4 default, offer a transfer when nothing fits). A full workspace run of the 25 generated tests costs about $2.50, and several of them cannot pass (an exact free-text `reason` on `transfer_to_human`, a tool after a transfer), so the loop spends rounds on them. #29's `lint` refuses the first kind; the stored spec (run 3) seems to predate it, and a rerun of the spec step (about $0.35) would show.
+- Tests: 403 pytest (25 new in `test_copilot_build.py`).
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
