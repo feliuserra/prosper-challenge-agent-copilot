@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #57, #58 and #59 merged; #27 next)
+## 0. Status (updated 2026-10-15: #27's spend log in review)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -37,11 +37,12 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #57 Synthetic call logs with planted defects | Merged; checked by the user (`make synth`) | #63 |
 | #58 Call signals and triage | Merged; checked by the user (`make detect-eval`: 6 of 6 found, no false alarms) | #64 |
 | #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
-| #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 next** | |
+| #27 Spend log (first of 3 PRs: spend log; clinic, tests and `make eval`; mutants and judge) | In review (see "What #27's spend log built") | (this PR) |
+| #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 in progress** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #27 (demo clinic, reference suite and `make eval`). Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** #27's second PR (clinic, tests, reference agent and `make eval`), after the spend log PR merges. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -50,6 +51,14 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #27's spend log built (the first of #27's three PRs), for reference:
+- #27 is split in three PRs, agreed with the user on 2026-10-15: the spend log (no model calls to build it, so every paid run after it is logged); the clinic (`backend/clinic/clinics/linden-grove.json`, since the loader reads only that folder and #57's logs already use the id), guidelines, tests, reference agent and `make eval`, ending with the user's review of the guidelines and tests; the mutants and judge calibration, ending with the review of the labels.
+- `sim/spend.py`: `log` (one JSON line per request: time with its offset, source, model, input, cached, output), `load` (skips a line cut short), `totals`, `report`. `OpenAIChat(source, client=None, max_parallel, ledger=config.SPEND_LEDGER)` logs after every successful request (a failed one adds nothing); `models(source)` now takes the source: the CLI's `run` passes `test`, `make eval` will pass `eval`. Cache hits make no request, so they add nothing.
+- Cached tokens: `Completion.cached_tokens` from `usage.prompt_tokens_details.cached_tokens`; `Usage` keeps `cached` (results cached before this read as 0); `config.PRICES` is now (input, cached, output) and `config.cost` prices the uncached and cached parts separately. The CLI's summary shows cached tokens.
+- `make spend [SINCE=YYYY-MM-DD]` (`python -m sim spend`): a table by day and source, totals by source and overall, models with no price listed. The log starts on 2026-10-15.
+- Real run (2026-10-15, the 4 example tests, `--no-cache`): 4/4 in 31 s, $0.27; 83 ledger lines matching the CLI's 83 requests; 57% of `gpt-4o` input cached (the old estimate would have said $0.36); a cached rerun added no lines.
+- Tests: 280 pytest (11 new in `tests/test_sim_spend.py`: the real client against a fake OpenAI, the runner's cached rerun, prices, the report and the command).
 
 What #59 built (frontend, plus the memo figure), for reference:
 - Derived only (ADR 0001): nothing is written to the agent; undo after adding a node with the overlay on leaves the file as saved. `detection/heat.ts` (pure, `heat.test.ts`): `nodeHeats` (per agent node: tint, rate, baseline, n, entered, flagged, issues, a `note` when there is no tint for a reason: no calls through a node of that name in that clinic and version, the signal not measured there, no earlier version, no other clinic with that node), `stageHeat` (a collapsed stage: the rate is all its events over all its calls, the baseline what the baselines give on the same traffic, tinted only when a member is; `entered` is its busiest step), `edgeTraffic` (width from `EDGE_MIN` 1.5 to `EDGE_MAX` 8 px by calls), `canvasHeat` (adds the card lines, `heatLines`), `defaultOptions` / `optionsFor`, `heatColor` (white to rgb(244 140 70), light enough for dark text), `pathText`, and the link `#calls=clinic/version/compare/signal` (`optionsFromHash`, `hashFor`).
