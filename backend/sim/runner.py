@@ -40,11 +40,11 @@ async def talk(conversation: Conversation, caller: Caller, max_turns: int) -> No
         await conversation.run_agent()
 
 
-async def simulate(agent: dict, test: dict, models: Models) -> dict:
+async def simulate(agent: dict, test: dict, models: Models, clinic: dict | None = None) -> dict:
     """One call of `agent` with the test's caller, from the test's world in the agent's
-    clinic. Returns its record."""
+    clinic, or in `clinic` (a clinic file) when given. Returns its record."""
     started = time.monotonic()
-    conversation = Conversation(agent, ClinicWorld(resolve_world(test, clinic_of(agent))), models)
+    conversation = Conversation(agent, ClinicWorld(resolve_world(test, _clinic(agent, clinic))), models)
     caller = Caller(test["caller"], models.caller, replay=test.get("replay"))
     await conversation.start()
     await talk(conversation, caller, test.get("max_turns", config.DEFAULT_MAX_TURNS))
@@ -57,8 +57,8 @@ async def simulate(agent: dict, test: dict, models: Models) -> dict:
     return record
 
 
-async def run_once(agent: dict, test: dict, models: Models) -> dict:
-    record = await simulate(agent, test, models)
+async def run_once(agent: dict, test: dict, models: Models, clinic: dict | None = None) -> dict:
+    record = await simulate(agent, test, models, clinic)
     usage = Usage(record["usage"])
     record["checks"] = await grade(record, test["checks"], models.judge, usage)
     record["usage"] = usage.data
@@ -67,9 +67,17 @@ async def run_once(agent: dict, test: dict, models: Models) -> dict:
 
 
 async def run_test(
-    agent: dict, test: dict, models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR, rerun: bool = True
+    agent: dict,
+    test: dict,
+    models: Models,
+    use_cache: bool = True,
+    cache_dir: Path = config.CACHE_DIR,
+    rerun: bool = True,
+    clinic: dict | None = None,
 ) -> dict:
-    key = cache_key(agent, test, rerun)
+    """`clinic`, a clinic file, replaces the agent's clinic: the Copilot's build (#30)
+    tries configuration changes before any is written."""
+    key = cache_key(agent, test, rerun, clinic)
     path = Path(cache_dir) / f"{key}.json"
     if use_cache and path.is_file():
         return {**json.loads(path.read_text()), "cached": True}
@@ -86,9 +94,9 @@ async def run_test(
     }
     runs = []
     try:
-        runs.append(await run_once(agent, test, models))
+        runs.append(await run_once(agent, test, models, clinic))
         if rerun and not runs[0]["passed"]:
-            runs.append(await run_once(agent, test, models))
+            runs.append(await run_once(agent, test, models, clinic))
     except ModelError as error:
         result["status"] = "error"
         result["error"] = str(error)
@@ -104,9 +112,11 @@ async def run_test(
     return result
 
 
-async def run_suite(agent: dict, tests: list[dict], models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR) -> list[dict]:
+async def run_suite(
+    agent: dict, tests: list[dict], models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR, clinic: dict | None = None
+) -> list[dict]:
     """Every test in parallel (the model client limits the requests in flight)."""
-    return list(await asyncio.gather(*(run_test(agent, test, models, use_cache, cache_dir) for test in tests)))
+    return list(await asyncio.gather(*(run_test(agent, test, models, use_cache, cache_dir, clinic=clinic) for test in tests)))
 
 
 async def run_pairs(pairs: list[tuple[dict, dict]], models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR, rerun: bool = True) -> list[dict]:
@@ -119,7 +129,7 @@ def blocking(result: dict) -> bool:
     return result["status"] in ("fail", "error") or (result["status"] == "flaky" and result["tier"] == "safety")
 
 
-def cache_key(agent: dict, test: dict, rerun: bool = True) -> str:
+def cache_key(agent: dict, test: dict, rerun: bool = True, clinic: dict | None = None) -> str:
     """A hash of everything that decides a result: the agent (without canvas positions
     and stages), the test, the world it starts from, the models, the runner version, and
     whether a failure is rerun (only when it is not, so existing keys stay the same)."""
@@ -131,10 +141,14 @@ def cache_key(agent: dict, test: dict, rerun: bool = True) -> str:
     inputs = {
         "agent": agent,
         "test": test,
-        "world": resolve_world(test, clinic_of(agent)),
+        "world": resolve_world(test, _clinic(agent, clinic)),
         "models": [agent.get("model", DEFAULT_MODEL), config.CALLER_MODEL, config.JUDGE_MODEL],
         "runner": config.RUNNER_VERSION,
     }
     if not rerun:
         inputs["rerun"] = False
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:24]
+
+
+def _clinic(agent: dict, clinic: dict | None) -> str | dict:
+    return clinic if clinic is not None else clinic_of(agent)

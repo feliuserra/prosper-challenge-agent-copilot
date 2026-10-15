@@ -1,6 +1,6 @@
 # ADR 0016: Clinic configuration as data, agents from a template
 
-- **Status:** Accepted, 2026-10-14. Narrowed the same day to keep #43 small: visit lengths, minimum notice, referrals and field formats became candidates, and the editor shows the configuration in a read-only Clinic tab. Amends [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (clinic policies no longer live only in prompts), [ADR 0012](0012-copilot-edits-through-operations.md) (the Copilot starts from a template) and [ADR 0015](0015-debugging-by-cause.md) (one more broken link).
+- **Status:** Accepted, 2026-10-14. Amended 2026-10-15 (#30, see the end): a workspace's approved configuration is a clinic too. Narrowed the same day to keep #43 small: visit lengths, minimum notice, referrals and field formats became candidates, and the editor shows the configuration in a read-only Clinic tab. Amends [ADR 0008](0008-node-tools-from-a-mock-catalog.md) (clinic policies no longer live only in prompts), [ADR 0012](0012-copilot-edits-through-operations.md) (the Copilot starts from a template) and [ADR 0015](0015-debugging-by-cause.md) (one more broken link).
 - **Date:** 2026-10-14
 
 ## Context
@@ -36,3 +36,10 @@
 - The template gained a reschedule and cancel branch (built in #43's first PR): the fee rule has nothing to act on in an agent that only books.
 - Some intake checklist items (#38) are answered by configuration entries instead of requirements.
 - Out of scope, stated in the README: hospitals (departments, routing between them) and any rule the tables cannot express.
+
+## Amendment (2026-10-15, #30)
+
+- **A workspace's approved configuration is a clinic.** The build writes it to `backend/workspaces/<id>/clinic.json`, and the clinic loader (`clinic/clinics.py`) lists those next to `backend/clinic/clinics/`, under the workspace's id. The Copilot's agent names its workspace as its `clinic`, so the runner, the bot and the Clinic tab find the configuration with no new lookup. A file in `clinics/` wins over a workspace with the same id.
+- The build starts by writing the spec's configuration there; an accepted proposal writes its configuration (with the Copilot's edits, if any) there and into the spec. While the loop tries configuration edits, the runner takes the clinic file directly (`run_suite(..., clinic=...)`); the cache key already holds the resolved world, so a result is keyed by the configuration it ran with.
+- Tests see no workspace clinics: `tests/conftest.py` points the loader at an empty folder.
+
