@@ -39,6 +39,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
 | #27 Spend log (first of 3 PRs: spend log; clinic, tests and `make eval`; mutants and judge) | In review (see "What #27's spend log built") | #67 |
 | #27 Clinic, reference suite and `make eval` (second of 3) | In review, stacked on #67 (see "What #27's reference suite built") | (this PR) |
+| #28 Workspaces and versions (minimal, cuts of 2026-10-15) | In review (see "What #28 built") | (#28's PR) |
 | #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 in progress** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
@@ -118,6 +119,13 @@ What #43's first PR built (backend, plus one zod field), for reference:
 - The template: no clinic facts; the greeting answers clinic questions with `get_clinic_info`; `collect_reason` maps the reason to a type and checks coverage; `offer_times` collects the booking fields; a new reschedule and cancel branch (`manage_appointment`, `change_confirmed`, stage "Change appointment") handles the fee. The persona forbids stating a policy, fee or fact no tool gave (the agent once invented "we might waive it").
 - Runner: the caller's hang-up rule now waits for the assistant to confirm the goal (it hung up after picking a time or answering the interpreter question; probes of the exact decision: 3/10 hang-ups before, 0/10 after). `RUNNER_VERSION` 43.2. Example tests: 4 (a late cancellation added), all passing.
 - The #25 clinic tests run unchanged on `tests/fixtures/clinic-plain.json` (the old seed); `tests/test_clinic_config.py` has 44 new tests. 226 pytest, 218 Vitest.
+
+What #28 built, for reference (minimal; Act 1 was cut on 2026-10-15, see `PLAN-phase2.md` "Time and cuts" and each issue's "Approach and cuts"):
+- `backend/copilot/workspace.py`: `Workspace(agent_id, root)` over `backend/workspaces/<id>/` (gitignored): `guidelines.md`, `spec.json` (`EMPTY_SPEC` when missing; its shape is #29's), `versions/0001.json`, `runs/`, `proposals/` (numbered, the newest is "last"), `calls/<id>.json`. Reads of a missing workspace give empty values and create nothing; writes are atomic (`storage.write_atomic`, moved out of `composer_api.py` with `AGENT_ID_RE`).
+- Versions: `add_version(agent, source, message)` with source `editor` or `copilot`; the hash (`agent_hash`) drops node `ui` and `stage` like the runner's cache key, so moving cards adds no version. Only the newest version is compared. `version_of(agent)` finds the newest version with the same hash. `PUT /composer/agents/{id}` adds an `editor` version when the router has a workspaces folder (bot.py passes it) and returns `version`.
+- Call records: `save_call(record, agent, source)` stores a runner record plus `id`, `source` (`live`, `simulated`, `production-mock`), `version`, `agent_hash`, `start`, `end`, and the whole agent under `agent` (the record's agent name is replaced). `replay_turn`, `continue_from` and `detect.summary.from_sim_record` read a call record as it is (tested). Nothing writes calls yet: the bot does not record live calls (cut).
+- API (`backend/copilot/api.py`, mounted in bot.py; Vite proxies `/copilot`): `GET`/`PUT /copilot/workspaces/{id}/guidelines` (`{"text"}`), `GET .../spec`, `GET .../versions`, `GET .../versions/{n}`.
+- Tests: `backend/tests/test_workspace.py`. No model calls.
 
 What #47 built (frontend only), for reference:
 - Derived only (ADR 0001). `canvas/view.ts` names the pills: `view.terminals` (pill id, the id of its edge, `kind`, and `at`, the node or collapsed stage card it hangs off). Ids are made unique against nodes, cards and edge ids like stage cards' (`:` prefixes); the Start pill's id does not depend on the start node, so React Flow moves it when the start node changes. `derive.ts` places them (`terminalPills`) and adds `terminal` nodes and plain React Flow `default` edges in `toFlowNodes` and `toFlowEdges`. `TerminalNode.tsx` draws them (flag, hang-up icon; `TERMINAL_WIDTH` x `TERMINAL_HEIGHT`, 84x28, in `layout.ts`).
@@ -376,7 +384,7 @@ Then drive `http://localhost:5174` in the built-in browser pane. Its mic is bloc
 ## 5. Open items not tracked in an issue yet
 
 - **Slow end of turn.** Smart Turn v3 marks short answers ("Book.") as incomplete, so the bot waits for the 3 s silence fallback (`End of Turn complete due to stop_secs. Silence in ms: 3000`). Tunable via `LLMUserAggregatorParams`. Now part of #25 (turn timing).
-- **Agents saved from the editor** land in `backend/agents/` as untracked files. Decide before the demo whether to commit or gitignore them (the example must stay tracked). To be decided in #28.
+- **Agents saved from the editor** were decided in #28: `backend/agents/*.json` is gitignored except the template (`prosper-scheduler.json`).
 - **ElevenLabs default voices.** Per ElevenLabs' docs, legacy voices such as Rachel (`21m00Tcm4TlvDq8ikWAM`, the backend's `DEFAULT_VOICE_ID` and the example's voice) now route to replacement voices (Rachel to "Janet"), and default voices expire on December 31, 2026. Pick a voice the account owns for the example and the default before then. Not tracked in an issue yet.
 - **One early disconnect** was seen in a WebKit browser during #1 (cause unknown). Chrome works. Look again in #7 if it recurs.
 - **Canvas, from #45 to #51:** fit view frames cards, not edge labels, so in a narrow window a back edge's pill on the far right can be cut off until you pan. Stage colours follow stage order, so adding or removing a stage shifts the colours after it. The 7-step template fits at about 50% zoom in a 1440px window when expanded (`RANK_GAP` is the cheapest lever; collapsing stages is the other). Inter is not bundled (`@fontsource-variable/inter` would make it the same on every machine). A node added later can overlap a frame until the next Tidy layout.

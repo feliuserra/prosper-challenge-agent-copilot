@@ -1,6 +1,6 @@
 # ADR 0013: Workspaces, versions and recorded calls
 
-- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): call records keep what the model saw on each turn; issues keep their caller card and decisive turn.
+- **Status:** Accepted, 2026-10-05. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): call records keep what the model saw on each turn; issues keep their caller card and decisive turn. Amended 2026-10-15 (#28, see the end): built minimal; the bot does not record live calls yet.
 - **Date:** 2026-10-05
 
 ## Context
@@ -39,3 +39,13 @@
 - Plain files that are easy to inspect, diff and reset before a demo.
 - Call records contain what callers said, which in production is PHI, and the call checker sends transcripts to OpenAI. Fine for mock data; production would need redaction and a BAA. Stated in the README.
 - Snapshots of an unsaved draft are kept inside the call record rather than as versions, so the version list only holds what someone saved or accepted.
+
+## Amendment (2026-10-15, #28)
+
+Act 1 (#27 to #31) was cut to the minimum on 2026-10-15 so there is time left for the demo and the hand-in. What #28 built differs from the decision above:
+
+- **The bot does not record live calls.** A call record is the text runner's record (which already keeps what the model saw on each turn) plus `source`, `agent_hash`, `version` and the agent; the store writes and reads it. Recording live calls moves to #32, and only if its seed needs real voice calls. Usage per call and its line in the spend log are cut too.
+- **No `chat.json` and no `tickets/`.** The Copilot panel is rebuilt from the workspace state (spec, last run, last proposal). Tickets belong to #32, if it is built.
+- **Added `runs/` and `proposals/`**, numbered like versions; the newest of each is what the panel shows.
+- **Versions ignore layout.** The hash leaves out canvas positions and stages, as the runner's cache key does, so moving a card is not a new version. Only the newest version is compared, so reverting to an older agent adds a version.
+- **Agents saved from the editor are gitignored**, except the scheduling template.
