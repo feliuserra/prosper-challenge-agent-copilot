@@ -4,6 +4,9 @@
 #
 #   workspaces/<agent-id>/
 #     guidelines.md        the client's document, pasted in
+#     clinic.json          the approved clinic configuration (#30): the clinic loader
+#                          finds it by the workspace's id, so an agent whose `clinic`
+#                          is the workspace's id runs against it
 #     spec.json            requirements, client questions, the clinic configuration
 #                          draft, what carries each requirement, and tests, each
 #                          "draft" or "approved" (#29, copilot/spec.py)
@@ -121,10 +124,15 @@ class Workspace:
         return _newest(self.dir / "runs")
 
     def save_proposal(self, proposal: dict) -> int:
+        """Store a proposal with its `number` (set on the dict too) and return the number."""
+        proposal["number"] = _next(self.dir / "proposals")
         return _append(self.dir / "proposals", proposal)
 
     def last_proposal(self) -> dict | None:
         return _newest(self.dir / "proposals")
+
+    def proposal(self, number: int) -> dict | None:
+        return _read(self.dir / "proposals" / f"{number:04d}.json") if number > 0 else None
 
     # ---- calls -----------------------------------------------------------------------
     def save_call(
@@ -180,9 +188,13 @@ def _numbered(folder: Path) -> list[tuple[int, Path]]:
     return sorted(files)
 
 
-def _append(folder: Path, data) -> int:
+def _next(folder: Path) -> int:
     files = _numbered(folder)
-    number = files[-1][0] + 1 if files else 1
+    return files[-1][0] + 1 if files else 1
+
+
+def _append(folder: Path, data) -> int:
+    number = _next(folder)
     _write(folder / f"{number:04d}.json", data)
     return number
 

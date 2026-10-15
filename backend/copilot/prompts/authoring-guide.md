@@ -20,6 +20,7 @@ An agent is a graph: nodes are steps of the call, edges are functions the model 
 
 - Names: ask for the spelling, read it back letter by letter, and let the caller correct it. In the template this is `ask_name`, then `confirm_name` with a self-loop for a correction (`correct_spelling`) and an edge back to `ask_name` (`spell_again`). Speech-to-text garbles names; a booking under the wrong name was decided when the spelling was skipped, not when it was booked.
 - Before booking, changing or cancelling, read back the day, the time and the provider as a question ("Shall I book Tuesday the 20th at 9 with Dr. Lee?") and act only on a yes. Saying "you are booked" before the tool has run made callers hang up thinking it was done.
+- The read-back is the last question before the tool runs: ask for everything else the tool needs (a booking field, a reminder preference) first. A read-back followed by more questions gets a yes that the model takes as leave to book.
 - A fee or a price the caller must accept: say it, then act only after they agree. The tool's `fee_acknowledged` is true only after that yes.
 
 ## Nodes
@@ -38,7 +39,7 @@ An agent is a graph: nodes are steps of the call, edges are functions the model 
 ## Tools
 
 - Clinic rules that are tables or numbers (who does which visit, coverage, required fields, the fee) live in the clinic configuration, and the tools enforce them. Prompts say to use the tool and to act on what it answers, including a refusal: never restate the table in a prompt.
-- Offer a tool in every node where the caller might need it. `transfer_to_human` belongs in every node a caller could ask for a person from, which is nearly all of them; `get_clinic_info` wherever they might ask about the clinic.
+- Offer a tool in every node where the caller might need it. `transfer_to_human` belongs in every node that is not an end node (the build checks it): a rule that says to transfer works only where the tool is offered; `get_clinic_info` wherever they might ask about the clinic.
 - Times come only from `find_slots`. Coverage comes only from `check_coverage`. Facts come only from `get_clinic_info`. Tool results are the truth about the clinic.
 - Identify the patient (`lookup_patient` with name and date of birth) before telling them anything about their appointments or changing one.
 
@@ -53,7 +54,8 @@ An agent is a graph: nodes are steps of the call, edges are functions the model 
 
 - Before ending, ask whether there is anything else.
 - End nodes say one short goodbye and have no edges (the call ends after their first reply). An end node with post-actions must include `end_conversation`, or it never hangs up.
-- A transfer ends the call after one line; do not keep talking after it.
+- A transfer ends the call after one line; do not keep talking after it. `transfer_to_human` does this by itself: no node is needed for it.
+- Nodes have no `role_message` of their own: it would replace the persona as the system message from that node on.
 
 ## Changing an agent
 

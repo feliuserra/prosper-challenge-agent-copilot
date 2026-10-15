@@ -29,6 +29,14 @@ def no_model_calls(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def no_workspace_clinics(tmp_path_factory, monkeypatch):
+    """The clinic loader also reads workspaces' clinic.json (#30): tests see none of the real ones."""
+    from clinic import clinics
+
+    monkeypatch.setattr(clinics, "WORKSPACES_DIR", tmp_path_factory.mktemp("no-workspaces"))
+
+
 @pytest.fixture(scope="session")
 def demo_logs():
     """The synthetic demo logs (#57): calls, records and labels. About 4 s, once per run."""
