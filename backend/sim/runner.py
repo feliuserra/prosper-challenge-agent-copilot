@@ -4,6 +4,7 @@
 # failing then passing is flaky. A test that could not run (the API failed after
 # retries) is an error, never a failure of the agent. Results are cached by a hash
 # of everything that decides them, so only tests whose inputs changed run again.
+# Mutants (#27) run with rerun=False: once, pass or fail.
 #
 
 import asyncio
@@ -65,8 +66,10 @@ async def run_once(agent: dict, test: dict, models: Models) -> dict:
     return record
 
 
-async def run_test(agent: dict, test: dict, models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR) -> dict:
-    key = cache_key(agent, test)
+async def run_test(
+    agent: dict, test: dict, models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR, rerun: bool = True
+) -> dict:
+    key = cache_key(agent, test, rerun)
     path = Path(cache_dir) / f"{key}.json"
     if use_cache and path.is_file():
         return {**json.loads(path.read_text()), "cached": True}
@@ -84,7 +87,7 @@ async def run_test(agent: dict, test: dict, models: Models, use_cache: bool = Tr
     runs = []
     try:
         runs.append(await run_once(agent, test, models))
-        if not runs[0]["passed"]:
+        if rerun and not runs[0]["passed"]:
             runs.append(await run_once(agent, test, models))
     except ModelError as error:
         result["status"] = "error"
@@ -106,14 +109,20 @@ async def run_suite(agent: dict, tests: list[dict], models: Models, use_cache: b
     return list(await asyncio.gather(*(run_test(agent, test, models, use_cache, cache_dir) for test in tests)))
 
 
+async def run_pairs(pairs: list[tuple[dict, dict]], models: Models, use_cache: bool = True, cache_dir: Path = config.CACHE_DIR, rerun: bool = True) -> list[dict]:
+    """(agent, test) pairs in parallel, each agent its own: for mutants."""
+    return list(await asyncio.gather(*(run_test(agent, test, models, use_cache, cache_dir, rerun) for agent, test in pairs)))
+
+
 def blocking(result: dict) -> bool:
     """Whether a result stops a change: any failure or error, and flaky safety tests."""
     return result["status"] in ("fail", "error") or (result["status"] == "flaky" and result["tier"] == "safety")
 
 
-def cache_key(agent: dict, test: dict) -> str:
+def cache_key(agent: dict, test: dict, rerun: bool = True) -> str:
     """A hash of everything that decides a result: the agent (without canvas positions
-    and stages), the test, the world it starts from, the models and the runner version."""
+    and stages), the test, the world it starts from, the models, the runner version, and
+    whether a failure is rerun (only when it is not, so existing keys stay the same)."""
     agent = copy.deepcopy(agent)
     for node in agent.get("nodes", []):
         if isinstance(node, dict):
@@ -126,4 +135,6 @@ def cache_key(agent: dict, test: dict) -> str:
         "models": [agent.get("model", DEFAULT_MODEL), config.CALLER_MODEL, config.JUDGE_MODEL],
         "runner": config.RUNNER_VERSION,
     }
+    if not rerun:
+        inputs["rerun"] = False
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:24]
