@@ -16,7 +16,7 @@ A call through one of these agents is not a free-form conversation: it is a path
 Here, Riverside's version 3 of the scheduling agent reads the caller's name back badly. Callers correct it again and again, so the Confirm name node re-enters itself far more than it did in version 2:
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph identify["Identify caller"]
         greeting(["Greeting"]) --> ask_name["Ask name"]
         ask_name --> confirm_name["<b>Confirm name</b><br/>re-entries 8.9%<br/>version 2: 2.0%"]
