@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #27's spend log and reference suite in review)
+## 0. Status (updated 2026-10-15: #27 merged; #28 in review, built minimal after the Act 1 cuts; #29 next)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -37,14 +37,15 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #57 Synthetic call logs with planted defects | Merged; checked by the user (`make synth`) | #63 |
 | #58 Call signals and triage | Merged; checked by the user (`make detect-eval`: 6 of 6 found, no false alarms) | #64 |
 | #59 Call heatmap on the canvas | Merged; checked by the user in the app, two fixes from the review (see "What #59 built") | #65 |
-| #27 Spend log (first of 3 PRs: spend log; clinic, tests and `make eval`; mutants and judge) | In review (see "What #27's spend log built") | #67 |
-| #27 Clinic, reference suite and `make eval` (second of 3) | In review, stacked on #67 (see "What #27's reference suite built") | (this PR) |
-| #28 Workspaces and versions (minimal, cuts of 2026-10-15) | In review (see "What #28 built") | (#28's PR) |
-| #27 to #35 | Open, in the order of `PLAN-phase2.md`: **#27 in progress** | |
+| #27 Spend log (first of 3 PRs) | Merged (see "What #27's spend log built") | #67 |
+| #27 Clinic, reference suite and `make eval` (second of 3) | Merged (see "What #27's reference suite built") | #68 |
+| #27 Mutants and judge calibration (third of 3) | Merged; closes #27 (see "What #27's mutants and judge calibration built") | #69 |
+| #28 Workspaces and versions (minimal, cuts of 2026-10-15) | In review (see "What #28 built") | (this PR) |
+| #29 to #35 | Open, in the order of `PLAN-phase2.md`; each of #27 to #31 has an "Approach and cuts" section on GitHub (2026-10-15) that wins over its scope: **#29 next** | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #27's third PR (mutants and judge calibration), after #67 and the reference suite PR merge. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
+**Next step:** #29 (the spec step and the edit operations), once #28 merges. Read its "Approach and cuts" section on GitHub first: Act 1 (#27 to #31) was cut to the minimum on 2026-10-15 (`PLAN-phase2.md`, "Time and cuts"), and the section wins over the scope above it. A side session (2026-10-15) is measuring `gpt-4.1-mini` as the agent model on the reference suite (`gpt-4o` is about 90% of a run's cost); its result decides whether the template and live bot switch, which is the user's call. The older notes below on #27 are kept for reference. Read "When #27 starts" below first: the drafts in `backend/eval/clinic-a/` go to the user for review before any test JSON or reference agent is written, and #27 costs model calls (say the cost before paid runs). #43's real call (types, coverage, the fee) is in PR #61's body; the user had not reported it when the Clinic tab was built. `backend/eval/clinic-a/` (untracked drafts for #27) is in the working tree; keep it out of other commits.
 
 Decided 2026-10-14 after #44, with the user ("focus on size and the visualization"):
 - #43 is kept small: visit lengths and interval overlap, minimum notice, referrals and field formats moved to its candidate list (ADR 0016 narrowed). A booking takes one grid slot whatever its type.
@@ -53,6 +54,15 @@ Decided 2026-10-14 after #44, with the user ("focus on size and the visualizatio
 - Mutation testing is no longer the expensive part (#27, ADR 0011 point 6): each mutant names the 2 or 3 tests designed to catch it and runs only against those, once, without the rerun: about 20 simulated calls (about $1.50 with `gpt-4o`) instead of 8 times 20. The user found a $20 to $30 estimate for #27 far too much; aim for a few dollars per issue.
 - Open, offered to the user and not answered: check whether a cheaper agent model (`gpt-4.1-mini`, about a sixth of `gpt-4o`'s price; the agent is about 90% of a test's cost) holds up, with cheap turn replays, when #43 rewrites the template. It changes live calls too.
 - These plan changes are a `Plan:` commit on `issue-43-clinic-config`, and the #43 and #27 issue bodies were updated on GitHub. How to find problems in calls at scale (workflow 2) was decided later the same day, with the hand-in memo (PR #60). #11 comes last.
+
+What #27's mutants and judge calibration built (the third of #27's three PRs), for reference:
+- Asked on 2026-10-15 whether mutants were still needed, given that test runs are the cost: the user kept them (they run once, about the price of one suite run, and back the memo's claim that a passing suite means something). The cheaper-agent question went to its own session.
+- `backend/eval/mutants.py`: 15 mutants, 26 (mutant, test) runs. Prompt mutants rewrite one instruction, agent mutants drop a tool, configuration mutants give their tests a world override (the builder takes schemas from the test's world, so no extra clinic file). Every edit asserts its text is there once. Caught = a check failed on the mutant that passed in every run of the reference (finer than the issue's "not flaky": test 7's exact provider check catches M9 though its judge rule was flaky).
+- `sim/runner.py`: `run_test(..., rerun=False)` and `run_pairs` (each pair its own agent); the cache key adds `rerun` only when false, so existing keys stand. `make eval MUTANTS=1` reads the reference results from the cache and refuses to start without them.
+- Result: 12 of 15 caught. M7 (medical advice) survived twice: cutting the rule, then replacing it with "answer health questions helpfully"; `gpt-4o` refuses dose advice anyway. M8 (every type open to any patient) survived: the new-patient rule also lives in the type's description and the prompt. M15 (no spelling) first did nothing (the `record_spelling` edge's description still asked for letters; it now edits the edge too), then survived: the simulated caller reads "Shivon" and corrects it, which a caller hearing it cannot, so no text test catches skipping the spelling. A hearing note on test 14's card was tried and reverted (the caller ignored it).
+- Judge calibration: `eval/judge-labels.json` (32 labels with minimal transcripts and the in-run verdict) and `judge-labels-review.md`; the user agreed with all 32 on 2026-10-15. `eval/judge.py` and `make eval JUDGE=<model>` (`judge_rule` takes `model`). `gpt-4.1` 32/32 stays; `gpt-4.1-mini` 30/32 (passed a transfer instead of 911: not good enough for safety rules as written, worth knowing for #32's judge at volume); `gpt-4.1-nano` 23/32.
+- Cost: mutants $3.08 against the $1.90 estimated (broken agents make long calls: 408 agent requests in the first run), judge calibration $0.02. #27 in all: about $7.53 (spend log $0.27, reference suite $4.17, mutants and judge $3.10).
+- Tests: 297 pytest (8 new in `test_eval.py`, 1 in `test_sim_runner.py`).
 
 What #27's reference suite built (the second of #27's three PRs), for reference:
 - The drafts were reworked for #43 and reviewed by the user on 2026-10-15 (`backend/eval/clinic-a/tests-outline.md` records the decisions): Linden Grove's guidelines gained a Humana plan that covers only sick and follow-up visits, a reminder booking field, and existing-patient-only types; the gaps (minors, double booking, nothing fits) stay out on purpose.

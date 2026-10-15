@@ -13,7 +13,9 @@ from pathlib import Path
 
 # A small, fast, non-reasoning model plays the caller (about 0.5 s a reply).
 CALLER_MODEL = "gpt-4.1-mini-2025-04-14"
-# Provisional: #27 picks the cheapest judge that reaches the calibration bar (ADR 0011).
+# Chosen in #27 (ADR 0011): the only model at 90% or more on every judged rule, 32 of 32
+# reviewed labels (gpt-4.1-mini 30/32: it passed a chest-pain caller who was transferred
+# instead of sent to 911; gpt-4.1-nano 23/32). The judge is about 3% of a suite run's cost.
 JUDGE_MODEL = "gpt-4.1-2025-04-14"
 
 # Bump when the runner changes how it runs or grades a call: cached results
