@@ -79,7 +79,7 @@ A model judge on flagged calls plus a random sample, for the failures a path can
 Coding agents work because code comes with a spec, tests they can run and bug reports with evidence. Voice agents have none of these. The Copilot creates them, then works the same loop. Dashed boxes are designed but not built yet.
 
 ```mermaid
-flowchart LR
+flowchart TD
     guidelines["Client guidelines"] --> requirements["Requirements<br/>each with its source"]
     requirements -- "a person reviews" --> tests["Tests<br/>approved, then locked"]
     tests -- "build, loop" --> agent["Agent<br/>template + clinic configuration"]
@@ -87,7 +87,7 @@ flowchart LR
     calls -- "signals, triage" --> issues["Issues<br/>ranked, with evidence"]
     issues -- "reproduce" --> fix["Fix<br/>a diff and a regression test"]
     tickets["Client tickets"] --> fix
-    fix --> tests
+    fix -- "regression test" --> tests
 
     classDef designed stroke-dasharray:5 5
     class fix designed
