@@ -54,6 +54,9 @@ export interface Evidence {
 }
 
 export interface Issue {
+  /** #58's signals; a judge group with the same clinic, node and shape joins as `judge` (#32). */
+  source?: "signals";
+  judge?: JudgeGroup;
   id: string;
   clinic: string;
   node: string;
@@ -89,6 +92,57 @@ export interface CallSummary {
   ended: "completed" | "hang_up" | "transfer" | "error";
 }
 
+/** One judged call's issue in a group (backend/detect/judge.py, #32). */
+export interface JudgedCall {
+  call: string;
+  index: number;
+  version: number | null;
+  start: string | null;
+  kind: string;
+  label: string;
+  severity: "high" | "medium" | "low";
+  requirement: string;
+  /** The decisive turn: its node is the group's. */
+  turn: number;
+  quote_turn: number;
+  quote: string;
+  summary: string;
+  /** Whether the second, sampled run put the decisive turn in the same place. */
+  agreed: boolean;
+  second_turn: number | null;
+}
+
+/** The judge's issues at one clinic, node and shape, ranked like #58's. */
+export interface JudgeGroup {
+  source: "judge";
+  id: string;
+  clinic: string;
+  node: string;
+  shape: string;
+  /** The workspace whose calls were judged (the agent's id). */
+  workspace: string;
+  severity: "high" | "medium" | "low";
+  version: number;
+  kinds: { kind: string; label: string; calls: number }[];
+  label: string;
+  /** Judged calls with the issue, of `judged`. */
+  affected: number;
+  judged: number;
+  rate: number;
+  /** The clinic's calls a week the rate is scaled to. */
+  volume: number;
+  extra_per_week: number;
+  score: number;
+  calls: JudgedCall[];
+}
+
+/** A judge group with no #58 issue at its clinic, node and shape: an issue of its own. */
+export type JudgeIssue = JudgeGroup & { judge: JudgeGroup };
+
+export type InboxIssue = Issue | JudgeIssue;
+
+export const isJudgeIssue = (issue: InboxIssue): issue is JudgeIssue => issue.source === "judge";
+
 export interface Detection {
   available: true;
   /** The week the issues are for (its Monday). */
@@ -96,7 +150,10 @@ export interface Detection {
   end: string;
   calls: number;
   clinics: { id: string; versions: { version: number; from: string; to: string; calls: number }[] }[];
-  issues: Issue[];
+  /** #58's issues and the judge's (#32), most urgent first. */
+  issues: InboxIssue[];
+  /** Judged calls per workspace. */
+  judged?: Record<string, number>;
   example_calls: Record<string, CallSummary>;
   /** clinic -> version -> node -> numbers. */
   nodes: Record<string, Record<string, Record<string, NodeNumbers>>>;
@@ -113,3 +170,84 @@ export interface Detection {
 }
 
 export type DetectionResponse = Detection | { available: false; reason: string };
+
+// ---- judged calls (GET /composer/calls, #32) ------------------------------------------
+
+export interface JudgedCallRow {
+  call: string;
+  start: string | null;
+  version: number | null;
+  end_reason: string | null;
+  /** "flagged: transfer, stall" or "sampled". */
+  why: string;
+  issues: number;
+  labels: string[];
+  severity: "high" | "medium" | "low" | null;
+}
+
+export interface CallIssue {
+  kind: string;
+  label: string;
+  /** Other checklist kinds the judge gave the same problem. */
+  also?: string[];
+  requirement: string;
+  severity: "high" | "medium" | "low";
+  shape: string;
+  turn: number;
+  node: string;
+  quote_turn: number;
+  quote_node: string;
+  quote: string;
+  summary: string;
+  agreed: boolean;
+  second_turn: number | null;
+}
+
+export interface CallerCard {
+  persona: string;
+  goal: string;
+  facts: Record<string, string>;
+  style: string;
+  answers: { question: string; answer: string }[];
+}
+
+export interface RecordedTurn {
+  turn: number;
+  speaker: "agent" | "caller";
+  text: string;
+  node?: string;
+  calls?: { name: string; kind: string; args?: Record<string, unknown>; result?: unknown; to?: string }[];
+}
+
+export interface Ticket {
+  id: string;
+  received: string;
+  from: string;
+  text: string;
+}
+
+export interface CallDetail {
+  workspace: string;
+  call: {
+    id: string;
+    source: string;
+    version: number | null;
+    start: string | null;
+    end: string | null;
+    end_reason: string | null;
+    start_node: string;
+    agent: string | null;
+    clinic: string;
+    turns: RecordedTurn[];
+  };
+  path: [string, number, string?][];
+  judge: {
+    why: string;
+    judged: string;
+    issues: CallIssue[];
+    other: CallIssue[];
+    card: CallerCard | null;
+    cost: number | null;
+  } | null;
+  tickets: Ticket[];
+}

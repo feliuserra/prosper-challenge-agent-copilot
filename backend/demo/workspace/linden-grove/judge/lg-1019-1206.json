@@ -1,0 +1,189 @@
+{
+  "call": "lg-1019-1206",
+  "key": "439df2ca15cec64cbb72fa22",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:36+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T12:06:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "ignored_transfer",
+      "severity": "medium",
+      "requirement": "B4",
+      "turn": 23,
+      "quote_turn": 25,
+      "quote": "Your appointment with Dr. Sofia Alvarez is scheduled for Tuesday the 20th at 8:30 in the morning.",
+      "summary": "The caller asked to be transferred to the front desk, but the assistant booked an appointment instead.",
+      "shape": "silent",
+      "label": "transfer not made",
+      "node": "offer_times",
+      "quote_node": "confirm",
+      "second_turn": 21,
+      "agreed": false,
+      "also": []
+    },
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 25,
+      "quote_turn": 25,
+      "quote": "Thank you for choosing Linden Grove Family Practice, and have a great day. Goodbye!",
+      "summary": "The assistant ended the call without asking if the caller needed anything else.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 25,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "B4",
+        "turn": 23,
+        "quote_turn": 25,
+        "quote": "Your appointment with Dr. Sofia Alvarez is scheduled for Tuesday the 20th at 8:30 in the morning.",
+        "summary": "The caller asked to be transferred to the front desk, but the assistant booked an appointment instead."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "Thank you for choosing Linden Grove Family Practice, and have a great day. Goodbye!",
+        "summary": "The assistant ended the call without asking if the caller needed anything else."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R40",
+        "turn": 21,
+        "quote_turn": 21,
+        "quote": "Would you like me to transfer you to them to schedule an appointment at 7 in the morning?",
+        "summary": "The assistant should have transferred the caller to the front desk when no 7 a.m. slot was available, but instead booked an 8:30 slot after the caller requested a transfer.",
+        "severity": "medium"
+      }
+    ],
+    [
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "B4",
+        "turn": 21,
+        "quote_turn": 21,
+        "quote": "Would you like me to transfer you to them to schedule an appointment at 7 in the morning?",
+        "summary": "Assistant did not transfer the caller after they asked, and instead booked an appointment."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "Thank you for choosing Linden Grove Family Practice, and have a great day. Goodbye!",
+        "summary": "Assistant did not ask if there was anything else before ending the call."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R20",
+        "turn": 23,
+        "quote_turn": 23,
+        "quote": "book_appointment({\"patient_id\": \"pat-010\", \"slot_id\": \"dr-alvarez-2026-10-20-0830\", \"reason\": \"Follow-up on knee\", \"appointment_type\": \"follow_up\", \"reminder\": \"call\"})",
+        "summary": "Assistant did not ask what kind of reminder the caller wanted before booking the appointment.",
+        "severity": "medium"
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R34",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "Your appointment with Dr. Sofia Alvarez is scheduled for Tuesday the 20th at 8:30 in the morning.",
+        "summary": "Assistant did not repeat the appointment day, time, and provider and get confirmation before booking.",
+        "severity": "medium"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Frank DeLuca, a 60-year-old existing patient calling for himself",
+    "goal": "To book a follow-up visit about his knee in the morning before work; he was offered appointments starting at 8:30 or 9:00 but asked if a 7 a.m. slot was available and agreed to be transferred to the front desk to try to book that earlier time",
+    "facts": {
+      "full_name": "Frank DeLuca",
+      "date_of_birth": "April 19th, 1965",
+      "reason": "follow-up on my knee",
+      "patient_status": "existing patient",
+      "insurance_plan": "bcbs"
+    },
+    "style": "Clear and polite, straightforward in stating needs and confirming details.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I need to book a follow-up visit about my knee, first thing in the morning, any day before work."
+      },
+      {
+        "question": "Could you please tell me your full name?",
+        "answer": "Frank DeLuca."
+      },
+      {
+        "question": "Just to confirm, is Frank DeLuca correct?",
+        "answer": "Yes, that's right."
+      },
+      {
+        "question": "Could you please provide your date of birth?",
+        "answer": "April 19th, 1965."
+      },
+      {
+        "question": "What is the reason for your follow-up visit?",
+        "answer": "Like I said, it’s a follow-up on my knee."
+      },
+      {
+        "question": "We have an appointment on Tuesday the 20th at 8:30 in the morning with Dr. Sofia Alvarez, or at 9:00 with either Dr. Alvarez or Dr. Marcus Reed. Which of these works for you?",
+        "answer": "Any chance you've got a 7 in the morning, before work?"
+      },
+      {
+        "question": "The front desk can often accommodate special requests like that. Would you like me to transfer you to them to schedule an appointment at 7 in the morning?",
+        "answer": "Yeah, let's do that. Please transfer me to the front desk to book that 7 a.m. slot."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 4,
+      "input": 18095,
+      "cached": 13824,
+      "output": 2005
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1629,
+      "cached": 1408,
+      "output": 160
+    }
+  },
+  "cost": 0.0319792,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R40",
+      "turn": 21,
+      "quote_turn": 21,
+      "quote": "Would you like me to transfer you to them to schedule an appointment at 7 in the morning?",
+      "summary": "The assistant should have transferred the caller to the front desk when no 7 a.m. slot was available, but instead booked an 8:30 slot after the caller requested a transfer.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "offer_times",
+      "quote_node": "offer_times",
+      "second_turn": null,
+      "agreed": false
+    }
+  ]
+}

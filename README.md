@@ -72,7 +72,7 @@ How it works, cheapest first:
 2. **Baselines make a rate mean something.** Each node is compared with itself in the previous version, and with the same template node at other clinics: agents come from one template, so the fleet is a baseline for free. A two-proportion test with a minimum effect keeps a busy agent from flagging tiny differences and a quiet one from flagging noise.
 3. **Triage.** Flags are grouped by clinic, node and shape (stall, leak, detour, tool error, silent failure) and ranked by severity times the extra calls affected each week. The output is a short list per person, not a dashboard.
 
-A model judge on flagged calls plus a random sample, for the failures a path cannot show (a booking under the wrong name, an invented slot), is designed in the memo and not built yet.
+4. **A model judge on flagged calls plus a random sample** (#32), for the failures a path cannot show: a booking under the wrong name, an invented slot, a relative or a fake office manager helped. It answers a checklist item by item against the clinic's requirements, names the decisive turn and quotes the call; its issues join the ranked list, and the Calls tab opens a call at the quoted turn with the node selected. On 22 mock production calls from a deliberately weak agent (`backend/demo/`): 8 of 10 planted failures found, 2 false alarms, the decisive turn in the planted defect's node for all 8. Three of the planted failures were in calls tier 1 did not flag: only the random sample sends them to the judge. `make demo-seed` installs the calls and the judge's results; `make judge-eval` measures them.
 
 ## The loop
 
@@ -155,11 +155,12 @@ The tests and the Copilot call OpenAI with the key in `backend/.env` and cost mo
 
 | Built | Designed, not built yet |
 | --- | --- |
-| Graph editor with stages, validation and undo; test calls with live node highlighting | Copilot UI: review, approve, watch it build, accept (#31) |
-| Clinic configuration, tool catalog and mock calendar; the scheduling template | Model judge on a sample of calls, and a calls inbox (#32) |
-| Text runner, test format, reference suite, mutants, judge calibration, spend log | Fix from an issue: reproduce, fix, keep a regression test (#33) |
-| Spec step, build from the template and the loop, through `make` and the API | A second clinic written by a person, held out until one final run |
+| Graph editor with stages, validation and undo; test calls with live node highlighting | Fix from an issue: reproduce, fix, keep a regression test (#33) |
+| Clinic configuration, tool catalog and mock calendar; the scheduling template | A second clinic written by a person, held out until one final run |
+| Text runner, test format, reference suite, mutants, judge calibration, spend log | |
+| Spec step, build from the template and the loop; the Copilot panel to review, approve, watch it build and accept (#31) | |
 | Synthetic call logs, signals, triage and the call heatmap | |
+| Model judge on flagged calls plus a sample, and a calls inbox with each call's transcript (#32) | |
 
 ## Layout
 

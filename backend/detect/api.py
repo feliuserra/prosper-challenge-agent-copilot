@@ -2,22 +2,35 @@
 # GET /composer/detection (#58): the ranked issues and the per-node numbers the canvas
 # heatmap draws (#59), from the call logs in a folder (by default the synthetic ones,
 # backend/.synth). Read and counted on the first request, then again only when the
-# files change.
+# files change. With a workspaces folder, the judge's issues (#32) join the list.
+#
+# GET /composer/calls (#32): the judged calls of every workspace.
+# GET /composer/calls/{workspace}/{call}: one call for the Calls tab: its turns (without
+#   the context each agent turn was given), its path, the judge's issues, other findings
+#   and caller card, and the tickets matched to it.
 #
 
+from collections import Counter
+from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
-from . import signals, stats, triage
+from copilot.workspace import Workspace
+from storage import AGENT_ID_RE
+
+from . import judge, signals, stats, triage
 from .synth import read
 
 EXAMPLE_FIELDS = ("id", "clinic", "version", "start", "end", "caller", "path", "tools", "ended")
 
 
-def make_router(data_dir: Path) -> APIRouter:
+def make_router(data_dir: Path, workspaces_dir: Path | None = None) -> APIRouter:
     router = APIRouter(prefix="/composer")
     cache: dict = {}
+
+    def judged() -> dict[str, list[dict]]:
+        return judge.results(workspaces_dir) if workspaces_dir else {}
 
     @router.get("/detection")
     def detection() -> dict:
@@ -28,10 +41,58 @@ def make_router(data_dir: Path) -> APIRouter:
         if cache.get("key") != key:
             calls, records = read(data_dir)
             counts = signals.count(calls, records)
-            cache.update(key=key, body=body(counts, triage.detect(counts), calls))
-        return cache["body"]
+            result = triage.detect(counts)
+            cache.update(key=key, body=body(counts, result, calls), volume=weekly_calls(calls, result))
+        # The judge's results are few and change on their own: merged on every request.
+        found = judged()
+        return {**cache["body"], "issues": judge.merge(cache["body"]["issues"], judge.inbox(found, cache["volume"])),
+                "judged": {w: len(r) for w, r in found.items()}}
+
+    @router.get("/calls")
+    def judged_calls() -> dict:
+        return {"workspaces": [
+            {"id": workspace, "calls": [call_row(r) for r in results]} for workspace, results in judged().items()
+        ]}
+
+    @router.get("/calls/{workspace}/{call_id}")
+    def one_call(workspace: str, call_id: str) -> dict:
+        if workspaces_dir is None or not AGENT_ID_RE.fullmatch(workspace):
+            raise HTTPException(404, "No such workspace.")
+        space = Workspace(workspace, root=workspaces_dir)
+        call = space.call(call_id)
+        if call is None:
+            raise HTTPException(404, f"No call {call_id} in {workspace}.")
+        result = judge.stored(space, call_id)
+        matched = judge.match_tickets(judge.tickets(space), [call])
+        return {
+            "workspace": workspace,
+            "call": {key: call.get(key) for key in ("id", "source", "version", "start", "end", "end_reason", "start_node")}
+                    | {"agent": (call.get("agent") or {}).get("name"), "clinic": judge.clinic_of(call),
+                       "turns": [{k: v for k, v in t.items() if k != "context"} for t in call["turns"]]},
+            "path": judge.summary_of(call)["path"],
+            "judge": None if result is None else {k: result.get(k) for k in ("why", "judged", "issues", "other", "card", "cost")},
+            "tickets": [t for t in judge.tickets(space) if matched.get(t["id"])],
+        }
 
     return router
+
+
+def call_row(result: dict) -> dict:
+    severities = [i["severity"] for i in result["issues"]]
+    return {
+        "call": result["call"], "start": result["start"], "version": result["version"], "end_reason": result["end_reason"],
+        "why": result["why"], "issues": len(result["issues"]), "labels": [i["label"] for i in result["issues"]],
+        "severity": min(severities, key=judge.SEVERITIES.index) if severities else None,
+    }
+
+
+def weekly_calls(calls: list[dict], result: dict) -> dict[str, int]:
+    """Each clinic's calls in the last week of the logs: the volume a judged rate scales to."""
+    if not result["runs"]:
+        return {}
+    start = date.fromisoformat(result["runs"][-1]["week"])
+    end = (start + timedelta(days=7)).isoformat()
+    return dict(Counter(c["clinic"] for c in calls if start.isoformat() <= c["start"][:10] < end))
 
 
 def body(counts: signals.Counts, result: dict, calls: list) -> dict:

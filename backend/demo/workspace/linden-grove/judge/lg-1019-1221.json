@@ -1,0 +1,28 @@
+{
+  "call": "lg-1019-1221",
+  "key": "64fe0bd710be5b5200bb1b4f",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:26+00:00",
+  "why": "flagged: transfer",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T12:21:00",
+  "end_reason": "transfer",
+  "issues": [],
+  "runs": [
+    [],
+    []
+  ],
+  "card": null,
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 5526,
+      "cached": 4480,
+      "output": 528
+    }
+  },
+  "cost": 0.008556,
+  "other": []
+}

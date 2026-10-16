@@ -1,0 +1,162 @@
+{
+  "call": "lg-1019-0941",
+  "key": "4f2b356ac7f0ccf0b675b40f",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:27+00:00",
+  "why": "flagged: reentry, stall",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T09:41:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 35,
+      "quote_turn": 35,
+      "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 35,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 35,
+        "quote_turn": 35,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R24",
+        "turn": 20,
+        "quote_turn": 21,
+        "quote": "I will be using UnitedHealthcare insurance plan.",
+        "summary": "The assistant did not state the self-pay prices during new patient registration as required.",
+        "severity": "medium"
+      }
+    ],
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 35,
+        "quote_turn": 35,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R24",
+        "turn": 24,
+        "quote_turn": 35,
+        "quote": "your appointment is booked for Monday, October 26th at 9:00 in the morning",
+        "summary": "The assistant did not inform the new patient of self-pay prices, as required for all new patients.",
+        "severity": "medium"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Lina Zhou, a new patient, calling to book an appointment for herself.",
+    "goal": "To book a first visit appointment for a flu shot any day next week; accepted the offered appointment on Monday, October 26th at 9:00 AM with Dr. Sofia Alvarez and requested a phone call reminder.",
+    "facts": {
+      "full_name": "Lina Zhou (spelled L-I-N-A Z-H-O-U)",
+      "date_of_birth": "July 21st, 1997",
+      "phone": "555-020-5512",
+      "reason": "New patient visit for a flu shot",
+      "insurance_plan": "UnitedHealthcare"
+    },
+    "style": "Polite, clear, and cooperative, providing information as requested and confirming details.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "Hello, I am a new patient and I would like to book a first visit for a flu shot, any day next week."
+      },
+      {
+        "question": "Could you please tell me your full name?",
+        "answer": "My name is 周丽娜."
+      },
+      {
+        "question": "Did I get that right? Zhou Li Na?",
+        "answer": "No, it's 周丽娜, spelled L-I-N-A Z-H-O-U."
+      },
+      {
+        "question": "Did I get that right? Lina Zhou?",
+        "answer": "Yes, that's correct."
+      },
+      {
+        "question": "Could you please tell me your date of birth?",
+        "answer": "My date of birth is July 21st, 1997."
+      },
+      {
+        "question": "I couldn't find a record under that name and date of birth. Are you new to the clinic?",
+        "answer": "Yes, I am new to the clinic."
+      },
+      {
+        "question": "Great, let's get you registered. Could I have your phone number, please?",
+        "answer": "My phone number is 555-020-5512."
+      },
+      {
+        "question": "Thank you. What insurance plan will you be using, or will you be self-pay?",
+        "answer": "I will be using UnitedHealthcare insurance plan."
+      },
+      {
+        "question": "I have a couple of times available for a new patient visit with Dr. Sofia Alvarez on Monday, October 26th. Would 8:30 in the morning or 9:00 in the morning work for you?",
+        "answer": "Either time on Monday, October 26th works for me. I'll take the 9:00 in the morning appointment, please."
+      },
+      {
+        "question": "Great, I'll book your appointment for Monday, October 26th at 9:00 in the morning with Dr. Alvarez. Shall I go ahead and do that?",
+        "answer": "Yes, please go ahead and book that appointment for me."
+      },
+      {
+        "question": "Would you like a reminder a day before the appointment by text, phone call, or not at all?",
+        "answer": "I would like a reminder by phone call, please."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 8548,
+      "cached": 4096,
+      "output": 701
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1846,
+      "cached": 1664,
+      "output": 165
+    }
+  },
+  "cost": 0.017063199999999997,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R24",
+      "turn": 20,
+      "quote_turn": 21,
+      "quote": "I will be using UnitedHealthcare insurance plan.",
+      "summary": "The assistant did not state the self-pay prices during new patient registration as required.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "verify_patient",
+      "quote_node": "verify_patient",
+      "second_turn": 24,
+      "agreed": false
+    }
+  ]
+}

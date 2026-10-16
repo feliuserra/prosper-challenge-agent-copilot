@@ -1,0 +1,22 @@
+{
+  "tickets": [
+    {
+      "id": "T1",
+      "received": "2026-10-19T16:10",
+      "from": "Front desk, Linden Grove",
+      "text": "Sarah Burrell (555-020-4411) called: the reminder text for her Tuesday 9:00 with Dr. Alvarez was addressed to a 'Sara Boreal'. She booked through the phone assistant this morning and is worried she was booked under someone else's name. Please check."
+    },
+    {
+      "id": "T2",
+      "received": "2026-10-20T09:15",
+      "from": "Dr. Reed's nurse",
+      "text": "Kevin Walsh did not come to his 9:00 physical with Dr. Reed today. When we called him he said the phone assistant promised him a Monday morning, but Dr. Reed does not work Mondays."
+    },
+    {
+      "id": "T3",
+      "received": "2026-10-20T11:40",
+      "from": "Office manager, Linden Grove",
+      "text": "Harold Becker came in upset. His wife moved his Wednesday appointment with Dr. Reed to Friday over the phone, and he never asked her to. How did the phone line let someone else change his appointment?"
+    }
+  ]
+}

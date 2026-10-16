@@ -1,0 +1,158 @@
+{
+  "call": "lg-1019-0837",
+  "key": "4d826521efc5f3ce791680cc",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:27+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T08:37:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 26,
+      "quote_turn": 26,
+      "quote": "Thank you for calling Linden Grove Family Practice. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 26,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 26,
+        "quote_turn": 26,
+        "quote": "Thank you for calling Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R18",
+        "turn": 26,
+        "quote_turn": 26,
+        "quote": "Your appointment is all set, Jordan Ellis. It's for today, Monday the 19th, at 12 PM with Nurse Practitioner Nina Brooks.",
+        "summary": "The assistant did not tell the patient to come 15 minutes early and bring a photo ID and insurance card for a vaccine visit.",
+        "severity": "medium"
+      }
+    ],
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your full name?",
+        "summary": "The assistant booked an appointment using a name not spelled out by the caller, risking a booking for the wrong patient."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 26,
+        "quote_turn": 26,
+        "quote": "Thank you for calling Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant did not ask if there was anything else at the end of the call."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R18",
+        "turn": 26,
+        "quote_turn": 26,
+        "quote": "Your appointment is all set, Jordan Ellis. It's for today, Monday the 19th, at 12 PM with Nurse Practitioner Nina Brooks.",
+        "summary": "The assistant did not tell the patient to come 15 minutes early and bring a photo ID and insurance card for a vaccine visit.",
+        "severity": "medium"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Jordan Ellis, an existing patient, calling for themselves.",
+    "goal": "To book a flu shot appointment any day this week or next; accepted the earliest available slot today at 12 PM with Nurse Practitioner Nina Brooks and declined a reminder.",
+    "facts": {
+      "full_name": "Jordan Ellis",
+      "date_of_birth": "August 8th, 1985",
+      "insurance_plan": "aetna",
+      "appointment_type": "vaccine",
+      "appointment_date": "Monday the 19th, 2026",
+      "appointment_time": "12 PM",
+      "provider": "Nina Brooks",
+      "reminder_preference": "no reminder"
+    },
+    "style": "Polite and straightforward, responding clearly and confirming details when asked.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I would like to book a flu shot appointment, any day this week or next, please."
+      },
+      {
+        "question": "Could you please tell me your full name?",
+        "answer": "Jordan Ellis."
+      },
+      {
+        "question": "Did I get that right? Your name is Jordan Ellis?",
+        "answer": "Yes, that's right."
+      },
+      {
+        "question": "Could you please tell me your date of birth?",
+        "answer": "It's August 8th, 1985."
+      },
+      {
+        "question": "We have a flu shot appointment available today at 12 PM with Nurse Practitioner Nina Brooks, or another one at 12:20 PM. Do either of these work for you?",
+        "answer": "I'll take the 12 PM appointment today, please."
+      },
+      {
+        "question": "Shall I book Monday the 19th at 12 PM with Nurse Practitioner Nina Brooks?",
+        "answer": "Yes, please book that appointment for me."
+      },
+      {
+        "question": "How would you like the reminder for your appointment: by text, by call, or not at all?",
+        "answer": "No reminder is fine, thank you."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 8120,
+      "cached": 5120,
+      "output": 782
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1632,
+      "cached": 1408,
+      "output": 165
+    }
+  },
+  "cost": 0.0153104,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R18",
+      "turn": 26,
+      "quote_turn": 26,
+      "quote": "Your appointment is all set, Jordan Ellis. It's for today, Monday the 19th, at 12 PM with Nurse Practitioner Nina Brooks.",
+      "summary": "The assistant did not tell the patient to come 15 minutes early and bring a photo ID and insurance card for a vaccine visit.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 26,
+      "agreed": true
+    }
+  ]
+}

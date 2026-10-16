@@ -1,0 +1,135 @@
+{
+  "call": "lg-1019-0922",
+  "key": "61e84256a841a74cb7a50759",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:30+00:00",
+  "why": "flagged: hang_up",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T09:22:00",
+  "end_reason": "caller_hung_up",
+  "issues": [],
+  "runs": [
+    [
+      {
+        "kind": "requirement",
+        "requirement": "R1",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Yes, there is parking available at our clinic. We have a free lot behind the building that you can enter from Birch Street.",
+        "summary": "The assistant did not state the clinic's name, address, phone number, and parking information when asked about parking; only parking was given.",
+        "severity": "medium"
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R35",
+        "turn": 6,
+        "quote_turn": 6,
+        "quote": "Yes, we are open on Saturday mornings from 9 to noon.",
+        "summary": "The assistant did not ask if there was anything else at the end of the call.",
+        "severity": "low"
+      }
+    ],
+    [
+      {
+        "kind": "requirement",
+        "requirement": "R1",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Yes, there is parking available at our clinic. We have a free lot",
+        "summary": "Assistant did not state the clinic's name, address, phone number, and parking info when asked, only answered about parking.",
+        "severity": "medium"
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R5",
+        "turn": 6,
+        "quote_turn": 6,
+        "quote": "Yes, we are open on Saturday mornings from 9 to noon.",
+        "summary": "Assistant did not state that the clinic is closed on Sundays, Thanksgiving, and the Friday after Thanksgiving when asked about Saturday hours.",
+        "severity": "low"
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R35",
+        "turn": 6,
+        "quote_turn": 6,
+        "quote": "Yes, we are open on Saturday mornings from 9 to noon.",
+        "summary": "Assistant did not ask if there is anything else at the end of the call.",
+        "severity": "low"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "A potential patient calling to inquire about clinic facilities and hours.",
+    "goal": "To find out if there is parking available at the clinic and whether the clinic is open on Saturdays; they reacted positively to the information provided.",
+    "facts": {
+      "clinic_name": "Linden Grove Family Practice",
+      "parking_info": "A free lot behind the building, entered from Birch Street; street parking on Main Street is two hours max and tickets are given.",
+      "hours_saturday": "Open Saturday mornings from 9 to noon"
+    },
+    "style": "Polite and concise, asking clear questions and responding appreciatively.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "Hi, I was wondering if there is parking available at your clinic?"
+      },
+      {
+        "question": "Yes, there is parking available at our clinic. We have a free lot behind the building that you can enter from Birch Street. Please be aware that street parking on Main Street is limited to two hours, and tickets are given if you overstay.",
+        "answer": "Thanks for that information. Are you open on Saturdays?"
+      },
+      {
+        "question": "Yes, we are open on Saturday mornings from 9 to noon.",
+        "answer": "Great, thanks for the info. Goodbye!"
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 3,
+      "input": 9553,
+      "cached": 5888,
+      "output": 1284
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 586,
+      "cached": 0,
+      "output": 129
+    }
+  },
+  "cost": 0.0209868,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R1",
+      "turn": 4,
+      "quote_turn": 4,
+      "quote": "Yes, there is parking available at our clinic. We have a free lot behind the building that you can enter from Birch Street.",
+      "summary": "The assistant did not state the clinic's name, address, phone number, and parking information when asked about parking; only parking was given.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": 4,
+      "agreed": true
+    },
+    {
+      "kind": "requirement",
+      "requirement": "R35",
+      "turn": 6,
+      "quote_turn": 6,
+      "quote": "Yes, we are open on Saturday mornings from 9 to noon.",
+      "summary": "The assistant did not ask if there was anything else at the end of the call.",
+      "severity": "low",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": 6,
+      "agreed": true
+    }
+  ]
+}

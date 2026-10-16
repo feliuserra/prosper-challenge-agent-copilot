@@ -81,6 +81,8 @@ Cut on 2026-10-14, when the hand-in memo (#56) was drafted: the client intake (#
 
 Cut on 2026-10-15, to keep Act 1 (#27, then a minimal #28, #29, #30 and a thin #31) small enough to leave time for #34 and #11. Each issue has an "Approach and cuts" section that wins over its scope here. In short: #27 finishes part 3 with no new tests, rules or mutants. #28 drops the bot recording live calls (the runner's flight recorder stays; live recording moves to #32 if needed), usage per call, `chat.json` and tickets. #29 drops the TypeScript operations and the shared cases, `requirements` lists in the agent schema (the requirement map lives in the workspace and the proposal instead) and the free-form chat (buttons call the endpoints). #30 starts with a simple loop, one change per failure, and adds the candidates checked by turn replay only if clinic-a does not reach 18 of 20; exact diagnosis classifiers are cut. #31 has two tabs (Copilot, Test call) and drops requirement outlining, editing tables and tests, the Tests tab and the full diff overlay.
 
+Cut on 2026-10-16 (#32), with the user: the `continue_from` rollouts that settle a disagreement between the judge's two runs (the disagreement is shown instead), issues as a third kind in the problems list and as node badges (they are in the ranked list and the Calls tab), real recorded voice calls (none were recorded; speech-to-text garbles are simulated instead), and matching tickets with a model (phone, then name). Added by the user: malicious callers and basic pen testing (a planted "trust staff" defect, a prompt injection, a fee manipulation).
+
 ## Prerequisites (user)
 
 - [ ] Review the demo clinic's guidelines and the 20 reference tests (#27).

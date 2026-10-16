@@ -1,0 +1,158 @@
+{
+  "call": "lg-1019-1027",
+  "key": "60e778753570f593dd00a920",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:27+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T10:27:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 31,
+      "quote_turn": 31,
+      "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 31,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R35",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant did not ask if there was anything else before ending the call.",
+        "severity": "low"
+      }
+    ],
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant ended the call without asking if the caller needed anything else."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R35",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+        "summary": "The assistant failed to ask at the end if there was anything else the caller needed before ending the call.",
+        "severity": "low"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Siobhan Murphy, a 31-year-old existing patient calling for herself",
+    "goal": "To book a follow-up appointment to check how her new asthma inhaler is working, preferably on a Thursday; she corrected the spelling of her name when the assistant couldn't find her record and accepted the 9:30 AM slot with Dr. Alvarez, requesting a text reminder.",
+    "facts": {
+      "full_name": "Siobhan Murphy (corrected from Shivon Murphy)",
+      "date_of_birth": "March 17th, 1995",
+      "reason": "Checking on how an asthma inhaler is working",
+      "insurance_plan": "UnitedHealthcare",
+      "appointment_type": "follow_up",
+      "preferred_day": "Thursday",
+      "appointment_time": "9:30 AM",
+      "provider": "Dr. Sofia Alvarez",
+      "reminder_preference": "text"
+    },
+    "style": "Polite, clear, and cooperative, with a willingness to clarify details when needed.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "Hi there! I'd like to book a follow-up visit to check how my new asthma inhaler is working, preferably on Thursday."
+      },
+      {
+        "question": "Sure thing! Could I have your full name, please?",
+        "answer": "My name is Shivon Murphy."
+      },
+      {
+        "question": "Is Shivon Murphy correct?",
+        "answer": "Yes, that's right, Shivon Murphy."
+      },
+      {
+        "question": "Great, now could I have your date of birth, please?",
+        "answer": "My date of birth is March 17th, 1995."
+      },
+      {
+        "question": "I couldn't find a record for you. Are you new to our clinic?",
+        "answer": "No, I've been coming here for years. I think you might have misspelled my name earlier. It's Shivon, spelled S-I-O-B-H-A-N Murphy."
+      },
+      {
+        "question": "What is the reason for your visit?",
+        "answer": "I'm coming in to check on how my new asthma inhaler is working. I'd like to have a follow-up appointment for that, please."
+      },
+      {
+        "question": "I've found some slots on Thursday. Would you prefer to come in at 8:30 in the morning with Dr. Alvarez, or at 9:30? Let me know which one works for you.",
+        "answer": "I'll take the 9:30 appointment with Dr. Alvarez, please."
+      },
+      {
+        "question": "Great! Just to confirm, would you like me to book that appointment for Thursday the 22nd at 9:30 in the morning with Dr. Alvarez?",
+        "answer": "Yes, please go ahead and book that for me."
+      },
+      {
+        "question": "How would you like to receive a reminder about this appointment? We can send a text, give you a call, or if you prefer, no reminder at all.",
+        "answer": "A text reminder would be great, thanks!"
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 8532,
+      "cached": 6656,
+      "output": 694
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1838,
+      "cached": 1664,
+      "output": 216
+    }
+  },
+  "cost": 0.0132136,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R35",
+      "turn": 31,
+      "quote_turn": 31,
+      "quote": "Thank you for choosing Linden Grove Family Practice. Goodbye!",
+      "summary": "The assistant did not ask if there was anything else before ending the call.",
+      "severity": "low",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 31,
+      "agreed": true
+    }
+  ]
+}

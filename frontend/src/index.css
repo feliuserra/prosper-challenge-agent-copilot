@@ -1562,3 +1562,137 @@ ol.copilot-list {
     opacity: 1;
   }
 }
+
+/* Judged calls (#32): the judge's issues in the inbox and the Calls tab */
+.chip.judge {
+  background: #ddf4ff;
+  color: #0969da;
+}
+.judged-call {
+  padding: 0;
+  font: inherit;
+}
+.calls h3 {
+  margin: 6px 0 4px;
+  font-size: 14px;
+}
+.calls h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+.call-rows,
+.call-issues {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.call-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.call-row:hover {
+  background: #f6f8fa;
+}
+.call-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.call-row-why,
+.call-row-labels {
+  font-size: 12px;
+}
+.call-title {
+  margin: 8px 0 2px;
+}
+.call-meta {
+  margin: 0 0 4px;
+}
+.call-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-left: 3px solid #bf8700;
+  background: #fff8c5;
+  font-size: 12.5px;
+}
+.call-issue {
+  margin-bottom: 6px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+}
+.call-issue.open {
+  border-color: #bc4c00;
+}
+.call-aside {
+  margin: 6px 0;
+  font-size: 12.5px;
+}
+.call-aside summary {
+  cursor: pointer;
+}
+.card-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 4px 0;
+}
+.card-facts div {
+  display: contents;
+}
+.card-facts dt {
+  color: #656d76;
+}
+.card-facts dd {
+  margin: 0;
+}
+.call-turns {
+  overflow: visible;
+}
+.turn.marked {
+  outline: 2px solid #fd8c73;
+}
+.turn.focused {
+  outline: 3px solid #bc4c00;
+  background: #fff1e5;
+}
+.turn-node {
+  padding: 0;
+  font-size: 12px;
+}
+.turn-tool {
+  color: #6639ba;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.turn-move {
+  font-size: 12px;
+}
+.turn-mark {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 8px;
+  background: #ffebe9;
+  color: #a40e26;
+  font-size: 11px;
+  cursor: pointer;
+}
+.turn-mark.decisive {
+  background: #fff1e5;
+  color: #953800;
+}

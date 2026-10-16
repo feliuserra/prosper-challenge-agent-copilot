@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { getDetection } from "../api";
 import { useAgentStore } from "../store/agentStore";
 import { defaultOptions, hashFor, optionsFor, optionsFromHash, type HeatOptions } from "./heat";
-import type { Detection, Issue } from "./types";
+import { isJudgeIssue, type Detection, type InboxIssue } from "./types";
 
 // The call heatmap's state (#59): whether the overlay is on, the call logs' numbers,
 // what is shown, and the issue in focus. View state only: not part of the agent,
@@ -25,8 +25,9 @@ interface DetectionState {
   /** Turn the overlay on (fetching the numbers again) or off. */
   setOpen(open: boolean, wanted?: Partial<HeatOptions>): Promise<void>;
   setOptions(patch: Partial<HeatOptions>): void;
-  /** Show an issue: its clinic, version and signal, its node selected. */
-  focusIssue(issue: Issue | null): void;
+  /** Show an issue: its clinic, version and signal, its node selected. A judge's issue
+   * (#32) only selects its node: the heatmap has no signal for it. */
+  focusIssue(issue: InboxIssue | null): void;
 }
 
 let request = 0;
@@ -72,9 +73,13 @@ export const useDetectionStore = create<DetectionState>()((set, get) => ({
 
   focusIssue(issue) {
     if (!issue) return set({ focus: null });
-    const options = optionsFor(issue);
-    set({ focus: issue.id, options });
-    writeHash(options);
+    if (isJudgeIssue(issue)) {
+      set({ focus: issue.id });
+    } else {
+      const options = optionsFor(issue);
+      set({ focus: issue.id, options });
+      writeHash(options);
+    }
     const agent = useAgentStore.getState().agent;
     if (agent?.nodes.some((n) => n.name === issue.node)) {
       useAgentStore.getState().select({ kind: "node", name: issue.node });

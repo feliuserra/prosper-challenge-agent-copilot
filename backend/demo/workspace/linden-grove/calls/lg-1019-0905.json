@@ -1,0 +1,3299 @@
+{
+  "id": "lg-1019-0905",
+  "source": "production-mock",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T09:05:00",
+  "end": "2026-10-19T09:06:30",
+  "agent": {
+    "name": "Linden Grove scheduler",
+    "voice_id": "21m00Tcm4TlvDq8ikWAM",
+    "model": "gpt-4o",
+    "persona": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.",
+    "initial_node": "greeting",
+    "nodes": [
+      {
+        "name": "greeting",
+        "stage": "Identify caller",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          }
+        ],
+        "edges": [
+          {
+            "function": "choose_intent",
+            "description": "Record what the caller wants to do once they say it.",
+            "target": "ask_name",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "enum": [
+                  "book",
+                  "reschedule",
+                  "cancel"
+                ],
+                "description": "What the caller wants to do."
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          }
+        ],
+        "tools": [
+          "transfer_to_human",
+          "get_clinic_info",
+          "check_coverage"
+        ]
+      },
+      {
+        "name": "ask_name",
+        "stage": "Identify caller",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          }
+        ],
+        "edges": [
+          {
+            "function": "record_spelling",
+            "description": "Call once the caller has said their full name.",
+            "target": "confirm_name",
+            "properties": {
+              "spelled_name": {
+                "type": "string",
+                "description": "The full name as the caller said it."
+              }
+            },
+            "required": [
+              "spelled_name"
+            ]
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "confirm_name",
+        "stage": "Identify caller",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          }
+        ],
+        "edges": [
+          {
+            "function": "name_confirmed",
+            "description": "Call when the caller says the name you read back is right.",
+            "target": "verify_patient",
+            "properties": {
+              "full_name": {
+                "type": "string",
+                "description": "The confirmed full name, exactly as spelled."
+              }
+            },
+            "required": [
+              "full_name"
+            ]
+          },
+          {
+            "function": "correct_spelling",
+            "description": "Call when the caller says the name is wrong and gives the correct spelling in the same answer.",
+            "target": "confirm_name",
+            "properties": {
+              "spelled_name": {
+                "type": "string",
+                "description": "The corrected full name, written exactly as the caller spelled it."
+              }
+            },
+            "required": [
+              "spelled_name"
+            ]
+          },
+          {
+            "function": "spell_again",
+            "description": "Call when the caller says the name is wrong but has not given the correct spelling yet.",
+            "target": "ask_name"
+          }
+        ],
+        "tools": [
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "verify_patient",
+        "stage": "Identify caller",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          }
+        ],
+        "edges": [
+          {
+            "function": "patient_identified",
+            "description": "Call once lookup_patient found the caller or register_patient registered them, and the caller wants to book a new appointment.",
+            "target": "collect_reason",
+            "properties": {
+              "patient_id": {
+                "type": "string",
+                "description": "The patient_id the tool returned."
+              }
+            },
+            "required": [
+              "patient_id"
+            ]
+          },
+          {
+            "function": "change_appointment",
+            "description": "Call once lookup_patient found the caller and they want to reschedule or cancel an appointment.",
+            "target": "manage_appointment",
+            "properties": {
+              "patient_id": {
+                "type": "string",
+                "description": "The patient_id the tool returned."
+              }
+            },
+            "required": [
+              "patient_id"
+            ]
+          }
+        ],
+        "tools": [
+          "lookup_patient",
+          "register_patient",
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "collect_reason",
+        "stage": "Visit",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Ask briefly what the visit is for. Call list_appointment_types and choose the type whose description fits the reason and the patient: some types are only for new patients or only for existing ones, and lookup_patient or register_patient told you which this caller is. A new patient always books the new patient type, whatever the reason. If two types could fit, ask the caller which. If the caller asks for a provider, check in list_appointment_types that they do this type; if not, say so plainly and offer the providers who do. If the caller mentions insurance or asks about cost, call check_coverage with their plan and the type, and tell them plainly what it says. If their plan is not accepted or does not cover the visit, call get_clinic_info, tell them the self-pay price, and book only if they say they are fine paying it; if they would rather not, say goodbye kindly. Then call record_reason."
+          }
+        ],
+        "edges": [
+          {
+            "function": "record_reason",
+            "description": "Record the reason for the visit and its appointment type once both are clear.",
+            "target": "offer_times",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "description": "Reason for the visit."
+              },
+              "appointment_type": {
+                "type": "string",
+                "description": "The appointment_type chosen from list_appointment_types, when the clinic has types."
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        ],
+        "tools": [
+          "list_appointment_types",
+          "check_coverage",
+          "get_clinic_info"
+        ]
+      },
+      {
+        "name": "offer_times",
+        "stage": "Book",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Call find_slots with the appointment_type; if the caller has said a day, a time of day or a provider they prefer, pass it too. Offer two of the slots it returns, with the day, time and provider, and ask which one works. If neither suits, ask what would and call find_slots again; if nothing it returns suits the caller, do not let them down: offer the time they asked for anyway, since the front desk can usually fit people in. When the caller picks one, nothing is booked yet: repeat the day, the time and the provider and ask whether you should book it, for example 'Shall I book Monday the 19th at 8:30 with Dr. Alvarez?'. Never say it is booked or scheduled before book_appointment succeeds. Once they say yes, ask one at a time for anything else book_appointment needs that you do not know yet (its parameters say what). Then call book_appointment with the patient_id, that slot_id, the reason, the appointment_type and those answers. When it succeeds, call appointment_booked. If it is refused, tell the caller why in plain words and do what the refusal suggests; if the slot was taken, apologise and offer others. Never tell the caller you are booking or will get back to them: once you have what book_appointment needs, call it in the same reply."
+          }
+        ],
+        "edges": [
+          {
+            "function": "appointment_booked",
+            "description": "Call once book_appointment has succeeded.",
+            "target": "confirm",
+            "properties": {
+              "appointment_id": {
+                "type": "string",
+                "description": "The appointment_id book_appointment returned."
+              }
+            },
+            "required": [
+              "appointment_id"
+            ]
+          }
+        ],
+        "tools": [
+          "find_slots",
+          "book_appointment"
+        ]
+      },
+      {
+        "name": "confirm",
+        "stage": "Book",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Confirm the booked appointment back to the caller: their name, the day, the time and the provider. If they are a new patient, ask them to come 15 minutes early and bring a photo ID and their insurance card. Thank them and say goodbye."
+          }
+        ],
+        "end": true
+      },
+      {
+        "name": "manage_appointment",
+        "stage": "Change appointment",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+          }
+        ],
+        "edges": [
+          {
+            "function": "change_done",
+            "description": "Call once the appointment was cancelled or moved, or the caller decided to keep it as it was.",
+            "target": "change_confirmed",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "cancelled",
+                  "rescheduled",
+                  "kept"
+                ],
+                "description": "What happened to the appointment."
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          {
+            "function": "book_instead",
+            "description": "Call when the caller has no appointment to change and wants to book a new one instead.",
+            "target": "collect_reason"
+          }
+        ],
+        "tools": [
+          "find_slots",
+          "reschedule_appointment",
+          "cancel_appointment",
+          "transfer_to_human"
+        ]
+      },
+      {
+        "name": "change_confirmed",
+        "stage": "Change appointment",
+        "task_messages": [
+          {
+            "role": "developer",
+            "content": "Tell the caller in one or two sentences what happened: the appointment is cancelled, moved to its new day and time, or stays as it was, and any fee they agreed to. Thank them and say goodbye."
+          }
+        ],
+        "end": true
+      }
+    ],
+    "clinic": "linden-grove"
+  },
+  "start_node": "greeting",
+  "date_line": "You answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+  "world": {
+    "clinic": {
+      "name": "Linden Grove Family Practice",
+      "now": "2026-10-19T09:05",
+      "days_ahead": 28
+    },
+    "providers": [
+      {
+        "id": "dr-alvarez",
+        "name": "Dr. Sofia Alvarez",
+        "specialty": "Family medicine",
+        "slot_minutes": 30,
+        "schedule": {
+          "mon": [
+            "08:30-12:00",
+            "13:00-16:30"
+          ],
+          "tue": [
+            "08:30-12:00",
+            "13:00-16:30"
+          ],
+          "wed": [
+            "08:30-12:00",
+            "13:00-16:30"
+          ],
+          "thu": [
+            "08:30-12:00",
+            "13:00-16:30"
+          ]
+        }
+      },
+      {
+        "id": "dr-reed",
+        "name": "Dr. Marcus Reed",
+        "specialty": "Family medicine",
+        "slot_minutes": 30,
+        "schedule": {
+          "tue": [
+            "09:00-12:00",
+            "13:00-17:00"
+          ],
+          "wed": [
+            "09:00-12:00",
+            "13:00-17:00"
+          ],
+          "fri": [
+            "09:00-12:00",
+            "13:00-17:00"
+          ]
+        }
+      },
+      {
+        "id": "np-brooks",
+        "name": "Nina Brooks",
+        "specialty": "Nurse practitioner",
+        "slot_minutes": 20,
+        "schedule": {
+          "mon": [
+            "12:00-18:00"
+          ],
+          "wed": [
+            "12:00-18:00"
+          ],
+          "thu": [
+            "12:00-17:00"
+          ],
+          "sat": [
+            "09:00-12:00"
+          ]
+        }
+      }
+    ],
+    "patients": [
+      {
+        "id": "pat-001",
+        "full_name": "Daniel Ortiz",
+        "date_of_birth": "1979-08-14",
+        "phone": "555-014-3101",
+        "insurance_plan": "aetna",
+        "last_visit": "2026-03-02"
+      },
+      {
+        "id": "pat-002",
+        "full_name": "Kevin Walsh",
+        "date_of_birth": "1986-01-23",
+        "phone": "555-014-3102",
+        "insurance_plan": "bcbs",
+        "last_visit": "2025-10-07"
+      },
+      {
+        "id": "pat-003",
+        "full_name": "Harold Becker",
+        "date_of_birth": "1948-02-09",
+        "phone": "555-014-3103",
+        "insurance_plan": "medicare",
+        "last_visit": "2026-09-14"
+      },
+      {
+        "id": "pat-004",
+        "full_name": "Denise Carter",
+        "date_of_birth": "1972-05-30",
+        "phone": "555-014-3104",
+        "insurance_plan": "unitedhealthcare",
+        "last_visit": "2026-06-18"
+      },
+      {
+        "id": "pat-005",
+        "full_name": "Marisol Vega",
+        "date_of_birth": "1990-11-11",
+        "phone": "555-014-3105",
+        "insurance_plan": "aetna",
+        "last_visit": "2026-08-25"
+      },
+      {
+        "id": "pat-006",
+        "full_name": "Tomas Lindqvist",
+        "date_of_birth": "1983-07-04",
+        "phone": "555-014-3106",
+        "insurance_plan": "bcbs",
+        "last_visit": "2025-10-20"
+      },
+      {
+        "id": "pat-007",
+        "full_name": "Siobhan Murphy",
+        "date_of_birth": "1995-03-17",
+        "phone": "555-014-3107",
+        "insurance_plan": "unitedhealthcare",
+        "last_visit": "2026-05-11"
+      },
+      {
+        "id": "pat-008",
+        "full_name": "Aisha Rahman",
+        "date_of_birth": "1988-09-02",
+        "phone": "555-014-3108",
+        "insurance_plan": "aetna",
+        "last_visit": "2026-10-05"
+      },
+      {
+        "id": "pat-009",
+        "full_name": "Ruth Feldman",
+        "date_of_birth": "1951-12-06",
+        "phone": "555-014-3109",
+        "insurance_plan": "humana",
+        "last_visit": "2026-04-22"
+      },
+      {
+        "id": "pat-010",
+        "full_name": "Frank DeLuca",
+        "date_of_birth": "1965-04-19",
+        "phone": "555-014-3110",
+        "insurance_plan": "bcbs",
+        "last_visit": "2026-01-30"
+      },
+      {
+        "id": "pat-011",
+        "full_name": "Ivan Petrov",
+        "date_of_birth": "1977-10-28",
+        "phone": "555-014-3111",
+        "insurance_plan": "unitedhealthcare",
+        "last_visit": "2026-07-09"
+      },
+      {
+        "id": "pat-012",
+        "full_name": "Beatriz Santos",
+        "date_of_birth": "1993-06-21",
+        "phone": "555-014-3112",
+        "insurance_plan": "aetna",
+        "last_visit": "2026-09-28"
+      },
+      {
+        "id": "pat-013",
+        "full_name": "Walter Greene",
+        "date_of_birth": "1948-06-15",
+        "phone": "555-014-3113",
+        "insurance_plan": "medicare",
+        "last_visit": "2026-08-03"
+      },
+      {
+        "id": "pat-014",
+        "full_name": "Mark Hughes",
+        "date_of_birth": "1961-02-27",
+        "phone": "555-014-3114",
+        "insurance_plan": "bcbs",
+        "last_visit": "2026-09-21"
+      },
+      {
+        "id": "pat-015",
+        "full_name": "Jordan Ellis",
+        "date_of_birth": "1985-08-08",
+        "phone": "555-014-3115",
+        "insurance_plan": "aetna",
+        "last_visit": "2026-02-16"
+      }
+    ],
+    "appointments": [
+      {
+        "id": "appt-0001",
+        "patient_id": "pat-003",
+        "provider_id": "dr-reed",
+        "start": "2026-10-21T10:00",
+        "reason": "Blood pressure check",
+        "status": "booked",
+        "appointment_type": "follow_up"
+      },
+      {
+        "id": "appt-0002",
+        "patient_id": "pat-004",
+        "provider_id": "dr-alvarez",
+        "start": "2026-10-19T13:30",
+        "reason": "Sinus infection",
+        "status": "booked",
+        "appointment_type": "sick_visit"
+      },
+      {
+        "id": "appt-0003",
+        "patient_id": "pat-005",
+        "provider_id": "np-brooks",
+        "start": "2026-10-19T15:00",
+        "reason": "Medication check",
+        "status": "booked",
+        "appointment_type": "follow_up"
+      },
+      {
+        "id": "appt-0004",
+        "patient_id": "pat-006",
+        "provider_id": "dr-alvarez",
+        "start": "2026-10-22T09:00",
+        "reason": "Annual physical",
+        "status": "booked",
+        "appointment_type": "annual_physical"
+      }
+    ],
+    "appointment_types": [
+      {
+        "id": "new_patient",
+        "name": "New Patient Visit",
+        "description": "Anyone's first visit with us, whatever it is for (a cough, a physical, a flu shot): a longer visit that takes their history.",
+        "patients": "new",
+        "providers": [
+          "dr-alvarez",
+          "np-brooks"
+        ]
+      },
+      {
+        "id": "annual_physical",
+        "name": "Annual Physical",
+        "description": "A yearly checkup. Medicare wellness visits are booked as this too.",
+        "patients": "existing",
+        "providers": [
+          "dr-alvarez",
+          "dr-reed"
+        ]
+      },
+      {
+        "id": "sick_visit",
+        "name": "Sick Visit",
+        "description": "Something new: a cough, a rash, an infection or a minor injury.",
+        "patients": "existing",
+        "providers": [
+          "dr-alvarez",
+          "dr-reed",
+          "np-brooks"
+        ]
+      },
+      {
+        "id": "follow_up",
+        "name": "Follow-Up Visit",
+        "description": "Going over test results, checking on an ongoing problem, or a medication check.",
+        "patients": "existing",
+        "providers": [
+          "dr-alvarez",
+          "dr-reed",
+          "np-brooks"
+        ]
+      },
+      {
+        "id": "vaccine",
+        "name": "Vaccine Visit",
+        "description": "A flu shot or another vaccine.",
+        "patients": "existing",
+        "providers": [
+          "np-brooks"
+        ]
+      }
+    ],
+    "insurance_plans": [
+      {
+        "id": "aetna",
+        "name": "Aetna",
+        "covers": [
+          "new_patient",
+          "annual_physical",
+          "sick_visit",
+          "follow_up",
+          "vaccine"
+        ]
+      },
+      {
+        "id": "bcbs",
+        "name": "Blue Cross Blue Shield",
+        "covers": [
+          "new_patient",
+          "annual_physical",
+          "sick_visit",
+          "follow_up",
+          "vaccine"
+        ]
+      },
+      {
+        "id": "unitedhealthcare",
+        "name": "UnitedHealthcare",
+        "covers": [
+          "new_patient",
+          "annual_physical",
+          "sick_visit",
+          "follow_up",
+          "vaccine"
+        ]
+      },
+      {
+        "id": "medicare",
+        "name": "Medicare",
+        "covers": [
+          "new_patient",
+          "annual_physical",
+          "sick_visit",
+          "follow_up",
+          "vaccine"
+        ]
+      },
+      {
+        "id": "humana",
+        "name": "Humana",
+        "covers": [
+          "sick_visit",
+          "follow_up"
+        ]
+      }
+    ],
+    "registration_fields": [
+      {
+        "name": "insurance_plan",
+        "description": "The caller's insurance plan as they name it, or 'self-pay' if they will pay themselves.",
+        "required": true
+      }
+    ],
+    "booking_fields": [
+      {
+        "name": "reminder",
+        "description": "How the patient wants the reminder the day before: 'text', 'call' or 'none'.",
+        "required": true
+      }
+    ],
+    "cancellation": {
+      "window_hours": 24,
+      "fee": 50
+    },
+    "facts": {
+      "address": "418 Main Street.",
+      "phone": "(555) 014-2200. Fax (555) 014-2201, for medical records only.",
+      "hours": "Phones and front desk: Monday to Friday, 8 AM to 5 PM. Nina Brooks sees patients until 6 PM on Mondays and Wednesdays, and on Saturday mornings from 9 to noon. Closed on Sundays, on Thanksgiving and on the Friday after it.",
+      "parking": "A free lot behind the building, entered from Birch Street. Street parking on Main Street is two hours at most, and they do ticket.",
+      "self_pay": "Without insurance, or when a plan does not cover the visit: a New Patient Visit is $175, any other visit $125, a flu shot $45."
+    }
+  },
+  "end_reason": "end_node",
+  "turns": [
+    {
+      "turn": 1,
+      "speaker": "agent",
+      "node": "greeting",
+      "text": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+      "calls": [],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "choose_intent",
+              "description": "Record what the caller wants to do once they say it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "book",
+                      "reschedule",
+                      "cancel"
+                    ],
+                    "description": "What the caller wants to do."
+                  }
+                },
+                "required": [
+                  "intent"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "get_clinic_info",
+              "description": "The clinic's fixed facts: address, opening hours, parking, phone. Answer questions about the clinic only from what this returns; never guess.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "check_coverage",
+              "description": "Check whether the clinic accepts the caller's insurance plan and, given an appointment_type, whether the plan covers that visit. A plan the clinic does not accept comes back with the plans it does accept.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "insurance_plan": {
+                    "type": "string",
+                    "description": "The insurance plan as the caller names it."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  }
+                },
+                "required": [
+                  "insurance_plan"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 2,
+      "speaker": "caller",
+      "text": "I need to cancel my physical appointment on Thursday morning."
+    },
+    {
+      "turn": 3,
+      "speaker": "agent",
+      "node": "greeting",
+      "text": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?",
+      "calls": [],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "choose_intent",
+              "description": "Record what the caller wants to do once they say it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "book",
+                      "reschedule",
+                      "cancel"
+                    ],
+                    "description": "What the caller wants to do."
+                  }
+                },
+                "required": [
+                  "intent"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "get_clinic_info",
+              "description": "The clinic's fixed facts: address, opening hours, parking, phone. Answer questions about the clinic only from what this returns; never guess.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "check_coverage",
+              "description": "Check whether the clinic accepts the caller's insurance plan and, given an appointment_type, whether the plan covers that visit. A plan the clinic does not accept comes back with the plans it does accept.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "insurance_plan": {
+                    "type": "string",
+                    "description": "The insurance plan as the caller names it."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  }
+                },
+                "required": [
+                  "insurance_plan"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 4,
+      "speaker": "caller",
+      "text": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+    },
+    {
+      "turn": 5,
+      "speaker": "agent",
+      "node": "greeting",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+          "name": "choose_intent",
+          "args": {
+            "intent": "cancel"
+          },
+          "kind": "edge",
+          "result": {
+            "status": "success",
+            "intent": "cancel"
+          },
+          "to": "ask_name"
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "choose_intent",
+              "description": "Record what the caller wants to do once they say it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "book",
+                      "reschedule",
+                      "cancel"
+                    ],
+                    "description": "What the caller wants to do."
+                  }
+                },
+                "required": [
+                  "intent"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "get_clinic_info",
+              "description": "The clinic's fixed facts: address, opening hours, parking, phone. Answer questions about the clinic only from what this returns; never guess.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "check_coverage",
+              "description": "Check whether the clinic accepts the caller's insurance plan and, given an appointment_type, whether the plan covers that visit. A plan the clinic does not accept comes back with the plans it does accept.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "insurance_plan": {
+                    "type": "string",
+                    "description": "The insurance plan as the caller names it."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  }
+                },
+                "required": [
+                  "insurance_plan"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 6,
+      "speaker": "agent",
+      "node": "ask_name",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+          "name": "record_spelling",
+          "args": {
+            "spelled_name": "Tomas Lindqvist"
+          },
+          "kind": "edge",
+          "result": {
+            "status": "success",
+            "spelled_name": "Tomas Lindqvist"
+          },
+          "to": "confirm_name"
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_spelling",
+              "description": "Call once the caller has said their full name.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "spelled_name": {
+                    "type": "string",
+                    "description": "The full name as the caller said it."
+                  }
+                },
+                "required": [
+                  "spelled_name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 7,
+      "speaker": "agent",
+      "node": "confirm_name",
+      "text": "I have the name as Tomas Lindqvist. Is that correct?",
+      "calls": [],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "name_confirmed",
+              "description": "Call when the caller says the name you read back is right.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The confirmed full name, exactly as spelled."
+                  }
+                },
+                "required": [
+                  "full_name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "correct_spelling",
+              "description": "Call when the caller says the name is wrong and gives the correct spelling in the same answer.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "spelled_name": {
+                    "type": "string",
+                    "description": "The corrected full name, written exactly as the caller spelled it."
+                  }
+                },
+                "required": [
+                  "spelled_name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "spell_again",
+              "description": "Call when the caller says the name is wrong but has not given the correct spelling yet.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 8,
+      "speaker": "caller",
+      "text": "Yes, that's correct."
+    },
+    {
+      "turn": 9,
+      "speaker": "agent",
+      "node": "confirm_name",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+          "name": "name_confirmed",
+          "args": {
+            "full_name": "Tomas Lindqvist"
+          },
+          "kind": "edge",
+          "result": {
+            "status": "success",
+            "full_name": "Tomas Lindqvist"
+          },
+          "to": "verify_patient"
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "name_confirmed",
+              "description": "Call when the caller says the name you read back is right.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The confirmed full name, exactly as spelled."
+                  }
+                },
+                "required": [
+                  "full_name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "correct_spelling",
+              "description": "Call when the caller says the name is wrong and gives the correct spelling in the same answer.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "spelled_name": {
+                    "type": "string",
+                    "description": "The corrected full name, written exactly as the caller spelled it."
+                  }
+                },
+                "required": [
+                  "spelled_name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "spell_again",
+              "description": "Call when the caller says the name is wrong but has not given the correct spelling yet.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 10,
+      "speaker": "agent",
+      "node": "verify_patient",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+          "name": "lookup_patient",
+          "args": {
+            "full_name": "Tomas Lindqvist",
+            "date_of_birth": "1983-07-04"
+          },
+          "kind": "tool",
+          "result": {
+            "found": true,
+            "patient": {
+              "patient_id": "pat-006",
+              "full_name": "Tomas Lindqvist",
+              "date_of_birth": "1983-07-04",
+              "phone": "555-014-3106",
+              "new_patient": false,
+              "insurance_plan": "bcbs",
+              "last_visit": "2025-10-20"
+            },
+            "appointments": [
+              {
+                "appointment_id": "appt-0004",
+                "provider_id": "dr-alvarez",
+                "provider": "Dr. Sofia Alvarez",
+                "date": "2026-10-22",
+                "weekday": "Thursday",
+                "time": "09:00",
+                "reason": "Annual physical",
+                "hours_until_start": 71.9,
+                "appointment_type": "annual_physical",
+                "type_name": "Annual Physical",
+                "late_change_fee": 0
+              }
+            ]
+          }
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "patient_identified",
+              "description": "Call once lookup_patient found the caller or register_patient registered them, and the caller wants to book a new appointment.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "patient_id": {
+                    "type": "string",
+                    "description": "The patient_id the tool returned."
+                  }
+                },
+                "required": [
+                  "patient_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "change_appointment",
+              "description": "Call once lookup_patient found the caller and they want to reschedule or cancel an appointment.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "patient_id": {
+                    "type": "string",
+                    "description": "The patient_id the tool returned."
+                  }
+                },
+                "required": [
+                  "patient_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "lookup_patient",
+              "description": "Find the caller's patient record by full name and date of birth. Returns found: false when nothing matches. On a match, returns the patient_id and their upcoming appointments, each with its appointment_id and hours_until_start.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The patient's full name, as confirmed with the caller."
+                  },
+                  "date_of_birth": {
+                    "type": "string",
+                    "description": "Date of birth as YYYY-MM-DD."
+                  }
+                },
+                "required": [
+                  "full_name",
+                  "date_of_birth"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "register_patient",
+              "description": "Register a new patient. Use only after lookup_patient found no match and the caller says they are new to the clinic. Returns the new patient_id.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The patient's full name, as confirmed with the caller."
+                  },
+                  "date_of_birth": {
+                    "type": "string",
+                    "description": "Date of birth as YYYY-MM-DD."
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "A phone number to reach the patient, digits as the caller said them."
+                  },
+                  "insurance_plan": {
+                    "type": "string",
+                    "description": "The caller's insurance plan as they name it, or 'self-pay' if they will pay themselves."
+                  }
+                },
+                "required": [
+                  "full_name",
+                  "date_of_birth",
+                  "phone",
+                  "insurance_plan"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 11,
+      "speaker": "agent",
+      "node": "verify_patient",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_vQvhQxlybuzs8gTkQ5J0odcQ",
+          "name": "change_appointment",
+          "args": {
+            "patient_id": "pat-006"
+          },
+          "kind": "edge",
+          "result": {
+            "status": "success",
+            "patient_id": "pat-006"
+          },
+          "to": "manage_appointment"
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+                "function": {
+                  "name": "lookup_patient",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\", \"date_of_birth\": \"1983-07-04\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a3tw5yRYYegX3pA9NlNH9O2E"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"found\\\": true, \\\"patient\\\": {\\\"patient_id\\\": \\\"pat-006\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\", \\\"date_of_birth\\\": \\\"1983-07-04\\\", \\\"phone\\\": \\\"555-014-3106\\\", \\\"new_patient\\\": false, \\\"insurance_plan\\\": \\\"bcbs\\\", \\\"last_visit\\\": \\\"2025-10-20\\\"}, \\\"appointments\\\": [{\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\", \\\"late_change_fee\\\": 0}]}\"}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "patient_identified",
+              "description": "Call once lookup_patient found the caller or register_patient registered them, and the caller wants to book a new appointment.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "patient_id": {
+                    "type": "string",
+                    "description": "The patient_id the tool returned."
+                  }
+                },
+                "required": [
+                  "patient_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "change_appointment",
+              "description": "Call once lookup_patient found the caller and they want to reschedule or cancel an appointment.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "patient_id": {
+                    "type": "string",
+                    "description": "The patient_id the tool returned."
+                  }
+                },
+                "required": [
+                  "patient_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "lookup_patient",
+              "description": "Find the caller's patient record by full name and date of birth. Returns found: false when nothing matches. On a match, returns the patient_id and their upcoming appointments, each with its appointment_id and hours_until_start.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The patient's full name, as confirmed with the caller."
+                  },
+                  "date_of_birth": {
+                    "type": "string",
+                    "description": "Date of birth as YYYY-MM-DD."
+                  }
+                },
+                "required": [
+                  "full_name",
+                  "date_of_birth"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "register_patient",
+              "description": "Register a new patient. Use only after lookup_patient found no match and the caller says they are new to the clinic. Returns the new patient_id.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "full_name": {
+                    "type": "string",
+                    "description": "The patient's full name, as confirmed with the caller."
+                  },
+                  "date_of_birth": {
+                    "type": "string",
+                    "description": "Date of birth as YYYY-MM-DD."
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "A phone number to reach the patient, digits as the caller said them."
+                  },
+                  "insurance_plan": {
+                    "type": "string",
+                    "description": "The caller's insurance plan as they name it, or 'self-pay' if they will pay themselves."
+                  }
+                },
+                "required": [
+                  "full_name",
+                  "date_of_birth",
+                  "phone",
+                  "insurance_plan"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 12,
+      "speaker": "agent",
+      "node": "manage_appointment",
+      "text": "You have an appointment for an annual physical with Dr. Sofia Alvarez on Thursday the 22nd at 9 AM. Is this the appointment you want to cancel?",
+      "calls": [],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+                "function": {
+                  "name": "lookup_patient",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\", \"date_of_birth\": \"1983-07-04\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a3tw5yRYYegX3pA9NlNH9O2E"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"found\\\": true, \\\"patient\\\": {\\\"patient_id\\\": \\\"pat-006\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\", \\\"date_of_birth\\\": \\\"1983-07-04\\\", \\\"phone\\\": \\\"555-014-3106\\\", \\\"new_patient\\\": false, \\\"insurance_plan\\\": \\\"bcbs\\\", \\\"last_visit\\\": \\\"2025-10-20\\\"}, \\\"appointments\\\": [{\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\", \\\"late_change_fee\\\": 0}]}\"}"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_vQvhQxlybuzs8gTkQ5J0odcQ",
+                "function": {
+                  "name": "change_appointment",
+                  "arguments": "{\"patient_id\": \"pat-006\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_vQvhQxlybuzs8gTkQ5J0odcQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"patient_id\\\": \\\"pat-006\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "change_done",
+              "description": "Call once the appointment was cancelled or moved, or the caller decided to keep it as it was.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "cancelled",
+                      "rescheduled",
+                      "kept"
+                    ],
+                    "description": "What happened to the appointment."
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "book_instead",
+              "description": "Call when the caller has no appointment to change and wants to book a new one instead.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "find_slots",
+              "description": "List open appointment slots, earliest first, at most 6. Every filter is optional: by default, the next 7 days with any provider. Offer the caller only slots returned here.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "date_from": {
+                    "type": "string",
+                    "description": "First day to search, YYYY-MM-DD. Defaults to today."
+                  },
+                  "date_to": {
+                    "type": "string",
+                    "description": "Last day to search, YYYY-MM-DD. Defaults to 6 days after date_from."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types. Only providers who do it are returned.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "A provider's name or provider_id, when the caller asks for someone."
+                  },
+                  "time_of_day": {
+                    "type": "string",
+                    "enum": [
+                      "morning",
+                      "afternoon"
+                    ],
+                    "description": "Morning is before 12:00, afternoon from 12:00."
+                  }
+                },
+                "required": [
+                  "appointment_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "reschedule_appointment",
+              "description": "Move a booked appointment to another open slot from find_slots, once the caller has agreed to it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "new_slot_id": {
+                    "type": "string",
+                    "description": "A slot_id from find_slots."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id",
+                  "new_slot_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "cancel_appointment",
+              "description": "Cancel a booked appointment, once the caller has confirmed which one.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 13,
+      "speaker": "caller",
+      "text": "Yes, please cancel that appointment. I will call again after my work trip to reschedule."
+    },
+    {
+      "turn": 14,
+      "speaker": "agent",
+      "node": "manage_appointment",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_KOXZLgMAH2f5C3KzloxPRDpy",
+          "name": "cancel_appointment",
+          "args": {
+            "appointment_id": "appt-0004"
+          },
+          "kind": "tool",
+          "result": {
+            "cancelled": {
+              "appointment_id": "appt-0004",
+              "provider_id": "dr-alvarez",
+              "provider": "Dr. Sofia Alvarez",
+              "date": "2026-10-22",
+              "weekday": "Thursday",
+              "time": "09:00",
+              "reason": "Annual physical",
+              "hours_until_start": 71.9,
+              "appointment_type": "annual_physical",
+              "type_name": "Annual Physical"
+            }
+          }
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+                "function": {
+                  "name": "lookup_patient",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\", \"date_of_birth\": \"1983-07-04\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a3tw5yRYYegX3pA9NlNH9O2E"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"found\\\": true, \\\"patient\\\": {\\\"patient_id\\\": \\\"pat-006\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\", \\\"date_of_birth\\\": \\\"1983-07-04\\\", \\\"phone\\\": \\\"555-014-3106\\\", \\\"new_patient\\\": false, \\\"insurance_plan\\\": \\\"bcbs\\\", \\\"last_visit\\\": \\\"2025-10-20\\\"}, \\\"appointments\\\": [{\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\", \\\"late_change_fee\\\": 0}]}\"}"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_vQvhQxlybuzs8gTkQ5J0odcQ",
+                "function": {
+                  "name": "change_appointment",
+                  "arguments": "{\"patient_id\": \"pat-006\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_vQvhQxlybuzs8gTkQ5J0odcQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"patient_id\\\": \\\"pat-006\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+          },
+          {
+            "role": "assistant",
+            "content": "You have an appointment for an annual physical with Dr. Sofia Alvarez on Thursday the 22nd at 9 AM. Is this the appointment you want to cancel?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, please cancel that appointment. I will call again after my work trip to reschedule."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "change_done",
+              "description": "Call once the appointment was cancelled or moved, or the caller decided to keep it as it was.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "cancelled",
+                      "rescheduled",
+                      "kept"
+                    ],
+                    "description": "What happened to the appointment."
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "book_instead",
+              "description": "Call when the caller has no appointment to change and wants to book a new one instead.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "find_slots",
+              "description": "List open appointment slots, earliest first, at most 6. Every filter is optional: by default, the next 7 days with any provider. Offer the caller only slots returned here.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "date_from": {
+                    "type": "string",
+                    "description": "First day to search, YYYY-MM-DD. Defaults to today."
+                  },
+                  "date_to": {
+                    "type": "string",
+                    "description": "Last day to search, YYYY-MM-DD. Defaults to 6 days after date_from."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types. Only providers who do it are returned.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "A provider's name or provider_id, when the caller asks for someone."
+                  },
+                  "time_of_day": {
+                    "type": "string",
+                    "enum": [
+                      "morning",
+                      "afternoon"
+                    ],
+                    "description": "Morning is before 12:00, afternoon from 12:00."
+                  }
+                },
+                "required": [
+                  "appointment_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "reschedule_appointment",
+              "description": "Move a booked appointment to another open slot from find_slots, once the caller has agreed to it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "new_slot_id": {
+                    "type": "string",
+                    "description": "A slot_id from find_slots."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id",
+                  "new_slot_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "cancel_appointment",
+              "description": "Cancel a booked appointment, once the caller has confirmed which one.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 15,
+      "speaker": "agent",
+      "node": "manage_appointment",
+      "text": "",
+      "calls": [
+        {
+          "id": "call_SQQpxlTfBomrYrP6fzhXfHvi",
+          "name": "change_done",
+          "args": {
+            "outcome": "cancelled"
+          },
+          "kind": "edge",
+          "result": {
+            "status": "success",
+            "outcome": "cancelled"
+          },
+          "to": "change_confirmed"
+        }
+      ],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+                "function": {
+                  "name": "lookup_patient",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\", \"date_of_birth\": \"1983-07-04\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a3tw5yRYYegX3pA9NlNH9O2E"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"found\\\": true, \\\"patient\\\": {\\\"patient_id\\\": \\\"pat-006\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\", \\\"date_of_birth\\\": \\\"1983-07-04\\\", \\\"phone\\\": \\\"555-014-3106\\\", \\\"new_patient\\\": false, \\\"insurance_plan\\\": \\\"bcbs\\\", \\\"last_visit\\\": \\\"2025-10-20\\\"}, \\\"appointments\\\": [{\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\", \\\"late_change_fee\\\": 0}]}\"}"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_vQvhQxlybuzs8gTkQ5J0odcQ",
+                "function": {
+                  "name": "change_appointment",
+                  "arguments": "{\"patient_id\": \"pat-006\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_vQvhQxlybuzs8gTkQ5J0odcQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"patient_id\\\": \\\"pat-006\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+          },
+          {
+            "role": "assistant",
+            "content": "You have an appointment for an annual physical with Dr. Sofia Alvarez on Thursday the 22nd at 9 AM. Is this the appointment you want to cancel?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, please cancel that appointment. I will call again after my work trip to reschedule."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_KOXZLgMAH2f5C3KzloxPRDpy",
+                "function": {
+                  "name": "cancel_appointment",
+                  "arguments": "{\"appointment_id\": \"appt-0004\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_KOXZLgMAH2f5C3KzloxPRDpy\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_KOXZLgMAH2f5C3KzloxPRDpy"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_KOXZLgMAH2f5C3KzloxPRDpy\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"cancelled\\\": {\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\"}}\"}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "change_done",
+              "description": "Call once the appointment was cancelled or moved, or the caller decided to keep it as it was.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "cancelled",
+                      "rescheduled",
+                      "kept"
+                    ],
+                    "description": "What happened to the appointment."
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "book_instead",
+              "description": "Call when the caller has no appointment to change and wants to book a new one instead.",
+              "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "find_slots",
+              "description": "List open appointment slots, earliest first, at most 6. Every filter is optional: by default, the next 7 days with any provider. Offer the caller only slots returned here.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "date_from": {
+                    "type": "string",
+                    "description": "First day to search, YYYY-MM-DD. Defaults to today."
+                  },
+                  "date_to": {
+                    "type": "string",
+                    "description": "Last day to search, YYYY-MM-DD. Defaults to 6 days after date_from."
+                  },
+                  "appointment_type": {
+                    "type": "string",
+                    "description": "An appointment_type from list_appointment_types. Only providers who do it are returned.",
+                    "enum": [
+                      "new_patient",
+                      "annual_physical",
+                      "sick_visit",
+                      "follow_up",
+                      "vaccine"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "A provider's name or provider_id, when the caller asks for someone."
+                  },
+                  "time_of_day": {
+                    "type": "string",
+                    "enum": [
+                      "morning",
+                      "afternoon"
+                    ],
+                    "description": "Morning is before 12:00, afternoon from 12:00."
+                  }
+                },
+                "required": [
+                  "appointment_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "reschedule_appointment",
+              "description": "Move a booked appointment to another open slot from find_slots, once the caller has agreed to it.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "new_slot_id": {
+                    "type": "string",
+                    "description": "A slot_id from find_slots."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id",
+                  "new_slot_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "cancel_appointment",
+              "description": "Cancel a booked appointment, once the caller has confirmed which one.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "appointment_id": {
+                    "type": "string",
+                    "description": "An appointment_id from lookup_patient or book_appointment."
+                  },
+                  "fee_acknowledged": {
+                    "type": "boolean",
+                    "description": "True only after the caller has agreed to the late-change fee this tool told you about."
+                  }
+                },
+                "required": [
+                  "appointment_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human",
+              "description": "Transfer the call to a member of the clinic staff. After this, tell the caller in one short sentence that you are transferring them; the call then ends.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Why the caller needs a person, in a few words."
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "model": "gpt-4o-2024-08-06"
+    },
+    {
+      "turn": 16,
+      "speaker": "agent",
+      "node": "change_confirmed",
+      "text": "Your appointment with Dr. Sofia Alvarez on Thursday has been cancelled. Thank you for calling Linden Grove Family Practice, and have a safe trip. Goodbye!",
+      "calls": [],
+      "context": {
+        "system": "You are the automated scheduling assistant for a family practice. Your responses are spoken aloud, so avoid emojis, lists, or anything that can't be read out. Many callers are older: be warm and patient, use plain words, and keep replies to one or two short sentences. Say dates and times the way people speak, like 'Tuesday the 13th at 2 PM', never as numbers like 2026-10-13. Never state a clinic policy, fee, price or fact that a tool has not given you in this call or your instructions do not state; if the caller asks before you know, say you will check once you have found their record.\n\nRules that apply at every step:\n- Emergencies: if the caller describes chest pain, trouble breathing, signs of a stroke, heavy bleeding, or thoughts of hurting themselves, tell them to hang up and call 911 right away. Do not book, do not ask for anything else, and do not call any function.\n- No medical advice: never say what to take, how much, whether to stop a medicine, or whether something is serious, even if pressed. Offer an appointment, or a transfer to the front desk so a nurse can call them back.\n- Family members: if someone calls about a husband's, wife's, parent's or child's appointment and has that person's name and date of birth, look the patient up and help them as you would the patient.\n- Clinic staff: if the caller says they work at Linden Grove or at a doctor's office, they may ask about or change any patient's appointments. Help them with the patient's name and date of birth, and skip the usual questions about who is calling.\n- Transfers: if the caller asks for a person, or calls about billing, a referral, medical records or a prescription refill, call transfer_to_human right away, without asking for their name or anything else first.\n\nOtherwise, always use an available function to move the conversation forward.\n\nYou answer the phone for Linden Grove Family Practice. Today is Monday, 2026-10-19, and the time at the clinic is 09:05. Give dates to tools as YYYY-MM-DD.",
+        "messages": [
+          {
+            "role": "developer",
+            "content": "Say exactly: 'Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?' When the caller says whether they want to book, reschedule or cancel, record it. If they ask about the clinic itself, such as the address, opening hours, parking or prices, call get_clinic_info and answer only from what it returns. If they ask whether the clinic takes their insurance, call check_coverage with their plan and tell them plainly what it says; if the plan is not accepted, call get_clinic_info and tell them the self-pay price for what they want, then ask whether they would like to book."
+          },
+          {
+            "role": "assistant",
+            "content": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?"
+          },
+          {
+            "role": "user",
+            "content": "I need to cancel my physical appointment on Thursday morning."
+          },
+          {
+            "role": "assistant",
+            "content": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?"
+          },
+          {
+            "role": "user",
+            "content": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_QxxstwV0NsZJYw8uLMrzLrgS",
+                "function": {
+                  "name": "choose_intent",
+                  "arguments": "{\"intent\": \"cancel\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_QxxstwV0NsZJYw8uLMrzLrgS"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_QxxstwV0NsZJYw8uLMrzLrgS\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"intent\\\": \\\"cancel\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's full name. If they have just said the name you read back was wrong, ask for it again."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a9nHpDYLwQLihLOTori4NllQ",
+                "function": {
+                  "name": "record_spelling",
+                  "arguments": "{\"spelled_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a9nHpDYLwQLihLOTori4NllQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a9nHpDYLwQLihLOTori4NllQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"spelled_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Say the name back as you understood it, without spelling it, and ask whether that's right. Do not move on until the caller says it is."
+          },
+          {
+            "role": "assistant",
+            "content": "I have the name as Tomas Lindqvist. Is that correct?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, that's correct."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_JFognHwFYJO3XAcdB0qAACBM",
+                "function": {
+                  "name": "name_confirmed",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_JFognHwFYJO3XAcdB0qAACBM"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_JFognHwFYJO3XAcdB0qAACBM\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Ask for the caller's date of birth. Then call lookup_patient with the confirmed full name and the date of birth as YYYY-MM-DD. If the patient is not found, say you could not find a record and ask whether they are new to the clinic. If they are new, ask one at a time for what register_patient needs besides the name and date of birth (its parameters say what, such as a phone number and their insurance plan), then call register_patient. If they say they are already a patient, check the date of birth with them and look them up once more. If they are still not found, never register them as new: tell them the front desk can find their record, and call transfer_to_human. Once you have the patient_id: if the caller wants to book, call patient_identified; if they want to reschedule or cancel, call change_appointment."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_a3tw5yRYYegX3pA9NlNH9O2E",
+                "function": {
+                  "name": "lookup_patient",
+                  "arguments": "{\"full_name\": \"Tomas Lindqvist\", \"date_of_birth\": \"1983-07-04\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_a3tw5yRYYegX3pA9NlNH9O2E"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_a3tw5yRYYegX3pA9NlNH9O2E\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"found\\\": true, \\\"patient\\\": {\\\"patient_id\\\": \\\"pat-006\\\", \\\"full_name\\\": \\\"Tomas Lindqvist\\\", \\\"date_of_birth\\\": \\\"1983-07-04\\\", \\\"phone\\\": \\\"555-014-3106\\\", \\\"new_patient\\\": false, \\\"insurance_plan\\\": \\\"bcbs\\\", \\\"last_visit\\\": \\\"2025-10-20\\\"}, \\\"appointments\\\": [{\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\", \\\"late_change_fee\\\": 0}]}\"}"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_vQvhQxlybuzs8gTkQ5J0odcQ",
+                "function": {
+                  "name": "change_appointment",
+                  "arguments": "{\"patient_id\": \"pat-006\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_vQvhQxlybuzs8gTkQ5J0odcQ"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_vQvhQxlybuzs8gTkQ5J0odcQ\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"patient_id\\\": \\\"pat-006\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Use the upcoming appointments lookup_patient returned. Tell the caller the one you found, with the day, time and provider, and make sure it is the one they mean; if there are several, ask which. If they have none, say so and ask whether they would like to book one instead. To cancel, confirm with the caller, then call cancel_appointment. To reschedule, call find_slots with the appointment's appointment_type and any day or time they prefer, offer two slots, and when they pick one call reschedule_appointment. If a tool says a fee applies, tell the caller the amount and ask whether they accept it. Only if they say yes, call the same tool again with fee_acknowledged set to true; if they say no, leave the appointment as it is. Then call change_done."
+          },
+          {
+            "role": "assistant",
+            "content": "You have an appointment for an annual physical with Dr. Sofia Alvarez on Thursday the 22nd at 9 AM. Is this the appointment you want to cancel?"
+          },
+          {
+            "role": "user",
+            "content": "Yes, please cancel that appointment. I will call again after my work trip to reschedule."
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_KOXZLgMAH2f5C3KzloxPRDpy",
+                "function": {
+                  "name": "cancel_appointment",
+                  "arguments": "{\"appointment_id\": \"appt-0004\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_KOXZLgMAH2f5C3KzloxPRDpy\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_KOXZLgMAH2f5C3KzloxPRDpy"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_KOXZLgMAH2f5C3KzloxPRDpy\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"cancelled\\\": {\\\"appointment_id\\\": \\\"appt-0004\\\", \\\"provider_id\\\": \\\"dr-alvarez\\\", \\\"provider\\\": \\\"Dr. Sofia Alvarez\\\", \\\"date\\\": \\\"2026-10-22\\\", \\\"weekday\\\": \\\"Thursday\\\", \\\"time\\\": \\\"09:00\\\", \\\"reason\\\": \\\"Annual physical\\\", \\\"hours_until_start\\\": 71.9, \\\"appointment_type\\\": \\\"annual_physical\\\", \\\"type_name\\\": \\\"Annual Physical\\\"}}\"}"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_SQQpxlTfBomrYrP6fzhXfHvi",
+                "function": {
+                  "name": "change_done",
+                  "arguments": "{\"outcome\": \"cancelled\"}"
+                },
+                "type": "function"
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "content": "{\"type\": \"async_tool\", \"status\": \"running\", \"tool_call_id\": \"call_SQQpxlTfBomrYrP6fzhXfHvi\", \"description\": \"An asynchronous task associated with this tool_call_id has started running. Expect results to arrive later as developer messages that look roughly like this one (with 'type=async_tool' and a matching tool_call_id) but with a 'result' field. Note that there *may* be more than one result (i.e., a stream of results), but there doesn't have to be (there may be only one). The last result will come in a message with 'status=finished'.\"}",
+            "tool_call_id": "call_SQQpxlTfBomrYrP6fzhXfHvi"
+          },
+          {
+            "role": "developer",
+            "content": "{\"type\": \"async_tool\", \"status\": \"finished\", \"tool_call_id\": \"call_SQQpxlTfBomrYrP6fzhXfHvi\", \"description\": \"This is the final result for the asynchronous task associated with this tool_call_id. The task has completed. No further results will arrive for this tool_call_id.\", \"result\": \"{\\\"status\\\": \\\"success\\\", \\\"outcome\\\": \\\"cancelled\\\"}\"}"
+          },
+          {
+            "role": "developer",
+            "content": "Tell the caller in one or two sentences what happened: the appointment is cancelled, moved to its new day and time, or stays as it was, and any fee they agreed to. Thank them and say goodbye."
+          }
+        ],
+        "tools": []
+      },
+      "model": "gpt-4o-2024-08-06"
+    }
+  ]
+}

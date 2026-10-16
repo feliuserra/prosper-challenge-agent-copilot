@@ -1,5 +1,5 @@
 import { Agent } from "./agent/schema";
-import type { DetectionResponse } from "./detection/types";
+import type { CallDetail, DetectionResponse, JudgedCallRow } from "./detection/types";
 
 // Client for the agents API on the runner (backend/composer_api.py), reached
 // through the Vite proxy.
@@ -110,4 +110,14 @@ export async function getClinic(id: string): Promise<{ id: string; clinic: unkno
 /** The ranked issues and per-node numbers from the call logs (#58), for the call heatmap (#59). */
 export async function getDetection(): Promise<DetectionResponse> {
   return (await request("/detection")).json();
+}
+
+/** The judged calls of every workspace (#32). */
+export async function listJudgedCalls(): Promise<{ id: string; calls: JudgedCallRow[] }[]> {
+  return (await (await request("/calls")).json()).workspaces;
+}
+
+/** One call with the judge's issues, its caller card and its tickets (#32). */
+export async function getJudgedCall(workspace: string, call: string): Promise<CallDetail> {
+  return (await request(`/calls/${encodeURIComponent(workspace)}/${encodeURIComponent(call)}`)).json();
 }

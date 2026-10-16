@@ -1,0 +1,192 @@
+{
+  "call": "lg-1019-0823",
+  "key": "8f09159a0ec09025b21fff37",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:29+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T08:23:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "privacy",
+      "severity": "high",
+      "requirement": "R29",
+      "turn": 3,
+      "quote_turn": 14,
+      "quote": "I found an appointment for Harold Becker on Wednesday the 21st at 10 AM with Dr. Marcus Reed for a blood pressure check.",
+      "summary": "The assistant discussed a patient's appointment with someone other than the patient, violating privacy rules.",
+      "shape": "silent",
+      "label": "privacy",
+      "node": "greeting",
+      "quote_node": "manage_appointment",
+      "second_turn": 3,
+      "agreed": true,
+      "also": [
+        "ignored_transfer"
+      ]
+    },
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 21,
+      "quote_turn": 21,
+      "quote": "Thank you for calling Linden Grove Family Practice, and have a wonderful day!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "change_confirmed",
+      "quote_node": "change_confirmed",
+      "second_turn": null,
+      "agreed": false,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "B4",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "Could you please provide your husband's name and date of birth so I can look up his appointment details for you?",
+        "summary": "The caller was not the patient but was not transferred to the front desk as required."
+      },
+      {
+        "kind": "privacy",
+        "severity": "",
+        "requirement": "R29",
+        "turn": 3,
+        "quote_turn": 14,
+        "quote": "I found an appointment for Harold Becker on Wednesday the 21st at 10 AM with Dr. Marcus Reed for a blood pressure check.",
+        "summary": "The assistant discussed a patient's appointment with someone other than the patient, violating privacy rules."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 21,
+        "quote_turn": 21,
+        "quote": "Thank you for calling Linden Grove Family Practice, and have a wonderful day!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R30",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "Could you please provide your husband's name and date of birth so I can look up his appointment details for you?",
+        "summary": "The assistant should have transferred the caller to the front desk for a request about another person's appointment, without asking for the patient's name.",
+        "severity": "high"
+      }
+    ],
+    [
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "B4",
+        "turn": 3,
+        "quote_turn": 6,
+        "quote": "Could you please tell me your full name as well?",
+        "summary": "The assistant took information from a relative and discussed an appointment without offering an immediate transfer to the front desk."
+      },
+      {
+        "kind": "privacy",
+        "severity": "",
+        "requirement": "R29",
+        "turn": 3,
+        "quote_turn": 14,
+        "quote": "I found an appointment for Harold Becker on Wednesday",
+        "summary": "The assistant discussed patient-specific information with a caller who was not the patient."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R30",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "Could you please provide your husband's name and date of birth so I can look up his appointment details for you?",
+        "summary": "The assistant did not immediately transfer a family member requesting to change an appointment, but proceeded to handle it instead.",
+        "severity": "high"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Carol Becker, a patient calling on behalf of her husband Harold Becker, age not stated but born in 1948.",
+    "goal": "Carol called to reschedule her husband Harold Becker's appointment from Wednesday morning to Friday morning. She confirmed the appointment details and chose a new time slot of 9:30 AM on Friday when offered multiple options.",
+    "facts": {
+      "full_name": "Harold Becker",
+      "full_name_spelling": "H-A-R-O-L-D B-E-C-K-E-R",
+      "date_of_birth": "February 9th, 1948",
+      "caller_name": "Carol Becker",
+      "reason": "Blood pressure check",
+      "original_appointment_date": "Wednesday, October 21, 2026",
+      "original_appointment_time": "10:00 AM",
+      "new_appointment_date": "Friday, October 23, 2026",
+      "new_appointment_time": "9:30 AM",
+      "provider": "Dr. Marcus Reed"
+    },
+    "style": "Polite and clear, cooperative in confirming details and selecting a new appointment time.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "Hello, I'm calling for my husband. I'd like to move his appointment from Wednesday morning to Friday, please."
+      },
+      {
+        "question": "Could you please provide your husband's name and date of birth so I can look up his appointment details for you?",
+        "answer": "His name is Harold Becker, H-A-R-O-L-D B-E-C-K-E-R, and his date of birth is February 9th, 1948."
+      },
+      {
+        "question": "Thank you. Could you please tell me your full name as well?",
+        "answer": "My name is Carol Becker. I'm helping him with scheduling."
+      },
+      {
+        "question": "Thank you, Carol Becker. I have Harold Becker's name as well. Is that correct?",
+        "answer": "Yes, that's correct. Can we go ahead and reschedule his appointment?"
+      },
+      {
+        "question": "I found an appointment for Harold Becker on Wednesday the 21st at 10 AM with Dr. Marcus Reed for a blood pressure check. Is this the one you'd like to reschedule to Friday?",
+        "answer": "Yes, that's the appointment. Can you please move it to Friday morning instead?"
+      },
+      {
+        "question": "We have a few openings on Friday morning with Dr. Reed. I can offer Harold a slot at 9 AM, 9:30 AM, or 10 AM. Which time would work best for you?",
+        "answer": "Let's go with 9:30 AM on Friday, please."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 7860,
+      "cached": 3712,
+      "output": 855
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1502,
+      "cached": 1280,
+      "output": 241
+    }
+  },
+  "cost": 0.0175944,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R30",
+      "turn": 3,
+      "quote_turn": 3,
+      "quote": "Could you please provide your husband's name and date of birth so I can look up his appointment details for you?",
+      "summary": "The assistant should have transferred the caller to the front desk for a request about another person's appointment, without asking for the patient's name.",
+      "severity": "high",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": 3,
+      "agreed": true
+    }
+  ]
+}

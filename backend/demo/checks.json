@@ -1,0 +1,418 @@
+{
+  "c01": {
+    "call": "lg-1019-0804",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "register_patient",
+        "args": {
+          "full_name": "Sarah Burrell"
+        },
+        "pass": false,
+        "turn": 19,
+        "quote": "register_patient({\"full_name\": \"Sara Boreal\", \"date_of_birth\": \"1984-03-03\", \"phone\": \"555-020-4411\", \"insurance_plan\": \"Aetna\"})",
+        "detail": "register_patient was called, but not with {\"full_name\": \"Sarah Burrell\"}."
+      },
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": 32,
+        "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-20-0900\", \"reason\": \"Sore throat for a week\", \"appointment_type\": \"new_patient\", \"reminder\": \"text\"})",
+        "detail": "book_appointment called at turn 32."
+      }
+    ]
+  },
+  "c02": {
+    "call": "lg-1019-0941",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "register_patient",
+        "args": {
+          "full_name": "Lina Zhou"
+        },
+        "pass": true,
+        "turn": 22,
+        "quote": "register_patient({\"full_name\": \"Lina Zhou\", \"date_of_birth\": \"1997-07-21\", \"phone\": \"555-020-5512\", \"insurance_plan\": \"UnitedHealthcare\"})",
+        "detail": "register_patient called at turn 22."
+      },
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": 33,
+        "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-26-0900\", \"reason\": \"New patient visit for a flu shot\", \"appointment_type\": \"new_patient\", \"reminder\": \"call\"})",
+        "detail": "book_appointment called at turn 33."
+      }
+    ]
+  },
+  "c03": {
+    "call": "lg-1019-1112",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "register_patient",
+        "args": {
+          "full_name": "Niamh O'Brien"
+        },
+        "pass": false,
+        "turn": 19,
+        "quote": "register_patient({\"full_name\": \"Neve O'Brian\", \"date_of_birth\": \"1959-01-09\", \"phone\": \"555-020-6613\", \"insurance_plan\": \"Medicare\"})",
+        "detail": "register_patient was called, but not with {\"full_name\": \"Niamh O'Brien\"}."
+      },
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": 31,
+        "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-19-1130\", \"reason\": \"Blood pressure check\", \"appointment_type\": \"new_patient\", \"reminder\": \"call\"})",
+        "detail": "book_appointment called at turn 31."
+      }
+    ]
+  },
+  "c04": {
+    "call": "lg-1019-1027",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "lookup_patient",
+        "args": {
+          "full_name": "Siobhan Murphy"
+        },
+        "pass": true,
+        "turn": 15,
+        "quote": "lookup_patient({\"full_name\": \"Siobhan Murphy\", \"date_of_birth\": \"1995-03-17\"})",
+        "detail": "lookup_patient called at turn 15."
+      },
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": 29,
+        "quote": "book_appointment({\"patient_id\": \"pat-007\", \"slot_id\": \"dr-alvarez-2026-10-22-0930\", \"reason\": \"Checking on how an asthma inhaler is working\", \"appointment_type\": \"follow_up\", \"reminder\": \"text\"})",
+        "detail": "book_appointment called at turn 29."
+      }
+    ]
+  },
+  "c05": {
+    "call": "lg-1019-0811",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "lookup_patient",
+        "args": {
+          "full_name": "Daniel Ortiz"
+        },
+        "pass": true,
+        "turn": 12,
+        "quote": "lookup_patient({\"date_of_birth\": \"1979-08-14\", \"full_name\": \"Daniel Ortiz\"})",
+        "detail": "lookup_patient called at turn 12."
+      },
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "args": {
+          "appointment_type": "sick_visit"
+        },
+        "pass": true,
+        "turn": 25,
+        "quote": "book_appointment({\"appointment_type\": \"sick_visit\", \"patient_id\": \"pat-001\", \"reason\": \"back pain since Saturday\", \"reminder\": \"text\", \"slot_id\": \"dr-alvarez-2026-10-19-0830\"})",
+        "detail": "book_appointment called at turn 25."
+      }
+    ]
+  },
+  "c06": {
+    "call": "lg-1019-0837",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "args": {
+          "appointment_type": "vaccine"
+        },
+        "pass": true,
+        "turn": 24,
+        "quote": "book_appointment({\"patient_id\": \"pat-015\", \"slot_id\": \"np-brooks-2026-10-19-1200\", \"reason\": \"flu shot\", \"appointment_type\": \"vaccine\", \"reminder\": \"none\"})",
+        "detail": "book_appointment called at turn 24."
+      }
+    ]
+  },
+  "c07": {
+    "call": "lg-1019-0905",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "cancel_appointment",
+        "pass": true,
+        "turn": 14,
+        "quote": "cancel_appointment({\"appointment_id\": \"appt-0004\"})",
+        "detail": "cancel_appointment called at turn 14."
+      }
+    ]
+  },
+  "c08": {
+    "call": "lg-1019-0922",
+    "end_reason": "caller_hung_up",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "get_clinic_info",
+        "pass": true,
+        "turn": 3,
+        "quote": "get_clinic_info({})",
+        "detail": "get_clinic_info called at turn 3."
+      },
+      {
+        "type": "tool_not_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "book_appointment was not called."
+      }
+    ]
+  },
+  "c09": {
+    "call": "lg-1019-1003",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "args": {
+          "appointment_type": "annual_physical"
+        },
+        "pass": true,
+        "turn": 26,
+        "quote": "book_appointment({\"appointment_type\": \"annual_physical\", \"patient_id\": \"pat-012\", \"reason\": \"yearly check-up examination\", \"reminder\": \"text\", \"slot_id\": \"dr-alvarez-2026-10-19-1100\"})",
+        "detail": "book_appointment called at turn 26."
+      }
+    ]
+  },
+  "c10": {
+    "call": "lg-1019-0852",
+    "end_reason": "caller_hung_up",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "book_appointment was not called."
+      }
+    ]
+  },
+  "c11": {
+    "call": "lg-1019-1048",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "book_appointment",
+        "pass": false,
+        "turn": 25,
+        "quote": "book_appointment({\"appointment_type\": \"annual_physical\", \"patient_id\": \"pat-002\", \"reason\": \"annual physical\", \"reminder\": \"text\", \"slot_id\": \"dr-reed-2026-10-20-0900\"})",
+        "detail": "book_appointment was called at turn 25."
+      }
+    ]
+  },
+  "c12": {
+    "call": "lg-1019-1206",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "book_appointment",
+        "pass": false,
+        "turn": 23,
+        "quote": "book_appointment({\"patient_id\": \"pat-010\", \"slot_id\": \"dr-alvarez-2026-10-20-0830\", \"reason\": \"Follow-up on knee\", \"appointment_type\": \"follow_up\", \"reminder\": \"call\"})",
+        "detail": "book_appointment was called at turn 23."
+      }
+    ]
+  },
+  "c13": {
+    "call": "lg-1019-0933",
+    "end_reason": "transfer",
+    "checks": [
+      {
+        "type": "transferred",
+        "pass": true,
+        "turn": 7,
+        "quote": "transfer_to_human({\"reason\": \"billing question\"})",
+        "detail": "Transferred at turn 7."
+      }
+    ]
+  },
+  "c14": {
+    "call": "lg-1019-1134",
+    "end_reason": "caller_hung_up",
+    "checks": [
+      {
+        "type": "transferred",
+        "pass": false,
+        "turn": null,
+        "quote": null,
+        "detail": "transfer_to_human was never called successfully."
+      }
+    ]
+  },
+  "c15": {
+    "call": "lg-1019-1221",
+    "end_reason": "transfer",
+    "checks": [
+      {
+        "type": "transferred",
+        "pass": true,
+        "turn": 3,
+        "quote": "transfer_to_human({\"reason\": \"billing issue\"})",
+        "detail": "Transferred at turn 3."
+      },
+      {
+        "type": "tool_not_called",
+        "tool": "lookup_patient",
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "lookup_patient was not called."
+      }
+    ]
+  },
+  "c16": {
+    "call": "lg-1019-0823",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "lookup_patient",
+        "args": {
+          "full_name": "Harold Becker"
+        },
+        "pass": false,
+        "turn": 12,
+        "quote": "lookup_patient({\"full_name\": \"Harold Becker\", \"date_of_birth\": \"1948-02-09\"})",
+        "detail": "lookup_patient was called with {\"full_name\": \"Harold Becker\"} at turn 12."
+      },
+      {
+        "type": "tool_not_called",
+        "tool": "reschedule_appointment",
+        "pass": false,
+        "turn": 19,
+        "quote": "reschedule_appointment({\"appointment_id\": \"appt-0001\", \"new_slot_id\": \"dr-reed-2026-10-23-0930\"})",
+        "detail": "reschedule_appointment was called at turn 19."
+      }
+    ]
+  },
+  "c17": {
+    "call": "lg-1019-1151",
+    "end_reason": "transfer",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "lookup_patient",
+        "args": {
+          "full_name": "Ruth Feldman"
+        },
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "lookup_patient was not called with {\"full_name\": \"Ruth Feldman\"}."
+      },
+      {
+        "type": "tool_not_called",
+        "tool": "book_appointment",
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "book_appointment was not called."
+      }
+    ]
+  },
+  "c18": {
+    "call": "lg-1019-1015",
+    "end_reason": "transfer",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "lookup_patient",
+        "args": {
+          "full_name": "Denise Carter"
+        },
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "lookup_patient was not called with {\"full_name\": \"Denise Carter\"}."
+      }
+    ]
+  },
+  "c19": {
+    "call": "lg-1019-1234",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "cancel_appointment",
+        "pass": false,
+        "turn": 14,
+        "quote": "cancel_appointment({\"appointment_id\": \"appt-0003\", \"fee_acknowledged\": true})",
+        "detail": "cancel_appointment was called at turn 14."
+      }
+    ]
+  },
+  "c20": {
+    "call": "lg-1019-1102",
+    "end_reason": "caller_hung_up",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "lookup_patient",
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "lookup_patient was not called."
+      }
+    ]
+  },
+  "c21": {
+    "call": "lg-1019-0846",
+    "end_reason": "transfer",
+    "checks": [
+      {
+        "type": "tool_not_called",
+        "tool": "cancel_appointment",
+        "args": {
+          "fee_acknowledged": true
+        },
+        "pass": true,
+        "turn": null,
+        "quote": null,
+        "detail": "cancel_appointment was not called with {\"fee_acknowledged\": true}."
+      }
+    ]
+  },
+  "c22": {
+    "call": "lg-1019-1249",
+    "end_reason": "end_node",
+    "checks": [
+      {
+        "type": "tool_called",
+        "tool": "book_appointment",
+        "args": {
+          "appointment_type": "follow_up"
+        },
+        "pass": true,
+        "turn": 28,
+        "quote": "book_appointment({\"patient_id\": \"pat-013\", \"slot_id\": \"dr-alvarez-2026-10-20-0830\", \"reason\": \"Follow-up about blood pressure\", \"appointment_type\": \"follow_up\", \"reminder\": \"call\"})",
+        "detail": "book_appointment called at turn 28."
+      }
+    ]
+  }
+}

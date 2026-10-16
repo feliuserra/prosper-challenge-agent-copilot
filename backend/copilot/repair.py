@@ -33,13 +33,16 @@ async def ask(
     usage: Usage,
     on_repair: Callable[[int, list[str]], None] = lambda attempt, problems: None,
     max_repairs: int = config.MAX_REPAIRS,
+    model_name: str = config.MODEL,
+    temperature: float = config.TEMPERATURE,
 ):
+    """`model_name` and `temperature` are the Copilot's unless given (the call judge, #32)."""
     messages = list(messages)
     for attempt in range(max_repairs + 1):
         if schema is None:  # free-form JSON (operations carry patches no strict schema can describe)
-            request = {"model": config.MODEL, "messages": messages, "response_format": {"type": "json_object"}, "temperature": config.TEMPERATURE}
+            request = {"model": model_name, "messages": messages, "response_format": {"type": "json_object"}, "temperature": temperature}
         else:
-            request = json_request(config.MODEL, messages, name, schema, temperature=config.TEMPERATURE)
+            request = json_request(model_name, messages, name, schema, temperature=temperature)
         completion = await model.complete(request)
         usage.add(completion)
         try:

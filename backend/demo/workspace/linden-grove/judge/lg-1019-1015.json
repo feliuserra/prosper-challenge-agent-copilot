@@ -1,0 +1,94 @@
+{
+  "call": "lg-1019-1015",
+  "key": "a78aca70186f02aa927338db",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:25+00:00",
+  "why": "flagged: transfer",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T10:15:00",
+  "end_reason": "transfer",
+  "issues": [],
+  "runs": [
+    [
+      {
+        "kind": "requirement",
+        "requirement": "R30",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "I can help with that. Could you please provide Denise Carter's date of birth?",
+        "summary": "The assistant asked for the patient's date of birth instead of immediately transferring a billing office caller to the front desk.",
+        "severity": "low"
+      }
+    ],
+    [
+      {
+        "kind": "requirement",
+        "requirement": "R30",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "Could you please provide Denise Carter's date of birth?",
+        "summary": "The assistant asked for patient details before transferring a billing question instead of transferring immediately.",
+        "severity": "low"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Dana, a billing office employee at Linden Grove Family Practice, calling to confirm a patient's appointment.",
+    "goal": "To confirm the next appointment for Denise Carter; after providing the patient's date of birth and identifying herself, the call was transferred to a human staff member as the assistant could not complete the request.",
+    "facts": {
+      "full_name": "Denise Carter",
+      "date_of_birth": "May 30th, 1972",
+      "caller_name": "Dana",
+      "caller_department": "billing office at Linden Grove"
+    },
+    "style": "Clear and professional, providing necessary information promptly and identifying herself and her role.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I'm calling from the billing office. I need to confirm the next appointment for Denise Carter."
+      },
+      {
+        "question": "I can help with that. Could you please provide Denise Carter's date of birth?",
+        "answer": "May 30th, 1972."
+      },
+      {
+        "question": "Could you please tell me your full name?",
+        "answer": "Dana, from the billing office at Linden Grove."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 5692,
+      "cached": 5120,
+      "output": 644
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 417,
+      "cached": 0,
+      "output": 134
+    }
+  },
+  "cost": 0.0092372,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R30",
+      "turn": 3,
+      "quote_turn": 3,
+      "quote": "I can help with that. Could you please provide Denise Carter's date of birth?",
+      "summary": "The assistant asked for the patient's date of birth instead of immediately transferring a billing office caller to the front desk.",
+      "severity": "low",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": 3,
+      "agreed": true
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "call": "lg-1019-1134",
+  "key": "be8841e8eb9a8daae52d24fd",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:28+00:00",
+  "why": "flagged: hang_up",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T11:34:00",
+  "end_reason": "caller_hung_up",
+  "issues": [
+    {
+      "kind": "wrong_patient",
+      "severity": "high",
+      "requirement": "B3",
+      "turn": 4,
+      "quote_turn": 4,
+      "quote": "Can you please tell me your full name?",
+      "summary": "The assistant did not ask the caller to spell their name, risking a booking under the wrong patient.",
+      "shape": "silent",
+      "label": "wrong patient or name",
+      "node": "ask_name",
+      "quote_node": "ask_name",
+      "second_turn": 4,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Can you please tell me your full name?",
+        "summary": "The assistant did not ask the caller to spell their name, risking a booking under the wrong patient."
+      }
+    ],
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Can you please tell me your full name?",
+        "summary": "The assistant accepted a patient name without spelling it out or reading it back for confirmation."
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Mark Hughes, a 65-year-old existing patient calling for himself",
+    "goal": "To book a follow-up appointment to check on how his blood pressure medicine is working; he rejected the automated time options and requested to speak to a real person at the front desk",
+    "facts": {
+      "full_name": "Mark Hughes",
+      "date_of_birth": "February 27th, 1961",
+      "reason": "follow-up appointment for blood pressure medicine check",
+      "insurance_plan": "bcbs"
+    },
+    "style": "Clear and direct, but prefers human interaction over automated scheduling options.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I need to book a follow-up appointment for my blood pressure medicine."
+      },
+      {
+        "question": "Can you please tell me your full name?",
+        "answer": "Mark Hughes."
+      },
+      {
+        "question": "Did you say your name is Mark Hughes?",
+        "answer": "Yes, that's right."
+      },
+      {
+        "question": "Could you please tell me your date of birth?",
+        "answer": "February 27th, 1961."
+      },
+      {
+        "question": "What specifically is the visit for regarding your blood pressure medicine?",
+        "answer": "I need to check on how the medicine is working for me."
+      },
+      {
+        "question": "I have two options for you: Monday the 19th at 12 PM with Nina Brooks, or Monday the 19th at 1 PM with Dr. Sofia Alvarez. Which one would work for you?",
+        "answer": "I don't want to pick a time from a machine. Connect me to a real person at the front desk now."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 7680,
+      "cached": 3840,
+      "output": 589
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1418,
+      "cached": 0,
+      "output": 127
+    }
+  },
+  "cost": 0.0150824,
+  "other": []
+}

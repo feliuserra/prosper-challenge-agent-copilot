@@ -1,0 +1,154 @@
+{
+  "call": "lg-1019-0811",
+  "key": "8f0678658c716fc35cf28e87",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:30+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T08:11:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 27,
+      "quote_turn": 27,
+      "quote": "Thank you for calling Linden Grove Family Practice, and goodbye.",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 27,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 27,
+        "quote_turn": 27,
+        "quote": "Thank you for calling Linden Grove Family Practice, and goodbye.",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R34",
+        "turn": 27,
+        "quote_turn": 27,
+        "quote": "Daniel, your appointment is booked for today, Monday the 19th, at 8:30 in the morning with Dr. Sofia Alvarez.",
+        "summary": "The assistant did not repeat the provider, day, and time and get explicit confirmation before booking; it only confirmed after booking.",
+        "severity": "medium"
+      }
+    ],
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 27,
+        "quote_turn": 27,
+        "quote": "Thank you for calling Linden Grove Family Practice, and goodbye.",
+        "summary": "Assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R34",
+        "turn": 27,
+        "quote_turn": 27,
+        "quote": "Daniel, your appointment is booked for today, Monday the 19th, at 8:30 in the morning with Dr. Sofia Alvarez.",
+        "summary": "The assistant did not repeat the appointment details and explicitly confirm acceptance before booking—confirmation happened only after booking.",
+        "severity": "medium"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Daniel Ortiz, a 46-year-old existing patient calling for himself",
+    "goal": "To book a sick visit appointment as soon as possible for back pain that started on the weekend; he accepted the earliest offered slot at 8:30 AM with Dr. Sofia Alvarez and requested a text reminder",
+    "facts": {
+      "full_name": "Daniel Ortiz",
+      "date_of_birth": "August 14th, 1979",
+      "reason": "back pain since Saturday",
+      "insurance_plan": "aetna",
+      "appointment_type": "sick_visit",
+      "appointment_date": "Monday the 19th, 2026",
+      "appointment_time": "8:30 AM",
+      "provider": "Dr. Sofia Alvarez",
+      "reminder_preference": "text"
+    },
+    "style": "Clear and polite, straightforward in providing information and confirming details.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I need to book a visit for back pain that started at the weekend, as soon as possible."
+      },
+      {
+        "question": "Could you please tell me your full name?",
+        "answer": "Daniel Ortiz"
+      },
+      {
+        "question": "Thank you, Daniel. Can you also provide your date of birth?",
+        "answer": "August 14th, 1979."
+      },
+      {
+        "question": "Did I get that right, Daniel Ortiz?",
+        "answer": "Yes, that's correct."
+      },
+      {
+        "question": "What is the visit for? You mentioned back pain earlier; is that still the reason?",
+        "answer": "Yes, I need to see someone for back pain that started on Saturday."
+      },
+      {
+        "question": "We have an available slot today, Monday the 19th, at 8:30 in the morning with Dr. Sofia Alvarez. Another option is at 9:00, also with Dr. Alvarez. Which one works for you?",
+        "answer": "I'll take the 8:30 appointment, please."
+      },
+      {
+        "question": "Shall I book Monday the 19th at 8:30 with Dr. Alvarez for you?",
+        "answer": "Yes, please book it."
+      },
+      {
+        "question": "How would you like to receive a reminder the day before, by text, call or not at all?",
+        "answer": "Text, please."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 3,
+      "input": 12792,
+      "cached": 5888,
+      "output": 1135
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1686,
+      "cached": 1536,
+      "output": 190
+    }
+  },
+  "cost": 0.0263496,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R34",
+      "turn": 27,
+      "quote_turn": 27,
+      "quote": "Daniel, your appointment is booked for today, Monday the 19th, at 8:30 in the morning with Dr. Sofia Alvarez.",
+      "summary": "The assistant did not repeat the provider, day, and time and get explicit confirmation before booking; it only confirmed after booking.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 27,
+      "agreed": true
+    }
+  ]
+}
