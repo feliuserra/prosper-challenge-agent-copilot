@@ -58,7 +58,8 @@ What #31 built (frontend, plus the backend the panel needed; cuts of 2026-10-15,
 - Backend: `POST .../build` takes `{"loop": false}`; `.../accept` takes `{"anyway": true}`; `POST .../proposals/{n}/reject`; `POST .../tests/run` (`{"agent"}`: the approved tests on that agent against the spec's configuration, a `test` event per result, stored as a run with its summary); `GET .../runs/last`.
 - The stub backend (`copilot/recording.py`): `COPILOT_REPLAY=<dir>` serves `spec`, `build` and `tests` streams from `<dir>/<step>.jsonl` and stores what the real step would (`make dev STUB=clinic-a`); `COPILOT_RECORD=<dir>` records live streams (`make dev RECORD=name`). `copilot/recordings/clinic-a/` was rebuilt from clinic-a's stored spec and proposal 1 with `make record WORKSPACE=clinic-a PROPOSAL=1`: real model output, no new calls. #34's cached fallback can start from these.
 - Checked in the browser pane against the stub on 7861/5174 with a throwaway `stub-clinic` agent (removed after): paste, spec progress, review, approve all, the build drawn live with marks and the banner, the panel locked, Accept anyway (version 2, saved, one Cmd+Z back to the draft and Cmd+Shift+Z again), Run tests with progress, a stale draft refused, Reject, Stop mid-build (no proposal stored), and the panel restored after a reload. Not checked with real model calls: that is the user's run.
-- Tests: 412 pytest (9 new in `test_copilot_build.py`), 259 Vitest (10 new in `copilot/copilot.test.ts`).
+- The user's real run (2026-10-16, a two-doctor "Maple Street" clinic, Build only, $3 in all): the UI worked end to end, the configuration matched the guidelines, 13/22 tests passed (the 911 safety test failed: the agent transferred; several generated tests were too strict). It was run on the Prosper Scheduler agent itself, so Accept overwrote `agents/prosper-scheduler.json`, the build's template: spec, build and accept now refuse the template's id (409) and the tab says why.
+- Tests: 413 pytest (10 new in `test_copilot_build.py`), 259 Vitest (10 new in `copilot/copilot.test.ts`).
 
 What #30 built (backend only; cuts of 2026-10-15, see the issue's "Approach and cuts"), for reference:
 - `backend/copilot/build.py`: the approved configuration is written to `workspaces/<id>/clinic.json`, and the agent is a copy of `prosper-scheduler.json` with `clinic` set to the workspace id. One `gpt-4.1` call (JSON object mode through `repair.ask`, `schema=None`) returns an outline, operations citing requirements, and `uncarried` with reasons; code checks that operations apply, that every requirement is carried or explained, that `clinic`, `model` and `voice_id` stay, and that every node but the end nodes offers `transfer_to_human` (`guide_problems`). The agent is emitted after each operation.
@@ -324,7 +325,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 412 tests) + Vitest (frontend, 259 tests) |
+| `make test` | pytest (backend, 413 tests) + Vitest (frontend, 259 tests) |
 | `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 | `make synth` | Write the synthetic call logs, clinic records and labels to `backend/.synth/` (#57; no model calls, about 6 s) |

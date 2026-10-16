@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { EXAMPLE_AGENT_ID } from "../agent/templates";
 import { ClinicSections } from "../clinic/ClinicView";
 import { readClinic } from "../clinic/clinic";
 import { useAgentStore } from "../store/agentStore";
@@ -37,6 +38,20 @@ export function CopilotPanel() {
   const run = useCopilotStore((s) => s.run);
 
   if (!workspace) return <p className="muted">No agent open.</p>;
+  // Accepting writes the agent's file: into the template, every later build would start
+  // from that clinic's agent. The backend refuses it too.
+  if (workspace === EXAMPLE_AGENT_ID) {
+    return (
+      <div className="copilot">
+        <p>
+          <strong>This is the template</strong> the Copilot builds every agent from, so it does not work in it.
+        </p>
+        <p className="muted">
+          Create an agent with "New from example" (or "New blank"), save it, and use the Copilot there.
+        </p>
+      </div>
+    );
+  }
   if (loading) return <p className="muted">Loading the workspace…</p>;
   if (loadError) return <p className="field-error">Could not load the workspace: {loadError}</p>;
   const hasSpec = spec !== null && spec.requirements.length > 0;

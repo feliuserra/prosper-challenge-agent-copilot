@@ -526,6 +526,19 @@ def test_the_api_records_live_streams(ws, tmp_path):
     assert [e["event"] for e in recording.read(recordings / "build.jsonl")] == [e["event"] for e in events]
 
 
+def test_the_api_never_builds_into_the_template(tmp_path, monkeypatch):
+    monkeypatch.setattr(clinics_module, "WORKSPACES_DIR", tmp_path)
+    ws = Workspace(build.TEMPLATE_ID, tmp_path)
+    ws.save_spec(make_spec())
+    ws.save_guidelines("Any guidelines.")
+    api = client(tmp_path, Scripted(), Runner())
+    base = f"/copilot/workspaces/{build.TEMPLATE_ID}"
+    for path in ("/spec", "/build", "/proposals/1/accept"):
+        response = api.post(base + path)
+        assert response.status_code == 409 and "template" in response.json()["detail"], path
+    assert api.get(base + "/spec").status_code == 200  # reading it is fine
+
+
 def test_the_api_needs_approved_tests(tmp_path, monkeypatch):
     monkeypatch.setattr(clinics_module, "WORKSPACES_DIR", tmp_path)
     spec = make_spec()

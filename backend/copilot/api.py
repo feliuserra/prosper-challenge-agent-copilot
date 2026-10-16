@@ -108,6 +108,16 @@ def make_router(
         recorder = recording.Recorder(record / f"{step}.jsonl") if record and not replay else None
         return streaming(stream(ws, work, running, recorder))
 
+    def not_the_template(agent_id: str) -> None:
+        # Accepting writes agents/<id>.json: into the template, every later build would
+        # start from that clinic's agent (#31, found in the user's first real run).
+        if agent_id == build_step.TEMPLATE_ID:
+            raise HTTPException(
+                409,
+                f"'{agent_id}' is the template every build starts from, so the Copilot does not work in it. "
+                "Create an agent (New from example) and use the Copilot there.",
+            )
+
     def saved_hash(agent_id: str) -> str | None:
         return build_step.saved_hash(agents_dir, agent_id) if agents_dir else None
 
@@ -149,6 +159,7 @@ def make_router(
     @router.post("/spec")
     async def run_spec(agent_id: str, body: SpecRun | None = None):
         ws = workspace(agent_id)
+        not_the_template(agent_id)
         replace = bool(body and body.replace_approved)
         if agent_id in running:
             raise HTTPException(409, "A spec step is already running for this workspace.")
@@ -170,6 +181,7 @@ def make_router(
     @router.post("/build")
     async def run_build(agent_id: str, body: BuildRun | None = None):
         ws = workspace(agent_id)
+        not_the_template(agent_id)
         loop = body.loop if body else True
         if agent_id in running:
             raise HTTPException(409, "A Copilot step is already running for this workspace.")
@@ -231,6 +243,7 @@ def make_router(
     async def accept_proposal(agent_id: str, number: int, body: Decision | None = None):
         if agents_dir is None:
             raise HTTPException(501, "This server does not keep agents.")
+        not_the_template(agent_id)
         if agent_id in running:
             raise HTTPException(409, "A Copilot step is running for this workspace.")
         try:
