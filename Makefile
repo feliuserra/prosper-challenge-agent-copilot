@@ -5,7 +5,7 @@ PROJECT := backend
 FRONTEND := frontend
 TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset synth detect detect-eval eval spec build spend memo clean
+.PHONY: help install run dev test clinic-reset synth detect detect-eval eval spec build record spend memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -20,7 +20,8 @@ run: ## Run the voice agent only (then open http://localhost:7860/client)
 
 # One shell for the whole recipe (macOS ships make 3.81, which has no .ONESHELL):
 # the runner runs in the background and is stopped when the frontend exits.
-dev: ## Run the voice agent and the editor together (then open http://localhost:5173)
+dev: ## Run the voice agent and the editor together (then open http://localhost:5173): STUB=name replays the Copilot's recorded streams (no model calls), RECORD=name records live ones (#31; folders in backend/copilot/recordings/)
+	$(if $(STUB),COPILOT_REPLAY=copilot/recordings/$(STUB)) $(if $(RECORD),COPILOT_RECORD=copilot/recordings/$(RECORD)) \
 	uv run --directory $(PROJECT) python bot.py & runner=$$!; \
 	trap 'kill $$runner 2>/dev/null' EXIT; \
 	npm run dev --prefix $(FRONTEND)
@@ -49,6 +50,9 @@ spec: ## Write a workspace's spec from its guidelines (#29; model calls, about $
 
 build: ## Build a workspace's agent from the template and loop until its approved tests pass (#30; model calls, about $1.50 and up): WORKSPACE=id, NO_CACHE=1
 	uv run --directory $(PROJECT) python -m copilot build $(WORKSPACE) $(if $(NO_CACHE),--no-cache)
+
+record: ## Write replayable Copilot streams from a workspace's stored spec and proposal (#31; no model calls): WORKSPACE=id, PROPOSAL=n
+	uv run --directory $(PROJECT) python -m copilot record $(WORKSPACE) $(if $(PROPOSAL),--proposal $(PROPOSAL))
 
 spend: ## Print the estimated model spend by day and source from the spend log (#27; SINCE=YYYY-MM-DD)
 	uv run --directory $(PROJECT) python -m sim spend $(if $(SINCE),--since $(SINCE))

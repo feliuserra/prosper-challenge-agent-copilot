@@ -11,8 +11,9 @@
 #                          draft, what carries each requirement, and tests, each
 #                          "draft" or "approved" (#29, copilot/spec.py)
 #     versions/0001.json   a snapshot per editor save or accepted proposal
-#     runs/0001.json       test runs (#30); the newest is the last result (#31)
-#     proposals/0001.json  Copilot proposals (#30); the newest is the one shown
+#     runs/0001.json       test runs (#30, #31); the newest is the last result
+#     proposals/0001.json  Copilot proposals (#30); the newest is the one shown, with
+#                          its decision once accepted or rejected (#31)
 #     calls/<id>.json      call records (#32)
 #
 # A workspace is optional: reading one that does not exist gives empty values, and
@@ -130,6 +131,10 @@ class Workspace:
 
     def last_proposal(self) -> dict | None:
         return _newest(self.dir / "proposals")
+
+    def update_proposal(self, proposal: dict) -> None:
+        """Write a stored proposal back (its decision, #31)."""
+        _write(self.dir / "proposals" / f"{proposal['number']:04d}.json", proposal)
 
     def proposal(self, number: int) -> dict | None:
         return _read(self.dir / "proposals" / f"{number:04d}.json") if number > 0 else None

@@ -18,6 +18,8 @@ import "@xyflow/react/dist/style.css";
 import { nearestFreeSpot, NODE_HEIGHT, NODE_WIDTH } from "../agent/layout";
 import { stagesOf } from "../agent/stages";
 import { useCallStore } from "../call/callStore";
+import { stop, showProposal, useCopilotStore } from "../copilot/copilotStore";
+import { nodeDiff, type Mark } from "../copilot/diff";
 import { useDetectionStore } from "../detection/detectionStore";
 import { canvasHeat } from "../detection/heat";
 import { useAgentStore } from "../store/agentStore";
@@ -47,6 +49,42 @@ const edgeTypes = { function: FunctionEdge };
 // the buttons over the canvas and a stage frame's header, which fitting does not count.
 const fitViewOptions = { maxZoom: 1, padding: { top: "80px", right: "5%", bottom: "5%", left: "5%" } } as const;
 const store = () => useAgentStore.getState();
+const DELETE_KEYS = ["Backspace", "Delete"];
+
+/** Over the canvas while it shows the Copilot's agent instead of the draft. */
+function CopilotBanner({
+  mode,
+  marks,
+  removed,
+}: {
+  mode: "building" | "proposal";
+  marks: Map<string, Mark>;
+  removed: number;
+}) {
+  const proposal = useCopilotStore((s) => s.proposal);
+  const added = [...marks.values()].filter((m) => m === "added").length;
+  const changed = marks.size - added;
+  const counts = `${added} new, ${changed} changed${removed ? `, ${removed} removed` : ""}`;
+  if (mode === "building") {
+    return (
+      <Panel position="top-center" className="copilot-banner working" role="status">
+        <span className="copilot-pulse" aria-hidden /> Copilot is working: the agent as it is built ({counts}).
+        Read-only.
+        <button className="small danger" onClick={stop}>
+          Stop
+        </button>
+      </Panel>
+    );
+  }
+  return (
+    <Panel position="top-center" className="copilot-banner" role="status">
+      Proposal {proposal?.number}: {counts}, against your draft. Accept or reject it in the Copilot tab.
+      <button className="small" onClick={() => showProposal(false)}>
+        Show my draft
+      </button>
+    </Panel>
+  );
+}
 
 export function Canvas() {
   const agentId = useAgentStore((s) => s.agentId);
@@ -60,12 +98,25 @@ export function Canvas() {
   );
 }
 
+// Nothing is selected, collapsed or wrong in what the Copilot shows: it is not the draft.
+const NO_PROBLEMS: ReturnType<typeof useProblems> = [];
+const NONE: string[] = [];
+
 function Flow() {
-  const agent = useAgentStore((s) => s.agent)!;
+  const draft = useAgentStore((s) => s.agent)!;
   const agentId = useAgentStore((s) => s.agentId);
-  const selection = useAgentStore((s) => s.selection);
-  const collapsed = useAgentStore((s) => s.collapsed);
-  const problems = useProblems();
+  // While the Copilot builds, or a proposal is shown (#31), the canvas shows that agent,
+  // read-only, with what it adds and changes marked against the draft.
+  const override = useCopilotStore((s) => s.canvas);
+  const locked = override !== null;
+  const agent = override?.agent ?? draft;
+  const diff = useMemo(() => (override ? nodeDiff(override.agent, draft) : null), [override, draft]);
+  const storeSelection = useAgentStore((s) => s.selection);
+  const selection = locked ? null : storeSelection;
+  const storeCollapsed = useAgentStore((s) => s.collapsed);
+  const collapsed = locked ? NONE : storeCollapsed;
+  const draftProblems = useProblems();
+  const problems = locked ? NO_PROBLEMS : draftProblems;
   // Where a test call of this agent is; another agent's call is not shown.
   const live = useCallStore((s) => (s.live && s.live.agentId === agentId ? s.live : null));
   const activeNode = live?.node ?? null;
@@ -85,7 +136,7 @@ function Flow() {
   const hasStages = useMemo(() => stagesOf(agent).length > 0, [agent]);
 
   // The call heatmap (#59): numbers from the call logs over the graph, never stored in it.
-  const heatOn = useDetectionStore((s) => s.open);
+  const heatOn = useDetectionStore((s) => s.open) && !locked;
   const detection = useDetectionStore((s) => (s.load.state === "ready" ? s.load.data : null));
   const heatOptions = useDetectionStore((s) => s.options);
   const heat = useMemo(
@@ -95,8 +146,8 @@ function Flow() {
 
   const badges = useMemo(() => statusBadges(agent, problems, view), [agent, problems, view]);
   const nodes = useMemo(
-    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode, view, heat),
-    [agent, selection, measured, badges, activeNode, view, heat],
+    () => toFlowNodes(agent, selection, measured, badges.nodes, activeNode, view, heat, diff?.marks ?? null),
+    [agent, selection, measured, badges, activeNode, view, heat, diff],
   );
   const edges = useMemo(
     () => toFlowEdges(agent, selection, badges.edges, activeEdge, measured, view, heat),
@@ -115,6 +166,11 @@ function Flow() {
     if (heatWas.current !== heatOn) fitPending.current = true;
     heatWas.current = heatOn;
   }, [heatOn]);
+  // The built agent or the proposal can have other nodes than the draft: fit to it, and back.
+  const mode = override?.mode ?? null;
+  useEffect(() => {
+    fitPending.current = true;
+  }, [mode]);
   useEffect(() => {
     if (!fitPending.current || !nodes.every((n) => n.measured)) return;
     fitPending.current = false;
@@ -203,7 +259,11 @@ function Flow() {
           onDelete={onDelete}
           // React Flow clears its own selection on a pane click; a stage is not one of its elements.
           onPaneClick={() => selectedStage && store().select(null)}
-          deleteKeyCode={["Backspace", "Delete"]}
+          deleteKeyCode={locked ? null : DELETE_KEYS}
+          nodesDraggable={!locked}
+          nodesConnectable={!locked}
+          elementsSelectable={!locked}
+          edgesReconnectable={!locked}
           reconnectRadius={12}
           // The selected edge (and its reconnect knob) draws above the others,
           // which may end at the same handle.
@@ -215,30 +275,33 @@ function Flow() {
           fitView
           fitViewOptions={fitViewOptions}
         >
-          <Panel position="top-left" className="canvas-actions">
-            <button onClick={addNode}>Add node</button>
-            <button onClick={tidy} title="Lay out all nodes again">
-              Tidy layout
-            </button>
-            {hasStages && (
-              <>
-                <button onClick={() => collapseAll(true)} title="Show each stage as one card">
-                  Collapse stages
-                </button>
-                <button onClick={() => collapseAll(false)} title="Show every node">
-                  Expand stages
-                </button>
-              </>
-            )}
-            <button
-              aria-pressed={heatOn}
-              className={heatOn ? "pressed" : undefined}
-              onClick={() => void useDetectionStore.getState().setOpen(!heatOn)}
-              title="Tint the graph with numbers from the call logs, and list the issues found in them"
-            >
-              Call heatmap
-            </button>
-          </Panel>
+          {override && <CopilotBanner mode={override.mode} marks={diff!.marks} removed={diff!.removed.length} />}
+          {!locked && (
+            <Panel position="top-left" className="canvas-actions">
+              <button onClick={addNode}>Add node</button>
+              <button onClick={tidy} title="Lay out all nodes again">
+                Tidy layout
+              </button>
+              {hasStages && (
+                <>
+                  <button onClick={() => collapseAll(true)} title="Show each stage as one card">
+                    Collapse stages
+                  </button>
+                  <button onClick={() => collapseAll(false)} title="Show every node">
+                    Expand stages
+                  </button>
+                </>
+              )}
+              <button
+                aria-pressed={heatOn}
+                className={heatOn ? "pressed" : undefined}
+                onClick={() => void useDetectionStore.getState().setOpen(!heatOn)}
+                title="Tint the graph with numbers from the call logs, and list the issues found in them"
+              >
+                Call heatmap
+              </button>
+            </Panel>
+          )}
           {notice && (
             <Panel position="bottom-center" className="notice" role="status">
               {notice}
@@ -250,7 +313,7 @@ function Flow() {
         </ReactFlow>
       </div>
       {/* Below the graph, not over it, so it never hides a node or its badge. */}
-      <ProblemsList problems={problems} />
+      {!locked && <ProblemsList problems={problems} />}
     </div>
   );
 }

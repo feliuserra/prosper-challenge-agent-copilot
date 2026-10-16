@@ -392,6 +392,51 @@ def test_a_blocked_proposal_cannot_be_accepted(ws, tmp_path):
     assert error.value.status == 409 and not (tmp_path / "agents").exists()
 
 
+def blocked_proposal(ws):
+    return run(ws, Scripted(answer(build_answer()), *[answer(fix_answer()) for _ in range(3)]), Runner(photo_id=lambda a, c: False))[0]
+
+
+def test_a_blocked_proposal_can_be_accepted_anyway(ws, tmp_path):
+    proposal = blocked_proposal(ws)
+    version = build.accept(ws, proposal["number"], tmp_path / "agents", anyway=True)
+    assert version["message"] == f"Proposal {proposal['number']}, accepted while blocked"
+    decision = ws.proposal(proposal["number"])["decision"]
+    assert decision["status"] == "accepted" and decision["blocked"] and decision["version"] == version["number"]
+    with pytest.raises(build.BuildError, match="already accepted"):
+        build.accept(ws, proposal["number"], tmp_path / "agents", anyway=True)
+
+
+def test_a_leak_blocks_for_good(ws, tmp_path):
+    proposal = blocked_proposal(ws)
+    stored = ws.proposal(proposal["number"])
+    ws.update_proposal({**stored, "leaks": ["Rosa Diaz is in the persona."]})
+    with pytest.raises(build.BuildError, match="leak check") as error:
+        build.accept(ws, proposal["number"], tmp_path / "agents", anyway=True)
+    assert error.value.status == 409 and not (tmp_path / "agents").exists()
+
+
+def test_a_save_after_the_build_started_refuses_the_proposal(ws, tmp_path):
+    agents = tmp_path / "agents"
+    agents.mkdir()
+    (agents / "harbor.json").write_text(json.dumps(TEMPLATE))
+    proposal = asyncio.run(build.run(ws, Scripted(answer(build_answer())), run_tests=Runner(), base=build.saved_hash(agents, "harbor")))
+    (agents / "harbor.json").write_text(json.dumps({**TEMPLATE, "persona": "Edited in the editor meanwhile."}))
+    with pytest.raises(build.BuildError, match="saved after this build started") as error:
+        build.accept(ws, proposal["number"], agents)
+    assert error.value.status == 409 and ws.proposal(proposal["number"]).get("decision") is None
+    (agents / "harbor.json").write_text(json.dumps(TEMPLATE))  # the save undone: accepted
+    assert build.accept(ws, proposal["number"], agents)["number"] == 1
+
+
+def test_rejecting_changes_nothing_but_the_decision(ws, tmp_path):
+    proposal = blocked_proposal(ws)
+    spec = ws.spec()
+    assert build.reject(ws, proposal["number"])["status"] == "rejected"
+    assert ws.spec() == spec and ws.versions() == [] and not (tmp_path / "agents").exists()
+    with pytest.raises(build.BuildError, match="already rejected"):
+        build.accept(ws, proposal["number"], tmp_path / "agents", anyway=True)
+
+
 # ---- the API ---------------------------------------------------------------------------------
 def client(tmp_path, model, runner) -> TestClient:
     app = FastAPI()
@@ -413,6 +458,72 @@ def test_the_api_streams_the_build_and_accepts(ws, tmp_path):
     assert api.get("/copilot/workspaces/harbor/proposals/last").json()["number"] == number
     assert api.post(f"/copilot/workspaces/harbor/proposals/{number}/accept").json()["version"]["number"] == 1
     assert api.post("/copilot/workspaces/harbor/proposals/9/accept").status_code == 404
+
+
+def test_the_api_accepts_anyway_and_rejects(ws, tmp_path):
+    api = client(tmp_path, Scripted(answer(build_answer()), *[answer(fix_answer()) for _ in range(3)]), Runner(photo_id=lambda a, c: False))
+    number = events_of(api.post("/copilot/workspaces/harbor/build"))[-1]["proposal"]["number"]
+    accept = f"/copilot/workspaces/harbor/proposals/{number}/accept"
+    assert api.post(accept).status_code == 409
+    assert api.post(accept, json={"anyway": True}).json()["version"]["message"].endswith("accepted while blocked")
+    assert api.post(f"/copilot/workspaces/harbor/proposals/{number}/reject").status_code == 409  # already decided
+    assert api.post("/copilot/workspaces/harbor/proposals/9/reject").status_code == 404
+
+
+def test_the_api_builds_without_the_loop(ws, tmp_path):
+    runner = Runner()
+    api = client(tmp_path, Scripted(answer(build_answer())), runner)
+    events = events_of(api.post("/copilot/workspaces/harbor/build", json={"loop": False}))
+    assert "tests" not in [e["event"] for e in events] and runner.calls == []
+    assert events[-1]["proposal"]["blocked"] == ["The workspace tests were not run (built without the loop)."]
+
+
+def test_the_api_runs_the_tests_on_the_editors_agent(ws, tmp_path):
+    runner = Runner(photo_id=persona_has("photo ID"))
+    api = client(tmp_path, Scripted(), runner)
+    assert api.get("/copilot/workspaces/harbor/runs/last").status_code == 404
+    agent = {**TEMPLATE, "persona": "Remind new patients to bring a photo ID."}
+    events = events_of(api.post("/copilot/workspaces/harbor/tests/run", json={"agent": agent}))
+    assert [e["event"] for e in events] == ["part", "test", "test", "done"]  # the draft test is not run
+    assert [e["done"] for e in events if e["event"] == "test"] == [1, 2]
+    run = events[-1]["run"]
+    assert run["summary"]["passing"] == 2 and run["agent_hash"] == build.agent_hash(agent)
+    assert runner.calls == [["emergency", "photo-id"]]
+    last = api.get("/copilot/workspaces/harbor/runs/last").json()
+    assert last["summary"] == run["summary"] and "results" not in last
+
+
+def test_the_api_replays_recorded_streams(ws, tmp_path):
+    """The stub backend (COPILOT_REPLAY): streams come from recordings and store what the step would."""
+    recordings = tmp_path / "recordings"
+    api = client(tmp_path, Scripted(answer(build_answer())), Runner())
+    events_of(api.post("/copilot/workspaces/harbor/build"))  # a proposal to record from
+    from copilot import recording
+
+    recording.write_from_workspace(ws, recordings)
+    app = FastAPI()
+    app.include_router(make_router(tmp_path, model=lambda: Scripted(), agents_dir=tmp_path / "agents", run_tests=Runner(), replay=recordings))
+    stub = TestClient(app)
+    ws.save_guidelines("Any guidelines.")
+    spec = events_of(stub.post("/copilot/workspaces/harbor/spec", json={"replace_approved": True}))
+    assert spec[-1]["event"] == "done" and {t["status"] for t in ws.spec()["tests"]} == {"draft"}
+    stub.patch("/copilot/workspaces/harbor/spec/tests", json={"status": "approved"})
+    built = events_of(stub.post("/copilot/workspaces/harbor/build"))
+    assert [e["event"] for e in built][:2] == ["part", "operation"] and built[-1]["proposal"]["number"] == 2
+    assert stub.get("/copilot/workspaces/harbor/proposals/last").json()["number"] == 2
+    ran = events_of(stub.post("/copilot/workspaces/harbor/tests/run", json={"agent": TEMPLATE}))
+    assert ran[-1]["run"]["agent_hash"] == build.agent_hash(TEMPLATE)
+    assert stub.get("/copilot/workspaces/harbor/runs/last").json()["agent_hash"] == build.agent_hash(TEMPLATE)
+
+
+def test_the_api_records_live_streams(ws, tmp_path):
+    recordings = tmp_path / "recordings"
+    app = FastAPI()
+    app.include_router(make_router(tmp_path, model=lambda: Scripted(answer(build_answer())), agents_dir=tmp_path / "agents", run_tests=Runner(), record=recordings))
+    events = events_of(TestClient(app).post("/copilot/workspaces/harbor/build"))
+    from copilot import recording
+
+    assert [e["event"] for e in recording.read(recordings / "build.jsonl")] == [e["event"] for e in events]
 
 
 def test_the_api_needs_approved_tests(tmp_path, monkeypatch):

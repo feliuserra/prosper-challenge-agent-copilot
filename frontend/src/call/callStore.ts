@@ -40,7 +40,6 @@ export interface Notice {
 }
 
 interface CallState {
-  panelOpen: boolean;
   phase: CallPhase;
   /** Progress of the latest call's setup steps; null before the first call. */
   steps: Steps | null;
@@ -61,7 +60,6 @@ interface CallState {
 }
 
 export const useCallStore = create<CallState>()(() => ({
-  panelOpen: false,
   phase: "idle",
   steps: null,
   notice: null,
@@ -353,8 +351,4 @@ export async function listMicsIfAllowed() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const mics = devices.filter((d) => d.kind === "audioinput" && d.deviceId && d.label);
   if (mics.length && !get().mics.length) set({ mics });
-}
-
-export function setPanelOpen(panelOpen: boolean) {
-  set({ panelOpen });
 }

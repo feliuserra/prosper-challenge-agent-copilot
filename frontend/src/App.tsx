@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import { DEFAULT_CLINIC } from "./agent/options";
-import { CallAudio, CallPanel } from "./call/CallPanel";
-import { useCallStore } from "./call/callStore";
+import { CallAudio } from "./call/CallPanel";
 import { Canvas } from "./canvas/Canvas";
 import { ClinicView, useClinic } from "./clinic/ClinicView";
+import { loadWorkspace, selectLocked, useCopilotStore } from "./copilot/copilotStore";
 import { useDetectionStore, wantedFromAddress } from "./detection/detectionStore";
 import { IssuesPanel } from "./detection/IssuesPanel";
+import { SideColumn } from "./components/SideColumn";
 import { Toolbar } from "./components/Toolbar";
 import { Panel } from "./panel/Panel";
 import { useAgentStore } from "./store/agentStore";
@@ -15,14 +16,20 @@ import { watchAgent } from "./validation/validationStore";
 export function App() {
   // Validate the open agent as it changes; the canvas shows the problems.
   useEffect(() => watchAgent(), []);
-  const callPanelOpen = useCallStore((s) => s.panelOpen);
+  // The Copilot works in the open agent's workspace (ADR 0013): load it on each open.
+  const agentId = useAgentStore((s) => s.agentId);
+  useEffect(() => void loadWorkspace(agentId), [agentId]);
+  // Read-only while the Copilot builds or a proposal is shown (#31).
+  const locked = useCopilotStore(selectLocked);
   return (
     <div className="app">
       <Toolbar />
       <main>
         <Workspace />
-        <Panel />
-        {callPanelOpen && <CallPanel />}
+        <div className={locked ? "panel-lock locked" : "panel-lock"} inert={locked}>
+          <Panel />
+        </div>
+        <SideColumn />
       </main>
       <CallAudio />
     </div>

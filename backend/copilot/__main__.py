@@ -1,6 +1,7 @@
 #
 # python -m copilot spec WORKSPACE [--guidelines FILE] [--replace-approved]
 # python -m copilot build WORKSPACE [--no-cache]
+# python -m copilot record WORKSPACE [--proposal N] [--out DIR]
 #
 # `spec` runs the spec step (#29) on a workspace, as the browser's POST /copilot/.../spec
 # does, and prints its progress, then the time, tokens and cost. --guidelines first
@@ -10,6 +11,9 @@
 # `build` runs the build and its loop (#30) on the workspace's approved tests, as POST
 # /copilot/.../build does, and prints the proposal. Model calls (the tests are most of
 # it: about $1.50 for a 25-test workspace, more with rounds), logged as `copilot`.
+#
+# `record` writes the panel's recorded streams (#31, recording.py) from what a workspace
+# stored: its spec, a proposal (the newest by default) and its test run. No model calls.
 #
 
 import argparse
@@ -23,8 +27,11 @@ from loguru import logger
 from sim.llm import OpenAIChat, Usage, models
 
 from . import build as build_step
+from . import recording
 from . import spec as spec_step
 from .workspace import WORKSPACES_DIR, Workspace
+
+RECORDINGS = Path(__file__).parent / "recordings"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,7 +45,22 @@ def main(argv: list[str] | None = None) -> int:
     built = commands.add_parser("build", help="build the agent from the template and loop until its approved tests pass")
     built.add_argument("workspace", help="the workspace (agent) id")
     built.add_argument("--no-cache", action="store_true", help="run every test again")
+    recorded = commands.add_parser("record", help="write replayable streams from a workspace's stored spec and proposal")
+    recorded.add_argument("workspace", help="the workspace (agent) id")
+    recorded.add_argument("--proposal", type=int, help="the proposal to replay (default: the newest)")
+    recorded.add_argument("--out", type=Path, help="the folder (default: copilot/recordings/WORKSPACE)")
     args = parser.parse_args(argv)
+
+    if args.command == "record":
+        out = args.out or RECORDINGS / args.workspace
+        try:
+            paths = recording.write_from_workspace(Workspace(args.workspace), out, args.proposal)
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        for path in paths:
+            print(path)
+        return 0
 
     if args.command == "build":
         load_dotenv(Path(__file__).parent.parent / ".env", override=True)

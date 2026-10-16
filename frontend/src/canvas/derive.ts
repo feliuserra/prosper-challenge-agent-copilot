@@ -10,6 +10,7 @@ import {
   TERMINAL_WIDTH,
 } from "../agent/layout";
 import type { Agent, Node } from "../agent/schema";
+import type { Mark } from "../copilot/diff";
 import type { CanvasHeat, EdgeTraffic, NodeHeat } from "../detection/heat";
 import { stageOf, stagesOf, type Stage } from "../agent/stages";
 import type { Selection } from "../store/agentStore";
@@ -27,8 +28,11 @@ import { canvasView, type CanvasView, type Dimensions, type Terminal } from "./v
 /** A badge on a node card or an edge label: validation errors (#6), warnings (#9). */
 export type StatusBadge = { tone: Severity; label: string; title: string };
 
-/** `active`: the node a test call is in (#8). `heat`: the call heatmap's numbers (#59). */
-export type AgentNodeData = { node: Node; status?: StatusBadge[]; active?: boolean; heat?: NodeHeat };
+/**
+ * `active`: the node a test call is in (#8). `heat`: the call heatmap's numbers (#59).
+ * `mark`: what a Copilot proposal or build does to the node (#31).
+ */
+export type AgentNodeData = { node: Node; status?: StatusBadge[]; active?: boolean; heat?: NodeHeat; mark?: Mark };
 export type AgentFlowNode = FlowNode<AgentNodeData, "agent">;
 
 /** A collapsed stage's card. `activeStep`: the node in it a test call is in. */
@@ -154,6 +158,7 @@ export function toFlowNodes(
   activeNode: string | null = null,
   view: CanvasView = canvasView(agent, [], measured),
   heat: CanvasHeat | null = null,
+  marks: Map<string, Mark> | null = null,
 ): CanvasFlowNode[] {
   const nodes: CanvasFlowNode[] = agent.nodes
     .filter((node) => !view.hiddenIn.has(node.name))
@@ -162,7 +167,13 @@ export function toFlowNodes(
       type: "agent",
       // The store gives every node a position (open, addNode); 0,0 is only a guard.
       position: view.shown(node),
-      data: { node, status: status.get(node.name), active: node.name === activeNode, heat: heat?.nodes.get(node.name) },
+      data: {
+        node,
+        status: status.get(node.name),
+        active: node.name === activeNode,
+        heat: heat?.nodes.get(node.name),
+        mark: marks?.get(node.name),
+      },
       selected: selection?.kind === "node" && selection.name === node.name,
       measured: measured[node.name],
     }));
