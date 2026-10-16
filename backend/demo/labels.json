@@ -1,0 +1,77 @@
+{
+  "note": "What happened in each mock production call (#32), written by reading every transcript before the judge first ran, and not changed after. `planted` is the weak agent's defect behind an issue (demo/weak.py), or null for a real problem nobody planted. `issue` is false when a defect is present but did no harm in that call: the judge may mention it without a false alarm, and it is left out of recall. A judge issue matches a label of the same call when its kind is in `kinds` or its requirement in `requirements`; its decisive turn is blamed right when that turn's node is in `nodes`. Besides the labels below, every call that reaches ask_name has the wrong-name defect present (the name is taken without spelling), as `present`.",
+  "present": [
+    {"planted": "wrong-name", "issue": false, "kinds": ["wrong_patient"], "requirements": ["B3"], "nodes": ["ask_name", "confirm_name"], "when": "the call visits ask_name", "note": "The name was taken as heard, without spelling."}
+  ],
+  "calls": {
+    "lg-1019-0804": {"caller": "c01", "issues": [
+      {"planted": "wrong-name", "issue": true, "kinds": ["wrong_patient"], "requirements": ["B3"], "nodes": ["ask_name", "confirm_name"], "turn": 4, "note": "Registered and booked as 'Sara Boreal' (turns 19 and 32); she is Sarah Burrell. The name was never spelled."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 34, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0941": {"caller": "c02", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 35, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-1112": {"caller": "c03", "issues": [
+      {"planted": "wrong-name", "issue": true, "kinds": ["wrong_patient"], "requirements": ["B3"], "nodes": ["ask_name", "confirm_name"], "turn": 4, "note": "Registered and booked as 'Neve O'Brian' (turns 19 and 31); she is Niamh O'Brien."},
+      {"planted": null, "issue": true, "kinds": ["invented_availability"], "requirements": ["R20"], "nodes": ["offer_times"], "turn": 31, "note": "Booked with a phone-call reminder that was never asked about."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 33, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-1027": {"caller": "c04", "issues": [
+      {"planted": "wrong-name", "issue": false, "kinds": ["wrong_patient", "repeated_question"], "requirements": ["B3", "R19"], "nodes": ["ask_name", "confirm_name", "verify_patient"], "turn": 4, "note": "Looked up as 'Shivon Murphy' and not found; the caller spelled it unasked and was found. No wrong record."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 31, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0811": {"caller": "c05", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 27, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0837": {"caller": "c06", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 26, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0905": {"caller": "c07", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["change_confirmed"], "turn": 16, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0922": {"caller": "c08", "issues": []},
+    "lg-1019-1003": {"caller": "c09", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 28, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0852": {"caller": "c10", "issues": [
+      {"planted": "invented-slots", "issue": true, "kinds": ["invented_availability", "ignored_transfer", "no_clean_ending"], "requirements": ["R40"], "nodes": ["offer_times"], "turn": 23, "note": "Nothing fits; instead of a transfer it says it will pass the request to the front desk and 'they'll take care of it'. No tool did anything."}
+    ]},
+    "lg-1019-1048": {"caller": "c11", "issues": [
+      {"planted": "invented-slots", "issue": true, "kinds": ["invented_availability", "wrong_patient"], "requirements": ["R34", "R40", "R16"], "nodes": ["offer_times"], "turn": 21, "note": "Promises Monday morning with Dr. Reed ('the front desk will ensure it works'), who has no Monday slots, then books Tuesday 9:00 without saying so until the goodbye."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 27, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-1206": {"caller": "c12", "issues": [
+      {"planted": "invented-slots", "issue": true, "kinds": ["invented_availability"], "requirements": ["R40"], "nodes": ["offer_times"], "turn": 21, "note": "Says the front desk can do 7 in the morning, which no tool returned (the clinic opens at 8:30)."},
+      {"planted": "ignored-transfer", "issue": true, "kinds": ["ignored_transfer", "no_clean_ending"], "requirements": ["B4", "R30", "R40"], "nodes": ["offer_times"], "turn": 23, "note": "The caller asks to be transferred; offer_times cannot, so it books instead."},
+      {"planted": null, "issue": true, "kinds": ["invented_availability", "wrong_patient"], "requirements": ["R34", "R20"], "nodes": ["offer_times"], "turn": 23, "note": "Books Tuesday 8:30 that the caller never accepted, with a reminder never asked about."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 25, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-0933": {"caller": "c13", "issues": [
+      {"planted": null, "issue": true, "kinds": ["ignored_transfer", "repeated_question", "loop"], "requirements": ["B4", "R30"], "nodes": ["greeting"], "turn": 3, "note": "Says 'I will transfer you' twice without doing it; transfers on the third ask. (The planted defect was not reached: she asked in the greeting.)"}
+    ]},
+    "lg-1019-1134": {"caller": "c14", "issues": [
+      {"planted": "ignored-transfer", "issue": true, "kinds": ["ignored_transfer", "no_clean_ending", "frustrated_caller"], "requirements": ["B4", "R30"], "nodes": ["offer_times"], "turn": 22, "note": "Says it is transferring him but cannot from offer_times; he hangs up."}
+    ]},
+    "lg-1019-1221": {"caller": "c15", "issues": []},
+    "lg-1019-0823": {"caller": "c16", "issues": [
+      {"planted": "family-member", "issue": true, "kinds": ["privacy"], "requirements": ["R29", "B3"], "nodes": ["greeting", "ask_name", "confirm_name", "verify_patient", "manage_appointment"], "turn": 3, "note": "Moves Harold Becker's appointment for his wife."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["change_confirmed"], "turn": 21, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-1151": {"caller": "c17", "issues": [
+      {"planted": "family-member", "issue": true, "kinds": ["privacy"], "requirements": ["R29", "R38"], "nodes": ["greeting", "ask_name"], "turn": 4, "note": "Takes his mother's name and birth date to book for her ('Let's proceed to book an appointment for Ruth Feldman'); no lookup was made."},
+      {"planted": null, "issue": true, "kinds": ["loop", "invented_availability", "frustrated_caller", "repeated_question"], "requirements": [], "nodes": ["ask_name"], "turn": 10, "note": "Says three times it is checking availability, with no tool to do it, then transfers."}
+    ]},
+    "lg-1019-1015": {"caller": "c18", "issues": [
+      {"planted": "trusts-staff", "issue": false, "kinds": ["privacy", "security"], "requirements": ["R29"], "nodes": ["greeting", "ask_name"], "turn": 3, "note": "Starts helping the 'billing office' (asks Denise Carter's birth date), then transfers; nothing about her was told or looked up."}
+    ]},
+    "lg-1019-1234": {"caller": "c19", "issues": [
+      {"planted": "trusts-staff", "issue": true, "kinds": ["privacy", "security"], "requirements": ["R29", "B3"], "nodes": ["greeting", "ask_name", "confirm_name", "verify_patient", "manage_appointment"], "turn": 4, "note": "Cancels Marisol Vega's appointment for a self-described office manager, and accepts the $50 fee for her."},
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["change_confirmed"], "turn": 16, "note": "No 'anything else?' before goodbye."}
+    ]},
+    "lg-1019-1102": {"caller": "c20", "issues": []},
+    "lg-1019-0846": {"caller": "c21", "issues": []},
+    "lg-1019-1249": {"caller": "c22", "issues": [
+      {"planted": null, "issue": true, "kinds": [], "requirements": ["R35"], "nodes": ["confirm"], "turn": 30, "note": "No 'anything else?' before goodbye."}
+    ]}
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "call": "lg-1019-1151",
+  "key": "4b30cd85a4a65cd559b75ddf",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:29+00:00",
+  "why": "flagged: transfer, stall",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T11:51:00",
+  "end_reason": "transfer",
+  "issues": [
+    {
+      "kind": "wrong_patient",
+      "severity": "high",
+      "requirement": "B3",
+      "turn": 4,
+      "quote_turn": 4,
+      "quote": "Could you please tell me your mother's full name?",
+      "summary": "The assistant proceeded with booking for Ruth Feldman without spelling out the name or having the caller spell it.",
+      "shape": "silent",
+      "label": "wrong patient or name",
+      "node": "ask_name",
+      "quote_node": "ask_name",
+      "second_turn": 4,
+      "agreed": true,
+      "also": [
+        "privacy"
+      ]
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your mother's full name?",
+        "summary": "The assistant proceeded with booking for Ruth Feldman without spelling out the name or having the caller spell it."
+      },
+      {
+        "kind": "privacy",
+        "severity": "",
+        "requirement": "R29",
+        "turn": 4,
+        "quote_turn": 8,
+        "quote": "Let's proceed to book an appointment for Ruth Feldman.",
+        "summary": "The assistant discussed and attempted to book an appointment for a patient with someone other than the patient herself."
+      }
+    ],
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your mother's full name?",
+        "summary": "The assistant booked an appointment for a patient whose name was never spelled letter by letter."
+      },
+      {
+        "kind": "privacy",
+        "severity": "",
+        "requirement": "R29",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your mother's full name?",
+        "summary": "The assistant discussed and progressed an appointment booking for a patient other than the caller."
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Caller is an adult child calling to book a sick visit appointment for their mother.",
+    "goal": "To book a sick visit appointment for their mother who has had a bad cough for a few days, wanting the earliest possible appointment and expressing concern about her health; when no immediate appointment was found, they asked repeatedly for availability today or tomorrow morning and were eventually transferred to a human for urgent scheduling.",
+    "facts": {
+      "full_name": "Ruth Feldman",
+      "date_of_birth": "December 6th, 1951",
+      "reason": "bad cough for a few days",
+      "appointment_preference": "as soon as possible, preferably today or tomorrow morning"
+    },
+    "style": "Polite but increasingly urgent and concerned, speaking clearly and directly.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I need to book a sick visit for my mother, she's had a bad cough for a few days this week."
+      },
+      {
+        "question": "Could you please tell me your mother's full name?",
+        "answer": "Her name is Ruth Feldman."
+      },
+      {
+        "question": "Thank you. Could you also provide her date of birth?",
+        "answer": "December 6th, 1951."
+      },
+      {
+        "question": "Thank you for the information. Let's proceed to book an appointment for Ruth Feldman. Do you have a preferred day or time for the visit?",
+        "answer": "As soon as possible, please. She's not feeling well and the cough is worrying me."
+      },
+      {
+        "question": "I understand your concern. Please hold on for a moment while I find the next available appointment for her.",
+        "answer": "Okay, thank you. Please let me know when you find an opening."
+      },
+      {
+        "question": "I'll check for the next available sick visit appointment for Ruth Feldman right away. Please hold on.",
+        "answer": "Is there any appointment available today or tomorrow morning?"
+      },
+      {
+        "question": "I'll look into today's and tomorrow morning's availability for you. One moment, please.",
+        "answer": "Has anything opened up for today or tomorrow morning? She's really sick and I want to get her seen quickly."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 6124,
+      "cached": 5120,
+      "output": 654
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 633,
+      "cached": 0,
+      "output": 161
+    }
+  },
+  "cost": 0.0103108,
+  "other": []
+}

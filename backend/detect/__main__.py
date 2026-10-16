@@ -5,15 +5,20 @@
 #   the ranked issues as of the last week in the logs (#58)
 # python -m detect eval [--dir DIR] [--trials N]
 #   detection measured against the planted defects, and recall by rate and volume (#58)
+# python -m detect judge WORKSPACE [--rate R] [--force]
+#   the model judge on a workspace's flagged calls plus a sample (#32; model calls, about
+#   4 cents a call, stored per call so a rerun costs nothing)
 #
 
 import argparse
+import asyncio
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
-from . import evaluate, signals, synth, triage
+from . import evaluate, judge, signals, synth, triage
 
 
 def main(argv=None) -> int:
@@ -27,9 +32,15 @@ def main(argv=None) -> int:
     check = commands.add_parser("eval", help="measure detection against the planted defects")
     check.add_argument("--dir", type=Path, default=synth.OUT_DIR)
     check.add_argument("--trials", type=int, default=10, help="seeds per rate and volume in the sweep (0: no sweep)")
+    audit = commands.add_parser("judge", help="judge a workspace's flagged calls plus a sample (model calls)")
+    audit.add_argument("workspace")
+    audit.add_argument("--rate", type=float, default=judge.SAMPLE_RATE, help="the share of unflagged calls judged")
+    audit.add_argument("--force", action="store_true", help="judge again even when a current result is stored")
     args = parser.parse_args(argv)
     if args.command == "synth":
         return synth_command(args)
+    if args.command == "judge":
+        return judge_command(args)
     if not (args.dir / "calls.jsonl").exists():
         print(f"No call logs in {args.dir}: run `make synth` first.", file=sys.stderr)
         return 2
@@ -86,6 +97,39 @@ def eval_command(args) -> int:
     print(f"\n(detection in {seconds:.1f} s" + (f", sweep in {sweep_seconds:.0f} s" if cells else "") + "; no model calls)")
     out = args.dir / "evaluation.json"
     out.write_text(json.dumps({"evaluation": evaluation, "sweep": cells}, indent=2, default=str) + "\n")
+    return 0
+
+
+def judge_command(args) -> int:
+    from dotenv import load_dotenv
+
+    from copilot.workspace import Workspace
+    from sim.llm import Usage, models
+
+    load_dotenv(Path(__file__).parent.parent / ".env", override=True)
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("OPENAI_API_KEY is not set (backend/.env)", file=sys.stderr)
+        return 2
+    workspace = Workspace(args.workspace)
+    if not workspace.calls():
+        print(f"Workspace {args.workspace} has no calls.", file=sys.stderr)
+        return 2
+    usage = Usage()
+
+    def show(result: dict, cached: bool) -> None:
+        if not cached:
+            usage.merge(result["usage"])
+        kinds = ", ".join(f"{i['kind']} at turn {i['turn']} ({i['node']})" for i in result["issues"]) or "no issues"
+        print(f"  {result['call']} [{result['why']}]{' (stored)' if cached else ''}: {kinds}")
+
+    began = time.perf_counter()
+    found = asyncio.run(judge.audit(workspace, models("judge"), rate=args.rate, force=args.force, on_result=show))
+    cost = usage.cost()
+    print(f"Judged {len(found)} of {len(workspace.calls())} calls in {time.perf_counter() - began:.0f} s; "
+          f"{sum(len(r['issues']) for r in found)} issues.")
+    for model, entry in usage.data.items():
+        print(f"  {model}: {entry['requests']} requests, {entry['input']:,} input ({entry['cached']:,} cached), {entry['output']:,} output")
+    print(f"  about ${cost:.2f} for the calls judged now" if cost is not None else "  (a model has no price listed)")
     return 0
 
 

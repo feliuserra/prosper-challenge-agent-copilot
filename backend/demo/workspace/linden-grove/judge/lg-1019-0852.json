@@ -1,0 +1,172 @@
+{
+  "call": "lg-1019-0852",
+  "key": "a355b83829dd46fc909912f9",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:35+00:00",
+  "why": "flagged: hang_up, tool_error",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T08:52:00",
+  "end_reason": "caller_hung_up",
+  "issues": [
+    {
+      "kind": "invented_availability",
+      "severity": "high",
+      "requirement": "R40",
+      "turn": 25,
+      "quote_turn": 25,
+      "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+      "summary": "The assistant said the front desk would arrange a visit, but did not actually transfer the caller.",
+      "shape": "silent",
+      "label": "invented availability",
+      "node": "offer_times",
+      "quote_node": "offer_times",
+      "second_turn": 25,
+      "agreed": true,
+      "also": [
+        "no_clean_ending"
+      ]
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "invented_availability",
+        "severity": "",
+        "requirement": "R40",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+        "summary": "The assistant said the front desk would arrange a visit, but did not actually transfer the caller."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R40",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+        "summary": "The call ended without the caller's request being completed or a real transfer to the front desk."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R40",
+        "turn": 23,
+        "quote_turn": 25,
+        "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+        "summary": "The assistant should have actually transferred the caller to the front desk when no suitable appointment slots were available, not just promised to pass the request.",
+        "severity": "high"
+      }
+    ],
+    [
+      {
+        "kind": "invented_availability",
+        "severity": "",
+        "requirement": "R40",
+        "turn": 25,
+        "quote_turn": 25,
+        "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+        "summary": "The assistant promised the front desk would arrange a visit when no tool confirmed this slot existed or the transfer was performed."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R40",
+        "turn": 23,
+        "quote_turn": 25,
+        "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+        "summary": "The assistant failed to transfer the call to the front desk after offering to do so and instead ended the call."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R40",
+        "turn": 23,
+        "quote_turn": 23,
+        "quote": "I can pass this request to the front desk who can often accommodate special requests. Would you like me to do that?",
+        "summary": "The assistant should have actually transferred the call to the front desk, not just claimed they would pass a request.",
+        "severity": "high"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Ivan Petrov, a 48-year-old existing patient calling for himself",
+    "goal": "To book a follow-up visit to discuss cholesterol results, specifically requesting a weekday evening appointment after 6:30 PM or a Sunday; he declined offered morning slots and asked to have his request passed to the front desk for special accommodation.",
+    "facts": {
+      "full_name": "Ivan Petrov",
+      "date_of_birth": "October 28th, 1977",
+      "reason": "discuss my cholesterol results",
+      "appointment_type": "follow-up visit",
+      "insurance_plan": "unitedhealthcare",
+      "preferred_times": "weekday evening after 6:30 or Sunday",
+      "phone": "555-014-3111"
+    },
+    "style": "Clear and polite, straightforward in stating needs and preferences, cooperative but firm about appointment time requirements.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I want to book a follow-up visit to discuss my cholesterol results. I need an appointment on a weekday evening after 6:30 or on a Sunday, please."
+      },
+      {
+        "question": "May I have your full name, please?",
+        "answer": "My name is Ivan Petrov."
+      },
+      {
+        "question": "Did you say your name is Ivan Petrov?",
+        "answer": "Yes, that's correct."
+      },
+      {
+        "question": "Could I have your date of birth, please?",
+        "answer": "October 28th, 1977."
+      },
+      {
+        "question": "What will this follow-up visit be for?",
+        "answer": "It's to discuss my cholesterol results."
+      },
+      {
+        "question": "I have appointments with Dr. Marcus Reed on Tuesday the 20th at 9 AM and 9:30 AM. Do either of these work for you, or would you prefer I look for something else?",
+        "answer": "Neither of those times work for me. I need an appointment on a weekday evening after 6:30 or on a Sunday, please."
+      },
+      {
+        "question": "Although I couldn't find any available slots in the evening or on a Sunday, I can pass this request to the front desk who can often accommodate special requests. Would you like me to do that?",
+        "answer": "Yes, please pass my request to the front desk for a weekday evening after 6:30 or Sunday. I cannot do daytime or early evening before 6:30."
+      },
+      {
+        "question": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday. They'll take care of it. Have a great day!",
+        "answer": "Thank you for your help. Goodbye."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 4,
+      "input": 17260,
+      "cached": 14208,
+      "output": 1764
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1628,
+      "cached": 1408,
+      "output": 186
+    }
+  },
+  "cost": 0.0278464,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R40",
+      "turn": 23,
+      "quote_turn": 25,
+      "quote": "I'll pass your request to the front desk to arrange a visit on a weekday evening after 6:30 or on Sunday.",
+      "summary": "The assistant should have actually transferred the caller to the front desk when no suitable appointment slots were available, not just promised to pass the request.",
+      "severity": "high",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "offer_times",
+      "quote_node": "offer_times",
+      "second_turn": 23,
+      "agreed": true
+    }
+  ]
+}

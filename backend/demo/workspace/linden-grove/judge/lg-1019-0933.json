@@ -1,0 +1,157 @@
+{
+  "call": "lg-1019-0933",
+  "key": "4b7d96a1184095d98018b59a",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:33+00:00",
+  "why": "flagged: transfer",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T09:33:00",
+  "end_reason": "transfer",
+  "issues": [
+    {
+      "kind": "ignored_transfer",
+      "severity": "medium",
+      "requirement": "B4",
+      "turn": 3,
+      "quote_turn": 3,
+      "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+      "summary": "The assistant said it would transfer the caller but did not actually transfer until later.",
+      "shape": "silent",
+      "label": "transfer not made",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": null,
+      "agreed": false,
+      "also": []
+    },
+    {
+      "kind": "frustrated_caller",
+      "severity": "medium",
+      "requirement": "",
+      "turn": 5,
+      "quote_turn": 5,
+      "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+      "summary": "The assistant's repeated response without transferring led to caller frustration.",
+      "shape": "leak",
+      "label": "frustrated caller",
+      "node": "greeting",
+      "quote_node": "greeting",
+      "second_turn": 5,
+      "agreed": true,
+      "also": [
+        "loop"
+      ]
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "loop",
+        "severity": "",
+        "requirement": "",
+        "turn": 5,
+        "quote_turn": 5,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant repeated the transfer statement for the same billing request without progress."
+      },
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "B4",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant said it would transfer the caller but did not actually transfer until later."
+      },
+      {
+        "kind": "frustrated_caller",
+        "severity": "",
+        "requirement": "",
+        "turn": 5,
+        "quote_turn": 5,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant's repeated response without transferring led to caller frustration."
+      }
+    ],
+    [
+      {
+        "kind": "loop",
+        "severity": "",
+        "requirement": "",
+        "turn": 5,
+        "quote_turn": 5,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant repeated its transfer statement multiple times before actually executing the transfer."
+      },
+      {
+        "kind": "ignored_transfer",
+        "severity": "",
+        "requirement": "",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant promised a transfer but did not trigger an actual transfer until later."
+      },
+      {
+        "kind": "frustrated_caller",
+        "severity": "",
+        "requirement": "",
+        "turn": 5,
+        "quote_turn": 6,
+        "quote": "I already asked to speak to someone about my bill. Can you please connect me to a person at the front desk?",
+        "summary": "The caller became frustrated because the assistant had still not transferred them after promising to do so."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R30",
+        "turn": 3,
+        "quote_turn": 3,
+        "quote": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "summary": "The assistant should have immediately used the transfer tool when a billing question was mentioned, but it only promised a transfer without acting on it.",
+        "severity": "high"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Aisha Rahman, a patient calling about her own billing issue.",
+    "goal": "To speak to someone at the front desk about a bill she received that she believes should have been covered by her insurance; she was initially transferred to automated help but insisted on speaking to a human.",
+    "facts": {
+      "full_name": "Aisha Rahman",
+      "bill_amount": "$125",
+      "issue": "Received a bill for $125 for last visit, but insurance should have covered it"
+    },
+    "style": "Polite but firm, clearly stating her issue and insisting on speaking to a human representative.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I wanted to book a follow-up appointment, but actually I have a question about a bill I received last week. Could I speak to someone at the front desk about it?"
+      },
+      {
+        "question": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "answer": "Hello, this is Aisha Rahman. I received a bill for $125 for my last visit, but my insurance should have covered it. Could you please help me understand this charge?"
+      },
+      {
+        "question": "I will transfer you to someone who can help with your billing question. Please hold on for just a moment.",
+        "answer": "I already asked to speak to someone about my bill. Can you please connect me to a person at the front desk?"
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 4,
+      "input": 12608,
+      "cached": 8832,
+      "output": 1644
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 486,
+      "cached": 0,
+      "output": 128
+    }
+  },
+  "cost": 0.0255192,
+  "other": []
+}

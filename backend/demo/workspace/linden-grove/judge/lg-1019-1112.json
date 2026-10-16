@@ -1,0 +1,201 @@
+{
+  "call": "lg-1019-1112",
+  "key": "2d018575247f18b277a0adab",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:32+00:00",
+  "why": "flagged: stall",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T11:12:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "wrong_patient",
+      "severity": "high",
+      "requirement": "B3",
+      "turn": 4,
+      "quote_turn": 4,
+      "quote": "Could you please tell me your full name so I can help you with that?",
+      "summary": "The assistant booked an appointment for a patient whose name was never spelled out letter by letter.",
+      "shape": "silent",
+      "label": "wrong patient or name",
+      "node": "ask_name",
+      "quote_node": "ask_name",
+      "second_turn": 4,
+      "agreed": true,
+      "also": []
+    },
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 33,
+      "quote_turn": 33,
+      "quote": "Thank you, Neve, and have a great day. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 33,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your full name so I can help you with that?",
+        "summary": "The assistant booked an appointment for a patient whose name was never spelled out letter by letter."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 33,
+        "quote_turn": 33,
+        "quote": "Thank you, Neve, and have a great day. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R20",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-19-1130\", \"reason\": \"Blood pressure check\", \"appointment_type\": \"new_patient\", \"reminder\": \"call\"})",
+        "summary": "The assistant did not ask the caller how they wanted to receive appointment reminders before booking.",
+        "severity": "medium"
+      }
+    ],
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 4,
+        "quote": "Could you please tell me your full name so I can help you with that?",
+        "summary": "The assistant booked under a name that was never spelled out by the caller or confirmed letter by letter."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 33,
+        "quote_turn": 33,
+        "quote": "Thank you, Neve, and have a great day. Goodbye!",
+        "summary": "The assistant did not ask if there was anything else before ending the call."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R20",
+        "turn": 31,
+        "quote_turn": 31,
+        "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-19-1130\", \"reason\": \"Blood pressure check\", \"appointment_type\": \"new_patient\", \"reminder\": \"call\"})",
+        "summary": "The assistant did not ask the patient whether they want a reminder by text, phone call, or no reminder before booking.",
+        "severity": "medium"
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R17",
+        "turn": 19,
+        "quote_turn": 19,
+        "quote": "register_patient({\"full_name\": \"Neve O'Brian\", \"date_of_birth\": \"1959-01-09\", \"phone\": \"555-020-6613\", \"insurance_plan\": \"Medicare\"})",
+        "summary": "The assistant did not confirm the spelling of the patient’s name before registration (full name should be spelled out).",
+        "severity": "high"
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Neve O'Brian, an adult new patient calling to register and schedule her first appointment.",
+    "goal": "To become a patient at the clinic and book a first appointment to have her blood pressure checked; she accepted the offered appointment slot with Dr. Sofia Alvarez on Monday the 19th at 11:30.",
+    "facts": {
+      "full_name": "Neve O'Brian",
+      "date_of_birth": "January 9th, 1959",
+      "phone": "555-020-6613",
+      "insurance_plan": "Medicare",
+      "reason": "blood pressure checked"
+    },
+    "style": "Speaks hesitantly with some filler words like 'um' and 'uh', polite and cooperative.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "Um, yes, I'd like to become a patient and, uh, make a first appointment, please."
+      },
+      {
+        "question": "Could you please tell me your full name so I can help you with that?",
+        "answer": "Yes, my name is Neve O'Brian."
+      },
+      {
+        "question": "Did I get that right? Neve O'Brian?",
+        "answer": "Yes, that's right, Neve O'Brian, please."
+      },
+      {
+        "question": "Could you please provide your date of birth?",
+        "answer": "January 9th, 1959."
+      },
+      {
+        "question": "I couldn't find a record for Neve O'Brian. Are you new to the clinic?",
+        "answer": "Yes, I am new to the clinic."
+      },
+      {
+        "question": "Thank you for that. Could you share the best phone number to reach you at?",
+        "answer": "The best number is 555-020-6613."
+      },
+      {
+        "question": "Thank you. What insurance plan will you be using, or will you be self-paying?",
+        "answer": "I'll be using Medicare, please."
+      },
+      {
+        "question": "What will your first visit be for, Neve?",
+        "answer": "Um, it's to have my blood pressure checked, please."
+      },
+      {
+        "question": "We have an available slot on Monday the 19th at 11:30 with Dr. Sofia Alvarez, or at noon with Nina Brooks. Which one works for you?",
+        "answer": "Um, Monday the 19th at 11:30 with Dr. Alvarez would be fine, please."
+      },
+      {
+        "question": "Shall I book Monday the 19th at 11:30 with Dr. Alvarez for you?",
+        "answer": "Yes, please, go ahead and book that appointment."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 8498,
+      "cached": 6656,
+      "output": 966
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1821,
+      "cached": 1664,
+      "output": 157
+    }
+  },
+  "cost": 0.0152204,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R20",
+      "turn": 31,
+      "quote_turn": 31,
+      "quote": "book_appointment({\"patient_id\": \"pat-016\", \"slot_id\": \"dr-alvarez-2026-10-19-1130\", \"reason\": \"Blood pressure check\", \"appointment_type\": \"new_patient\", \"reminder\": \"call\"})",
+      "summary": "The assistant did not ask the caller how they wanted to receive appointment reminders before booking.",
+      "severity": "medium",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "offer_times",
+      "quote_node": "offer_times",
+      "second_turn": 31,
+      "agreed": true
+    }
+  ]
+}

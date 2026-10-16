@@ -1,0 +1,178 @@
+{
+  "call": "lg-1019-1003",
+  "key": "28af892699f622c2ae60ebde",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:33+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T10:03:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "wrong_patient",
+      "severity": "high",
+      "requirement": "B3",
+      "turn": 4,
+      "quote_turn": 7,
+      "quote": "Did I get that right as Beatriz Santos?",
+      "summary": "The assistant booked an appointment without having the caller spell their full name letter by letter.",
+      "shape": "silent",
+      "label": "wrong patient or name",
+      "node": "ask_name",
+      "quote_node": "confirm_name",
+      "second_turn": 4,
+      "agreed": true,
+      "also": []
+    },
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 28,
+      "quote_turn": 28,
+      "quote": "Your appointment is booked, Beatriz Santos, for Monday the 19th at 11:00 with Dr. Alvarez. Thank you for calling, and have a great day. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "confirm",
+      "quote_node": "confirm",
+      "second_turn": 28,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 7,
+        "quote": "Did I get that right as Beatriz Santos?",
+        "summary": "The assistant booked an appointment without having the caller spell their full name letter by letter."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 28,
+        "quote_turn": 28,
+        "quote": "Your appointment is booked, Beatriz Santos, for Monday the 19th at 11:00 with Dr. Alvarez. Thank you for calling, and have a great day. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      },
+      {
+        "kind": "requirement",
+        "requirement": "R34",
+        "turn": 22,
+        "quote_turn": 22,
+        "quote": "Shall I book Monday the 19th at 11:00 with Dr. Alvarez for your annual physical?",
+        "summary": "The assistant did not repeat the day, time, and provider again after the caller confirmed, before booking the appointment.",
+        "severity": "low"
+      }
+    ],
+    [
+      {
+        "kind": "wrong_patient",
+        "severity": "",
+        "requirement": "B3",
+        "turn": 4,
+        "quote_turn": 7,
+        "quote": "Did I get that right as Beatriz Santos?",
+        "summary": "Assistant took the caller's name without requesting or confirming spelling before looking up the patient."
+      },
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 28,
+        "quote_turn": 28,
+        "quote": "Your appointment is booked, Beatriz Santos, for Monday the 19th at 11:00 with Dr. Alvarez. Thank you for calling, and have a great day. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Beatriz Santos, born June 21st, 1993, an existing patient calling for herself",
+    "goal": "To book her annual physical appointment; she accepted the offered appointment time of Monday the 19th at 11:00 with Dr. Alvarez and requested a text reminder",
+    "facts": {
+      "full_name": "Beatriz Santos",
+      "date_of_birth": "June 21st, 1993",
+      "reason": "yearly check-up examination",
+      "insurance_plan": "aetna",
+      "appointment_type": "annual_physical",
+      "preferred_appointment_time": "Monday the 19th at 11:00",
+      "preferred_provider": "Dr. Alvarez",
+      "reminder_preference": "text"
+    },
+    "style": "Polite and clear, responding affirmatively and providing requested information promptly.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I would like to book my annual physical appointment, please."
+      },
+      {
+        "question": "Could you please let me know your full name to book your annual physical appointment?",
+        "answer": "My full name is Beatriz Santos."
+      },
+      {
+        "question": "Did I get that right as Beatriz Santos?",
+        "answer": "Yes, that's correct."
+      },
+      {
+        "question": "Could you please tell me your date of birth?",
+        "answer": "June 21st, 1993."
+      },
+      {
+        "question": "What is the reason for your annual physical appointment?",
+        "answer": "It is for my yearly check-up examination."
+      },
+      {
+        "question": "We have an appointment available on Monday the 19th at 10:30 with Dr. Alvarez, or another at 11:00 the same day. Which one works for you?",
+        "answer": "I would like the 11:00 appointment on Monday the 19th, please."
+      },
+      {
+        "question": "Shall I book Monday the 19th at 11:00 with Dr. Alvarez for your annual physical?",
+        "answer": "Yes, please book that appointment for me."
+      },
+      {
+        "question": "How would you like to receive a reminder the day before your appointment: by text, by call, or not at all?",
+        "answer": "Please send me a reminder by text."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 4,
+      "input": 17241,
+      "cached": 14080,
+      "output": 1546
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 1659,
+      "cached": 1536,
+      "output": 184
+    }
+  },
+  "cost": 0.0262272,
+  "other": [
+    {
+      "kind": "requirement",
+      "requirement": "R34",
+      "turn": 22,
+      "quote_turn": 22,
+      "quote": "Shall I book Monday the 19th at 11:00 with Dr. Alvarez for your annual physical?",
+      "summary": "The assistant did not repeat the day, time, and provider again after the caller confirmed, before booking the appointment.",
+      "severity": "low",
+      "shape": "silent",
+      "label": "requirement broken",
+      "node": "offer_times",
+      "quote_node": "offer_times",
+      "second_turn": null,
+      "agreed": false
+    }
+  ]
+}

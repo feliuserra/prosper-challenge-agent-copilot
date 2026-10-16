@@ -1,0 +1,102 @@
+{
+  "call": "lg-1019-0905",
+  "key": "a870a2dc2f358e77af24b449",
+  "judge_version": "32.3",
+  "judged": "2026-10-16T15:18:26+00:00",
+  "why": "sampled",
+  "clinic": "linden-grove",
+  "version": 1,
+  "agent_hash": "55ad66164f7475a6",
+  "start": "2026-10-19T09:05:00",
+  "end_reason": "end_node",
+  "issues": [
+    {
+      "kind": "no_clean_ending",
+      "severity": "low",
+      "requirement": "R35",
+      "turn": 16,
+      "quote_turn": 16,
+      "quote": "Thank you for calling Linden Grove Family Practice, and have a safe trip. Goodbye!",
+      "summary": "The assistant ended the call without asking if there was anything else the caller needed.",
+      "shape": "leak",
+      "label": "no clean ending",
+      "node": "change_confirmed",
+      "quote_node": "change_confirmed",
+      "second_turn": 16,
+      "agreed": true,
+      "also": []
+    }
+  ],
+  "runs": [
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 16,
+        "quote_turn": 16,
+        "quote": "Thank you for calling Linden Grove Family Practice, and have a safe trip. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      }
+    ],
+    [
+      {
+        "kind": "no_clean_ending",
+        "severity": "",
+        "requirement": "R35",
+        "turn": 16,
+        "quote_turn": 16,
+        "quote": "Thank you for calling Linden Grove Family Practice, and have a safe trip. Goodbye!",
+        "summary": "The assistant ended the call without asking if there was anything else the caller needed."
+      }
+    ]
+  ],
+  "card": {
+    "persona": "Tomas Lindqvist, a 42-year-old patient calling for himself",
+    "goal": "To cancel his upcoming annual physical appointment on Thursday morning; he confirmed the appointment details and agreed to cancel it, stating he will call again after his work trip to reschedule.",
+    "facts": {
+      "full_name": "Tomas Lindqvist",
+      "spelling": "T-O-M-A-S L-I-N-D-Q-V-I-S-T",
+      "date_of_birth": "July 4th, 1983",
+      "appointment_date": "Thursday the 22nd",
+      "appointment_time": "9 AM",
+      "appointment_reason": "Annual physical",
+      "provider": "Dr. Sofia Alvarez"
+    },
+    "style": "Clear and polite, providing requested information promptly and confirming details before proceeding.",
+    "answers": [
+      {
+        "question": "Thank you for calling Linden Grove Family Practice, this is the automated scheduling assistant. How can I help you today?",
+        "answer": "I need to cancel my physical appointment on Thursday morning."
+      },
+      {
+        "question": "I'll help with that. Could you please provide the name and date of birth of the person who has the appointment?",
+        "answer": "My name is Tomas Lindqvist, T-O-M-A-S L-I-N-D-Q-V-I-S-T. My date of birth is July 4th, 1983."
+      },
+      {
+        "question": "I have the name as Tomas Lindqvist. Is that correct?",
+        "answer": "Yes, that's correct."
+      },
+      {
+        "question": "You have an appointment for an annual physical with Dr. Sofia Alvarez on Thursday the 22nd at 9 AM. Is this the appointment you want to cancel?",
+        "answer": "Yes, please cancel that appointment. I will call again after my work trip to reschedule."
+      }
+    ]
+  },
+  "usage": {
+    "gpt-4.1-2025-04-14": {
+      "requests": 2,
+      "input": 6474,
+      "cached": 5632,
+      "output": 600
+    },
+    "gpt-4.1-mini-2025-04-14": {
+      "requests": 1,
+      "input": 809,
+      "cached": 0,
+      "output": 173
+    }
+  },
+  "cost": 0.0099004,
+  "other": []
+}
