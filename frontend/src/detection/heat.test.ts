@@ -291,8 +291,8 @@ describe("options", () => {
   });
 
   it("show an issue against the version it started in when that flagged it", () => {
-    expect(optionsFor(detection.issues[0])).toEqual({ clinic: "a", version: "2", compare: "version", signal: "reentry" });
-    expect(optionsFor(detection.issues[1]).compare).toBe("fleet");
+    expect(optionsFor(detection.issues[0] as Issue)).toEqual({ clinic: "a", version: "2", compare: "version", signal: "reentry" });
+    expect(optionsFor(detection.issues[1] as Issue).compare).toBe("fleet");
   });
 
   it("round-trip through a link", () => {

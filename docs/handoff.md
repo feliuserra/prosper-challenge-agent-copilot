@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-16: #30 merged; #31 in review: the thin Copilot panel, checked against the stub backend, the user's real check pending)
+## 0. Status (updated 2026-10-16: #31 merged; #32 in review: the judge on a sample and the calls inbox, thin cuts of 2026-10-16)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -43,12 +43,23 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #28 Workspaces and versions (minimal, cuts of 2026-10-15) | Merged (see "What #28 built") | #70 |
 | #29 Spec step and edit operations (cuts of 2026-10-15) | Merged (see "What #29 built") | #71 |
 | #30 Build from the template and loop (cuts of 2026-10-15) | Merged (see "What #30 built"): 13 of 20 reference tests, below the 18 asked | #72, #73 |
-| #31 Copilot panel (thin, cuts of 2026-10-15) | In review (see "What #31 built"); the user's one real run is still to do | (this PR) |
-| #32 to #35 | Open, in the order of `PLAN-phase2.md` | |
+| #31 Copilot panel (thin, cuts of 2026-10-15) | Merged (see "What #31 built"); the user's real run worked end to end | #75 |
+| #32 Judge on a sample and calls inbox (thin, cuts of 2026-10-16) | In review (see "What #32 built") | (this PR) |
+| #33 to #35 | Open, in the order of `PLAN-phase2.md` | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** the user's real run of #31 in the browser (see "What #31 built"), then #34 and #11. Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built": the cheapest next fix is a "Shall I book...?" read-back in the template's `offer_times`, then `make eval COPILOT=1 NO_LOOP=1`, about $2.20). Read #31's "Approach and cuts" on GitHub first. The build streams SSE from `POST /copilot/workspaces/{id}/build` and stores proposals in the workspace; `POST .../proposals/{n}/accept` writes one. The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+**Next step:** the user's review of #32 (see "What #32 built"), then #33 (fix from an issue: its wrong-name issue, caller cards and decisive turns are in the demo seed), #34 and #11. Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built": the cheapest next fix is a "Shall I book...?" read-back in the template's `offer_times`, then `make eval COPILOT=1 NO_LOOP=1`, about $2.20). Read #31's "Approach and cuts" on GitHub first. The build streams SSE from `POST /copilot/workspaces/{id}/build` and stores proposals in the workspace; `POST .../proposals/{n}/accept` writes one. The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+
+What #32 built (backend and frontend; thin cuts decided with the user on 2026-10-16, in the PR):
+- Decided: the thin scope (cut: `continue_from` rollouts when the judge's two runs disagree, issues as a third kind in the problems list and node badges, real recorded voice calls, since none were recorded, and model-matched tickets); the five planted defects below, the user adding "malicious callers / basic pen testing"; up to about $5 of model calls. Spent $2.78.
+- `backend/demo/` (the seed): `weak.py` builds the weak Linden Grove agent from clinic-a's reference agent with five defects, three of them #27's mutants: `wrong-name` (M15: no spelling), `invented-slots` (offer the asked-for time when none fits), `ignored-transfer` (no `transfer_to_human` in collect_reason and offer_times), `family-member` (M1), `trusts-staff` (a persona line letting "staff" change any patient's appointments). `callers.json`: 22 hidden callers (garbled names, impossible hours, mid-call transfer requests, relatives, a fake billing office and office manager, a prompt injection, a fee manipulation, clean calls). `generate.py` makes the calls with the text runner through simulated speech-to-text: a caller's `garbles` turn "Sarah Burrell" into "Sara Boreal" on the way to the agent and back again on the way to the caller (homophones), letters untouched, which is what M15 lacked in #27. `workspace/linden-grove/`: spec (copied from clinic-a's, #29), version 1, the 22 `production-mock` call records (6 MB, with the flight recorder), 3 tickets, and the judge's results. `labels.json`: what happened in each call, written by reading every transcript before the judge first ran and not changed after (10 planted issues that did harm, 17 real ones nobody planted, mostly R35 "anything else?"). `evaluate.py` is its only reader.
+- `backend/detect/judge.py` (tier 2): `select` (every call with a tier-1 event on its own path, plus a per-call hashed sample at `rate`; 13 of the 22 are flagged, and three planted failures sit in unflagged calls), the judge (gpt-4.1, strict JSON through `repair.ask`, which now takes a model and temperature: every checklist item answered broken or not, plus other broken requirements; code checks each turn, quote and requirement id), run twice (temperature 0, then 1: the second run only checks the decisive turn), the node from the record's turn, one issue per decisive turn (other kinds under `also`), requirement-only findings kept as `other` (shown with the call, not ranked: 12 of pass 3's 15 false alarms were literal readings of the spec's "must state" requirements), `no_clean_ending` low on a call that reached an end node. Caller card (gpt-4.1-mini plus the recorded answers). Tickets matched by phone, then name, in tool calls. `inbox` groups by clinic, node and shape and ranks by weight times the judged share times the clinic's calls a week from the logs; `merge` joins #58's issues with the same id. Results in `workspaces/<id>/judge/<call>.json`, keyed by the call, requirements, models, prompts and `JUDGE_VERSION` (32.3).
+- API: `/composer/detection` merges the judge's issues (`source`, `judge`, `judged`); `GET /composer/calls`; `GET /composer/calls/{workspace}/{call}` (turns without context, path, judge result, matched tickets). `make demo-seed` (installs `agents/linden-grove.json` and `workspaces/linden-grove/`, no model calls), `make demo-calls` (paid), `make judge` (paid, stored per call), `make judge-eval`.
+- Frontend: the judge's groups in the issues panel (a `judge` chip, "6 of 22 judged calls", their calls with quotes; they do not tint the heatmap, since their versions are the workspace's), and a Calls tab in the right column (`components/sideStore.ts` now holds the tab): the judged calls, then a call with its tickets, issues (quote, decisive turn, whether the second run agreed), other findings, caller card, path and transcript; opening an issue scrolls to the quoted turn and selects the decisive node.
+- Results (final rule, from the stored runs): 8 of 10 planted issues found (wrong-name 2/2, family 2/2, staff 1/1, invented 2/3, ignored transfer 1/2), 2 false alarms in 22 calls (both "security" on calls where the agent held), decisive turn in the planted node 8/8, all labelled issues 22/27, second run agreed on 81%, cards hold 85% of the hidden facts (not the true name where speech-to-text garbled it), tickets 3/3. The judge prompt was changed twice after seeing misses (pass 1: 7/10 and 4 false alarms; pass 2: 7/10 and 3; pass 3 as answered: 9/10 and 15), so these 22 calls no longer measure it blind. `test_the_judge_meets_its_bar_on_the_seed` pins the numbers.
+- Checked in the browser pane on 7861/5174: the inbox, a judged call opened at its quote with the node selected, the list, tickets. At 1024 px with the inbox and the right column open the canvas has no width and React Flow logs NaN errors (not new).
+- Tests: 434 pytest (21 new: `test_demo.py`, `test_judge.py`), 265 Vitest (6 new in `detection/calls.test.ts`).
 
 What #31 built (frontend, plus the backend the panel needed; cuts of 2026-10-15, see the issue's "Approach and cuts"), for reference:
 - The right-hand column has two tabs, Copilot and Test call (the #7 panel, unchanged), in the call panel's place (`components/SideColumn.tsx`); the toolbar's Copilot and Test call buttons open them. `callStore.panelOpen` is gone.
@@ -325,12 +336,14 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 413 tests) + Vitest (frontend, 259 tests) |
+| `make test` | pytest (backend, 434 tests) + Vitest (frontend, 265 tests) |
 | `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 | `make synth` | Write the synthetic call logs, clinic records and labels to `backend/.synth/` (#57; no model calls, about 6 s) |
 | `make detect` | The ranked issues in the call logs (#58; about 5 s) |
 | `make detect-eval` | Detection measured against the planted defects, with the recall sweep (#58; about 45 s; `--trials 0` skips the sweep) |
+| `make demo-seed` | Install the demo's weak Linden Grove agent, its 22 mock production calls, tickets and judge results (#32; no model calls) |
+| `make judge` / `make judge-eval` | The model judge on a workspace's calls (#32; paid, stored per call) / measured against the demo's labels (free) |
 
 **Testing without disturbing the user.** The user often has `make dev` running on 7860/5173. Do not kill their processes. Run a second backend and frontend on spare ports instead:
 

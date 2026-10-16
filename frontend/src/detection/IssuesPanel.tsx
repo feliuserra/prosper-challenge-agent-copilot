@@ -1,13 +1,16 @@
 import { displayName } from "../agent/names";
 import { useAgentStore } from "../store/agentStore";
+import { useCallsStore } from "./callsStore";
 import { useDetectionStore } from "./detectionStore";
 import { HeatControls } from "./HeatControls";
 import { issuesAt, pathText, previousVersion, SIGNAL_ORDER, signalLabel, SIGNIFICANT, type HeatOptions } from "./heat";
-import type { CallSummary, Detection, Issue, SignalKey } from "./types";
+import { isJudgeIssue, type CallSummary, type Detection, type Issue, type JudgeGroup, type JudgeIssue, type SignalKey } from "./types";
 
-// The ranked issues from the call logs (#58) beside the canvas (#59). Clicking an
-// issue shows its clinic, version and signal on the canvas, selects its node and
-// lists its example calls; selecting a node lists its numbers and its issues.
+// The ranked issues from the call logs (#58) beside the canvas (#59), with the model
+// judge's (#32) in the same list. Clicking an issue shows its clinic, version and signal
+// on the canvas, selects its node and lists its example calls; a judge's issue lists its
+// calls with their quotes, and each opens in the Calls tab at the quoted turn. Selecting
+// a node lists its numbers and its issues.
 
 const pct = (rate: number) => `${(rate * 100).toFixed(rate < 0.1 ? 1 : 0)}%`;
 const count = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -29,6 +32,7 @@ export function IssuesPanel() {
   const setOpen = useDetectionStore((s) => s.setOpen);
   const selection = useAgentStore((s) => s.selection);
   const nodeNames = useAgentStore((s) => s.agent?.nodes.map((n) => n.name).join("\n") ?? "");
+  const judged = load.state === "ready" ? Object.values(load.data.judged ?? {}).reduce((a, b) => a + b, 0) : 0;
 
   return (
     <aside className="issues-panel nokey" aria-label="Issues from the call logs">
@@ -46,18 +50,29 @@ export function IssuesPanel() {
           <HeatControls />
           <p className="muted issues-summary">
             Week of {weekName(load.data.week)}: {load.data.issues.length} issues in {count(load.data.calls)} calls from{" "}
-            {load.data.clinics.length} clinics, no model calls. Most urgent first: severity times extra calls a week.
+            {load.data.clinics.length} clinics, found with no model calls
+            {judged > 0 && `, and by a model judge on ${judged} calls (flagged ones plus a sample)`}. Most urgent first: severity
+            times extra calls a week.
           </p>
           <ol className="issues-list">
-            {load.data.issues.map((issue) => (
-              <IssueItem
-                key={issue.id}
-                issue={issue}
-                data={load.data}
-                open={issue.id === focus}
-                inAgent={nodeNames.split("\n").includes(issue.node)}
-              />
-            ))}
+            {load.data.issues.map((issue) =>
+              isJudgeIssue(issue) ? (
+                <JudgeItem
+                  key={issue.id}
+                  issue={issue}
+                  open={issue.id === focus}
+                  inAgent={nodeNames.split("\n").includes(issue.node)}
+                />
+              ) : (
+                <IssueItem
+                  key={issue.id}
+                  issue={issue}
+                  data={load.data}
+                  open={issue.id === focus}
+                  inAgent={nodeNames.split("\n").includes(issue.node)}
+                />
+              ),
+            )}
           </ol>
           {selection?.kind === "node" && <NodeNumbersView data={load.data} options={options} node={selection.name} />}
         </>
@@ -98,6 +113,7 @@ function IssueItem({ issue, data, open, inAgent }: { issue: Issue; data: Detecti
             ))}
           </ul>
           <Trend issue={issue} />
+          {issue.judge && <JudgeCalls group={issue.judge} />}
           <h3>Example calls</h3>
           <ul className="examples">
             {issue.examples.map((id) => (
@@ -107,6 +123,63 @@ function IssueItem({ issue, data, open, inAgent }: { issue: Issue; data: Detecti
         </div>
       )}
     </li>
+  );
+}
+
+/** An issue only the model judge found (#32): judged calls, not a signal's rate. */
+function JudgeItem({ issue, open, inAgent }: { issue: JudgeIssue; open: boolean; inAgent: boolean }) {
+  const focusIssue = useDetectionStore((s) => s.focusIssue);
+  return (
+    <li className={open ? "issue open" : "issue"}>
+      <button className="issue-head" onClick={() => focusIssue(open ? null : issue)} aria-expanded={open}>
+        <span className="issue-title">
+          {issue.clinic} · {displayName(issue.node)}
+        </span>
+        <span className={`chip shape-${issue.shape}`}>{issue.shape}</span>
+        <span className={`chip severity-${issue.severity}`}>{issue.severity}</span>
+        <span className="chip judge">judge</span>
+        <span className="issue-line">
+          {issue.label[0].toUpperCase() + issue.label.slice(1)}: {issue.affected} of {issue.judged} judged calls
+        </span>
+        <span className="issue-line muted">
+          About {count(issue.extra_per_week)} calls a week at {count(issue.volume)} a week · v{issue.version}
+        </span>
+      </button>
+      {open && (
+        <div className="issue-body">
+          {!inAgent && <p className="muted">The open agent has no node called {issue.node}.</p>}
+          <JudgeCalls group={issue.judge} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** A judge group's calls with their quotes; each opens in the Calls tab at the quote. */
+function JudgeCalls({ group }: { group: JudgeGroup }) {
+  const openCall = useCallsStore((s) => s.openCall);
+  return (
+    <>
+      <h3>
+        Judged calls ({group.affected} of {group.judged})
+      </h3>
+      <ul className="examples judged">
+        {group.calls.map((c) => (
+          <li key={`${c.call}-${c.index}`}>
+            <button className="link judged-call" onClick={() => void openCall(group.workspace, c.call, c.index)}>
+              <strong>{c.call}</strong> <span className="muted">turn {c.quote_turn}</span>
+            </button>
+            <div>
+              {c.label}: “{c.quote}”
+            </div>
+            <div className="muted">
+              {c.summary}
+              {!c.agreed && " The decisive turn is uncertain (the two runs differ)."}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

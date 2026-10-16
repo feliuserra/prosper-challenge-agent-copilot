@@ -3,7 +3,7 @@ import type { Agent } from "../agent/schema";
 import type { Stage } from "../agent/stages";
 import { edgeId } from "../canvas/derive";
 import type { CanvasView } from "../canvas/view";
-import type { Compare, Detection, Issue, SignalKey } from "./types";
+import { isJudgeIssue, type Compare, type Detection, type Issue, type SignalKey } from "./types";
 
 // The call heatmap (#59): the canvas tinted by the call logs. Derived only, never
 // written to the agent (ADR 0001). The detector (#58) decides what is wrong; this
@@ -126,10 +126,12 @@ export function optionsFor(issue: Issue): HeatOptions {
   };
 }
 
-/** Issues at a node for a clinic and version, most urgent first (the API ranks them). */
+/** #58's issues at a node for a clinic and version, most urgent first (the API ranks them).
+ * The judge's own issues (#32) are left out: their versions are the workspace's, not the logs'. */
 export function issuesAt(detection: Detection, options: HeatOptions, node: string): Issue[] {
   return detection.issues.filter(
-    (i) => i.clinic === options.clinic && String(i.version) === options.version && i.node === node,
+    (i): i is Issue =>
+      !isJudgeIssue(i) && i.clinic === options.clinic && String(i.version) === options.version && i.node === node,
   );
 }
 
