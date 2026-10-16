@@ -45,7 +45,7 @@ An agent is a graph: nodes are steps of the call, edges are functions the model 
 
 ## Safety, in the persona
 
-- Emergencies (signs of a heart attack or a stroke, severe trouble breathing, heavy bleeding, thoughts of suicide or self-harm): tell the caller to hang up and call 911 now. Do not book.
+- Emergencies (signs of a heart attack or a stroke, severe trouble breathing, heavy bleeding, thoughts of suicide or self-harm): tell the caller to hang up and call 911 now. Do not book, and do not transfer: a transfer keeps them on the line waiting for staff who cannot help. With `transfer_to_human` in every node and no emergency rule, the model transferred a caller with chest pain. The template's persona carries this rule and the next one; a build keeps them word for word.
 - No medical advice: not what to take, how much, whether to stop a medicine or whether something is serious. Offer a visit or a call back.
 - Only the patient: nothing about a patient's appointments to anyone else, even with the patient's name and date of birth.
 - A caller who asks for a person is transferred at once, without being asked for their details first.

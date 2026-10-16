@@ -35,10 +35,11 @@ import asyncio
 import json
 import re
 import time
+from datetime import date
 from itertools import chain
 from typing import Callable
 
-from clinic import TOOLS, ClinicWorld, validate_clinic
+from clinic import TOOLS, ClinicWorld, normalize_name, validate_clinic
 from clinic.config import RESERVED_FIELDS, WEEKDAYS
 from sim.llm import ChatModel, Usage
 from sim.testfile import CHECKS, END_REASONS, ID_RE, TIERS, validate_tests
@@ -404,7 +405,7 @@ def check_batch(answer: dict, batch: list[dict], configuration: dict) -> tuple[l
     tests = [to_test(planned[i], written[i], configuration) for i in planned if i in written]
     problems += validate_tests(tests, configuration)
     for test in tests:
-        problems += [f"{test['id']}: check {n}: {p}" for n, c in enumerate(test["checks"], 1) for p in lint(c, configuration)]
+        problems += [f"{test['id']}: {p}" for p in lint_test(test, configuration)]
     return [{**t, "status": "draft"} for t in tests], problems
 
 
@@ -428,6 +429,10 @@ RESULTS = {
     "transfer_to_human": {"transferred": None},
 }
 FREE_TEXT = {"reason"}  # arguments the assistant words itself: no check can know them
+# Arguments a tool matches loosely: find_slots takes a provider's name or id, so the
+# assistant passes "Dr. Priya Shah" as often as "dr-shah" and an exact value matches by luck.
+LOOSE = {("find_slots", "provider"): "check who the booking went to with book_appointment's result appointment.provider_id"}
+IDENTIFY = ("lookup_patient", "register_patient")
 
 
 def lint(check: dict, configuration: dict) -> list[str]:
@@ -451,6 +456,133 @@ def lint(check: dict, configuration: dict) -> list[str]:
                 inner = shape[key] | (fields if shape[key] is PATIENT_KEYS else set())
                 problems += [f"{tool}'s {key} has no '{k}'. It has: {', '.join(sorted(inner))}." for k in value if k not in inner]
     return problems
+
+
+def lint_test(test: dict, configuration: dict) -> list[str]:
+    """`lint` for every check, then what only the whole test shows: arguments the caller's
+    card and the test's world do not decide, and identification required before a transfer
+    it does not decide.
+    Both failed correct calls in the Maple Street run (2026-10-16): find_slots with a visit
+    type the caller never named, lookup_patient before a refill's transfer."""
+    problems = []
+    for n, check in enumerate(test["checks"], 1):
+        problems += [f"check {n}: {p}" for p in lint(check, configuration) + undetermined(check, test, configuration)]
+    transfers = any(
+        c["type"] == "transferred" or (c["type"] == "call_ended" and c.get("reason") == "transfer")
+        or (c["type"] == "tool_called" and c.get("tool") == "transfer_to_human")
+        for c in test["checks"]
+    )
+    for n, check in enumerate(test["checks"], 1):
+        # A lookup that finds nobody can be why the caller is transferred: that one stays.
+        decides = (check.get("result") or {}).get("found") is False
+        if transfers and check["type"] == "tool_called" and check.get("tool") in IDENTIFY and not decides:
+            problems.append(
+                f"check {n}: {check['tool']} is required in a test that checks a transfer. A caller who needs a person "
+                "is transferred at once, without being asked for their details first: leave the check out, or, if a "
+                "requirement asks to identify the caller before this transfer, say so in a judge rule."
+            )
+    return problems
+
+
+def undetermined(check: dict, test: dict, configuration: dict) -> list[str]:
+    """Arguments of a check that the caller's card (persona, goal, facts) and the test's
+    patients and appointments do not decide: the assistant chooses them (which visit type
+    fits, a slot, a provider nobody asked for), so an exact value fails a correct call."""
+    if check["type"] not in ("tool_called", "tool_not_called") or check.get("tool") not in TOOLS:
+        return []
+    # Unknown parameters are validate_tests' to report; a clinic's fields are parameters too.
+    fields = {f.get("name") for f in chain(configuration.get("registration_fields") or [], configuration.get("booking_fields") or [])}
+    params = set(TOOLS[check["tool"]].properties) | fields
+    problems = []
+    for name, value in (check.get("args") or {}).items():
+        if name not in params:
+            continue
+        if (check["tool"], name) in LOOSE:
+            problems.append(
+                f"args.{name}: {check['tool']} matches it loosely (a name or an id), so the assistant may pass either "
+                f"and an exact value matches by chance; {LOOSE[check['tool'], name]}, or leave it out."
+            )
+        elif check["type"] == "tool_called" and isinstance(value, str) and name not in FREE_TEXT and not _decided(value, test, configuration):
+            problems.append(
+                f"args.{name} '{value}': nothing in the caller's card or the test's patients and appointments decides it, "
+                "so the assistant may choose another value. Give the caller that fact, or leave the argument out."
+            )
+    return problems
+
+
+def _decided(value: str, test: dict, configuration: dict) -> bool:
+    """Whether the caller's card or the patients and appointments the tools know say
+    `value`, in any form a caller would: a provider by surname, a visit type or plan by
+    name, a date spelled out, a phone number in any grouping. A visit type is also decided
+    by a reason the caller gives (the types' descriptions do the rest), or by being the
+    only type a new caller can book."""
+    caller = test.get("caller") or {}
+    facts = caller.get("facts") or {}
+    world = [test.get("world"), configuration.get("patients"), configuration.get("appointments")]
+    if _visit_type_decided(value, facts, world, configuration):
+        return True
+    said = [caller.get("persona"), caller.get("goal"), *facts.values(), *_strings(world)]
+    said = [s for s in said if isinstance(s, str)]
+    texts = [normalize_name(s) for s in said]
+    digits = re.sub(r"\D", "", value)
+    if len(digits) >= 7 and any(digits in re.sub(r"\D", "", s) for s in said):
+        return True
+    return any(form and form in text for form in _forms(value, configuration) for text in texts)
+
+
+def _visit_type_decided(value: str, facts: dict, world: list, configuration: dict) -> bool:
+    types = {normalize_name(t.get("id", "")): t for t in configuration.get("appointment_types") or []}
+    if normalize_name(value) not in types:
+        return False
+    if isinstance(facts.get("reason"), str) and facts["reason"].strip():
+        return True
+    patients = [p for p in _items(world, "full_name")]
+    new = isinstance(facts.get("full_name"), str) and normalize_name(facts["full_name"]) not in {normalize_name(p["full_name"]) for p in patients}
+    open_to_new = [key for key, t in types.items() if t.get("patients") in ("new", "any")]
+    return new and open_to_new == [normalize_name(value)]
+
+
+def _items(value, key: str) -> list[dict]:
+    """Every object with `key` inside `value`."""
+    if isinstance(value, dict):
+        return ([value] if isinstance(value.get(key), str) else []) + list(chain(*(_items(v, key) for v in value.values())))
+    if isinstance(value, list):
+        return list(chain(*(_items(v, key) for v in value)))
+    return []
+
+
+def _forms(value: str, configuration: dict) -> set[str]:
+    forms = {value}
+    key = normalize_name(value)
+    for provider in configuration.get("providers") or []:
+        if normalize_name(provider.get("id", "")) == key:
+            forms |= {provider["name"], provider["name"].split()[-1]}
+    for kind in configuration.get("appointment_types") or []:
+        if normalize_name(kind.get("id", "")) == key:
+            forms |= {kind["name"], re.sub(r"\s+(visit|appointment)$", "", kind["name"], flags=re.I)}
+    for plan in configuration.get("insurance_plans") or []:
+        if normalize_name(plan.get("id", "")) == key:
+            forms.add(plan["name"])
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        try:
+            day = date.fromisoformat(value)
+        except ValueError:
+            day = None
+        if day:
+            month = day.strftime("%B")
+            forms |= {f"{month} {day.day} {day.year}", f"{day.day} {month} {day.year}", f"{day.month}/{day.day}/{day.year}",
+                      day.strftime("%m/%d/%Y"), day.strftime("%A")}
+    return {normalize_name(f) for f in forms}
+
+
+def _strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return list(chain(*(_strings(v) for v in value.values())))
+    if isinstance(value, list):
+        return list(chain(*(_strings(v) for v in value)))
+    return []
 
 
 def to_test(planned: dict, raw: dict, configuration: dict) -> dict:
