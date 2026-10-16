@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-15: #29 merged; #30 in review: the build and its loop, 13 of 20 reference tests; #31 next)
+## 0. Status (updated 2026-10-16: #30 merged; #31 in review: the thin Copilot panel, checked against the stub backend, the user's real check pending)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -42,12 +42,24 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #27 Mutants and judge calibration (third of 3) | Merged; closes #27 (see "What #27's mutants and judge calibration built") | #69 |
 | #28 Workspaces and versions (minimal, cuts of 2026-10-15) | Merged (see "What #28 built") | #70 |
 | #29 Spec step and edit operations (cuts of 2026-10-15) | Merged (see "What #29 built") | #71 |
-| #30 Build from the template and loop (cuts of 2026-10-15) | In review (see "What #30 built"): 13 of 20 reference tests, below the 18 asked | (this PR) |
-| #31 to #35 | Open, in the order of `PLAN-phase2.md`; each of #27 to #31 has an "Approach and cuts" section on GitHub (2026-10-15) that wins over its scope: **#31 next** | |
+| #30 Build from the template and loop (cuts of 2026-10-15) | Merged (see "What #30 built"): 13 of 20 reference tests, below the 18 asked | #72, #73 |
+| #31 Copilot panel (thin, cuts of 2026-10-15) | In review (see "What #31 built"); the user's one real run is still to do | (this PR) |
+| #32 to #35 | Open, in the order of `PLAN-phase2.md` | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** #31 (the thin Copilot panel), and a decision on #30's gap to 18 of 20 (see "What #30 built": the cheapest next fix is a "Shall I book...?" read-back in the template's `offer_times`, then `make eval COPILOT=1 NO_LOOP=1`, about $2.20). Read #31's "Approach and cuts" on GitHub first. The build streams SSE from `POST /copilot/workspaces/{id}/build` and stores proposals in the workspace; `POST .../proposals/{n}/accept` writes one. The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+**Next step:** the user's real run of #31 in the browser (see "What #31 built"), then #34 and #11. Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built": the cheapest next fix is a "Shall I book...?" read-back in the template's `offer_times`, then `make eval COPILOT=1 NO_LOOP=1`, about $2.20). Read #31's "Approach and cuts" on GitHub first. The build streams SSE from `POST /copilot/workspaces/{id}/build` and stores proposals in the workspace; `POST .../proposals/{n}/accept` writes one. The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+
+What #31 built (frontend, plus the backend the panel needed; cuts of 2026-10-15, see the issue's "Approach and cuts"), for reference:
+- The right-hand column has two tabs, Copilot and Test call (the #7 panel, unchanged), in the call panel's place (`components/SideColumn.tsx`); the toolbar's Copilot and Test call buttons open them. `callStore.panelOpen` is gone.
+- The Copilot tab (`copilot/CopilotPanel.tsx`) is rebuilt from the open agent's workspace on load, with no chat: guidelines and "Create from guidelines"; requirements with their sources (baseline and question defaults marked; "nothing carries it" from the proposal's `uncarried`, "no test" from the spec's gaps); client questions with "Copy for the client"; the configuration with #43's grids (`ClinicSections`), read-only; tests with tier, requirements and the last result, Approve all, approve or delete a draft; Build ("Build and test", or "Build only" without the loop); the proposal (operations, configuration entries, nodes added, changed and removed against the draft, results before and after, the diagnosis per failure, blocked reasons, cost) with Accept, "Accept anyway" for a blocked one, and Reject; "Run tests" on the editor's agent. Each step's streamed progress shows in its card, with Stop.
+- The store (`copilot/copilotStore.ts`): steps read SSE from a POST (`copilot/api.ts`, `parseEvents`); Stop aborts the request, which cancels the step on the backend. While a build runs, the canvas shows the streamed agent (positions taken from the draft by name, `diff.ts`), then the proposal, read-only, with added nodes dashed green and changed ones amber, a banner, and the side panel `inert`; undo, redo and save are off, and while any step runs another agent cannot be opened.
+- Accept: `agentStore.replaceAgent` (one undo step), then `markSaved`; the backend writes the agent, a version with source `copilot` and the clinic. Refused in the browser when the draft changed since the build started in this session (or, after a reload, has unsaved changes), and by the backend when the agent was saved after the build started (`started_from.agent`, `saved_hash`). The user chose on 2026-10-16 that a proposal blocked by its tests can be accepted anyway (the version says "accepted while blocked"); a leak blocks for good. A decided proposal records `decision` and cannot be decided again.
+- Backend: `POST .../build` takes `{"loop": false}`; `.../accept` takes `{"anyway": true}`; `POST .../proposals/{n}/reject`; `POST .../tests/run` (`{"agent"}`: the approved tests on that agent against the spec's configuration, a `test` event per result, stored as a run with its summary); `GET .../runs/last`.
+- The stub backend (`copilot/recording.py`): `COPILOT_REPLAY=<dir>` serves `spec`, `build` and `tests` streams from `<dir>/<step>.jsonl` and stores what the real step would (`make dev STUB=clinic-a`); `COPILOT_RECORD=<dir>` records live streams (`make dev RECORD=name`). `copilot/recordings/clinic-a/` was rebuilt from clinic-a's stored spec and proposal 1 with `make record WORKSPACE=clinic-a PROPOSAL=1`: real model output, no new calls. #34's cached fallback can start from these.
+- Checked in the browser pane against the stub on 7861/5174 with a throwaway `stub-clinic` agent (removed after): paste, spec progress, review, approve all, the build drawn live with marks and the banner, the panel locked, Accept anyway (version 2, saved, one Cmd+Z back to the draft and Cmd+Shift+Z again), Run tests with progress, a stale draft refused, Reject, Stop mid-build (no proposal stored), and the panel restored after a reload. Not checked with real model calls: that is the user's run.
+- The user's real run (2026-10-16, a two-doctor "Maple Street" clinic, Build only, $3 in all): the UI worked end to end, the configuration matched the guidelines, 13/22 tests passed (the 911 safety test failed: the agent transferred; several generated tests were too strict). It was run on the Prosper Scheduler agent itself, so Accept overwrote `agents/prosper-scheduler.json`, the build's template: spec, build and accept now refuse the template's id (409) and the tab says why.
+- Tests: 413 pytest (10 new in `test_copilot_build.py`), 259 Vitest (10 new in `copilot/copilot.test.ts`).
 
 What #30 built (backend only; cuts of 2026-10-15, see the issue's "Approach and cuts"), for reference:
 - `backend/copilot/build.py`: the approved configuration is written to `workspaces/<id>/clinic.json`, and the agent is a copy of `prosper-scheduler.json` with `clinic` set to the workspace id. One `gpt-4.1` call (JSON object mode through `repair.ask`, `schema=None`) returns an outline, operations citing requirements, and `uncarried` with reasons; code checks that operations apply, that every requirement is carried or explained, that `clinic`, `model` and `voice_id` stay, and that every node but the end nodes offers `transfer_to_human` (`guide_problems`). The agent is emitted after each operation.
@@ -313,7 +325,7 @@ Repo: `feliuserra/prosper-challenge-agent-copilot`, local path `~/Desktop/work/p
 | `make install` | `uv sync` for the backend, `npm ci` for the frontend |
 | `make dev` | Runner on 7860 + Vite on 5173, open `http://localhost:5173`. Ctrl+C stops both |
 | `make run` | Runner only, prebuilt Pipecat client at `http://localhost:7860/client` |
-| `make test` | pytest (backend, 269 tests) + Vitest (frontend, 249 tests) |
+| `make test` | pytest (backend, 413 tests) + Vitest (frontend, 259 tests) |
 | `cd backend && uv run python -m sim run <agent> <tests>` | Text runner: simulated calls graded by tests (#26); costs model calls |
 | `make clinic-reset` | Restore the live clinic (bookings made in calls) to its seed |
 | `make synth` | Write the synthetic call logs, clinic records and labels to `backend/.synth/` (#57; no model calls, about 6 s) |

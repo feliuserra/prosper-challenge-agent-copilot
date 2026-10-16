@@ -622,26 +622,47 @@ details[open] summary {
   color: #656d76;
 }
 
-/* Test call panel, right of the side panel */
-.call-panel {
+/* The right-hand column (#31): Copilot and Test call tabs, right of the side panel */
+.side-column {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 320px;
+  width: 400px;
   flex-shrink: 0;
-  padding: 12px 14px;
+  min-height: 0;
   border-left: 1px solid #d0d7de;
   background: #fff;
 }
-.call-panel-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-.call-panel h2 {
+.side-tabs {
+  align-items: flex-end;
   margin: 0;
-  font-size: 16px;
+  padding: 8px 12px 0;
+}
+.side-tabs button[aria-selected="true"] {
+  border-bottom-color: #fff;
+  background: #fff;
+}
+.side-tabs button.link {
+  margin-bottom: 4px;
+}
+.side-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px 24px;
+}
+/* The side panel stays a column of its own while the lock wraps it. */
+.panel-lock {
+  display: flex;
+  min-height: 0;
+}
+.panel-lock.locked {
+  opacity: 0.55;
+}
+.call-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .call-panel .hint {
   margin-top: -4px;
@@ -1277,4 +1298,267 @@ button.primary:disabled {
 .node-numbers tr.flagged {
   background: #fff1e5;
   color: #953800;
+}
+
+/* The Copilot tab (#31) */
+.copilot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.copilot > p {
+  margin: 0;
+}
+.copilot-card {
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+}
+.copilot-card > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.copilot-card > summary::-webkit-details-marker {
+  display: none;
+}
+.copilot-card > summary h3::before {
+  content: "▸ ";
+  color: #656d76;
+}
+.copilot-card[open] > summary h3::before {
+  content: "▾ ";
+}
+.copilot-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.copilot-card h3 {
+  margin: 2px 0;
+  font-size: 14px;
+}
+.copilot-card > .row,
+.copilot-card > .hint,
+.copilot-card > .copilot-list,
+.copilot-card > .copilot-facts,
+.copilot-card > .call-notice,
+.copilot-card > .copilot-step,
+.copilot-card > .copilot-aside,
+.copilot-card > .copilot-run {
+  margin-top: 8px;
+}
+.copilot-guidelines {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 8px;
+  font:
+    12px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  resize: vertical;
+}
+.copilot-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+ol.copilot-list {
+  padding-left: 18px;
+  list-style: decimal;
+}
+.copilot-list > li {
+  padding: 5px 0;
+  border-top: 1px solid #eaeef2;
+}
+.copilot-list > li:first-child {
+  border-top: none;
+}
+.copilot-list .badge {
+  margin-left: 2px;
+}
+.copilot-source {
+  margin: 3px 0 0;
+  padding-left: 8px;
+  border-left: 3px solid #d0d7de;
+  color: #656d76;
+  font-size: 12px;
+}
+.requirement.uncarried {
+  background: #fffbe6;
+}
+.copilot-flag {
+  margin-top: 3px;
+  font-size: 12px;
+}
+.copilot-aside summary {
+  cursor: pointer;
+}
+.copilot-clinic {
+  font-size: 12px;
+}
+.copilot-clinic .clinic-section {
+  margin: 8px 0 0;
+  padding: 0;
+  border: none;
+}
+.copilot-clinic .clinic-columns {
+  display: block;
+}
+/* Narrow grids in the column: names and checks only, the rest is in the Clinic tab. */
+.copilot-clinic .clinic-table th,
+.copilot-clinic .clinic-table td {
+  padding: 4px 6px;
+}
+.copilot-clinic .clinic-table .type-col {
+  min-width: 120px;
+}
+.copilot-clinic .clinic-table .grid-col {
+  min-width: 56px;
+}
+.copilot-clinic .clinic-table td .clinic-sub,
+.copilot-clinic .clinic-table .type-name code {
+  display: none;
+}
+.copilot-test-head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.copilot-test-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0 0 20px;
+  font-size: 12px;
+}
+.copilot-failed {
+  margin: 4px 0 0 20px;
+  padding-left: 14px;
+  color: #82071e;
+  font-size: 12px;
+}
+.result-icon {
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+  color: #656d76;
+}
+.result-icon.pass {
+  color: #1a7f37;
+}
+.result-icon.flaky {
+  color: #9a6700;
+}
+.result-icon.fail,
+.result-icon.error {
+  color: #cf222e;
+  font-weight: 600;
+}
+.copilot-step {
+  padding: 6px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  font-size: 12px;
+}
+.copilot-step.running {
+  border-color: #54aeff;
+  background: #ddf4ff;
+}
+.copilot-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.copilot-log {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.copilot-log li.error {
+  color: #cf222e;
+}
+.copilot-log li.muted {
+  color: #656d76;
+}
+.copilot-facts {
+  margin: 0;
+  padding-left: 18px;
+}
+.copilot-facts li {
+  margin: 2px 0;
+}
+.copilot-decide {
+  gap: 8px;
+}
+.call-notice ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.diff-key {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #d0d7de;
+}
+.diff-key.added {
+  background: #2da44e;
+}
+.diff-key.changed {
+  background: #bf8700;
+}
+.diff-key.removed {
+  background: #cf222e;
+}
+
+/* What the Copilot adds and changes, on the canvas */
+.node-card.mark-added {
+  border: 2px dashed #2da44e;
+  background: #f0fff4;
+}
+.node-card.mark-changed {
+  border: 2px solid #d4a72c;
+  background: #fffbe6;
+}
+.badge.mark.added {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+.badge.mark.changed {
+  background: #fff8c5;
+  color: #9a6700;
+}
+.copilot-banner {
+  display: flex;
+  width: max-content;
+  max-width: 70%;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid #d4a72c;
+  border-radius: 6px;
+  background: #fff8c5;
+  font-size: 13px;
+}
+.copilot-banner.working {
+  border-color: #54aeff;
+  background: #ddf4ff;
+}
+.copilot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0969da;
+  animation: copilot-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes copilot-pulse {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
 }

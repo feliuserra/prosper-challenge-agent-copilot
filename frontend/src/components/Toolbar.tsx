@@ -4,10 +4,15 @@ import { getAgent, listAgents, saveAgent, type AgentSummary } from "../api";
 import { agentFileText, parseAgentFile } from "../agent/file";
 import { agentIdFor } from "../agent/names";
 import { blankAgent, EXAMPLE_AGENT_ID } from "../agent/templates";
-import { setPanelOpen, useCallStore } from "../call/callStore";
+import { selectBusy, selectLocked, useCopilotStore } from "../copilot/copilotStore";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
 import { isTextEntry, redo, undo, useCanRedo, useCanUndo } from "../store/history";
 import { checkAgent } from "../validation/validationStore";
+import { SideToggles } from "./SideColumn";
+
+// While the Copilot builds or a proposal is shown (#31), the draft is read-only: undo,
+// redo and save are off, and while a step runs another agent cannot be opened.
+const locked = () => selectLocked(useCopilotStore.getState());
 
 export function Toolbar() {
   const agentId = useAgentStore((s) => s.agentId);
@@ -15,8 +20,10 @@ export function Toolbar() {
   const dirty = useAgentStore(selectIsDirty);
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [message, setMessage] = useState("");
-  const canUndo = useCanUndo();
-  const canRedo = useCanRedo();
+  const lock = useCopilotStore(selectLocked);
+  const busy = useCopilotStore(selectBusy);
+  const canUndo = useCanUndo() && !lock;
+  const canRedo = useCanRedo() && !lock;
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => setAgents(await listAgents()), []);
@@ -79,7 +86,7 @@ export function Toolbar() {
     // can be pressed while typing one), so the save includes it.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const { agent, agentId } = useAgentStore.getState();
-    if (!agent || !agentId) return;
+    if (!agent || !agentId || locked()) return;
     try {
       // The backend validates on save; its errors go to the problems list.
       const errors = await checkAgent(agent, (draft) => saveAgent(agentId, draft));
@@ -117,6 +124,7 @@ export function Toolbar() {
         void save();
       } else if ((key === "z" || (key === "y" && event.ctrlKey)) && !isTextEntry(event.target)) {
         event.preventDefault();
+        if (locked()) return;
         if (key === "y" || event.shiftKey) redo();
         else undo();
       }
@@ -140,6 +148,7 @@ export function Toolbar() {
         value={agentId ?? ""}
         onChange={(event) => confirmDiscard() && open(event.target.value)}
         aria-label="Open agent"
+        disabled={busy}
       >
         {!listed && agentId && <option value={agentId}>{name} (new)</option>}
         {agents.map((a) => (
@@ -148,9 +157,17 @@ export function Toolbar() {
           </option>
         ))}
       </select>
-      <button onClick={() => create(false)}>New blank</button>
-      <button onClick={() => create(true)}>New from example</button>
-      <button onClick={() => confirmDiscard() && fileInput.current?.click()} title="Open an agent JSON file as a new agent">
+      <button onClick={() => create(false)} disabled={busy}>
+        New blank
+      </button>
+      <button onClick={() => create(true)} disabled={busy}>
+        New from example
+      </button>
+      <button
+        onClick={() => confirmDiscard() && fileInput.current?.click()}
+        disabled={busy}
+        title="Open an agent JSON file as a new agent"
+      >
         Import
       </button>
       <input
@@ -175,25 +192,13 @@ export function Toolbar() {
       <button onClick={step(redo)} disabled={!canRedo} title="Redo (Cmd/Ctrl+Shift+Z)">
         Redo
       </button>
-      <button onClick={save} disabled={!dirty} title="Save (Cmd/Ctrl+S)">
+      <button onClick={save} disabled={!dirty || lock} title="Save (Cmd/Ctrl+S)">
         Save
       </button>
       <span className={dirty ? "dirty" : "muted"}>{dirty ? "● Unsaved changes" : "All changes saved"}</span>
       <span className="muted">{message}</span>
       <span className="spacer" />
-      <CallToggle />
+      <SideToggles />
     </header>
-  );
-}
-
-/** Opens and closes the test call panel, and shows when a call is on. */
-function CallToggle() {
-  const open = useCallStore((s) => s.panelOpen);
-  const phase = useCallStore((s) => s.phase);
-  const label = phase === "in-call" ? "● In call" : phase === "idle" ? "Test call" : "● Connecting…";
-  return (
-    <button onClick={() => setPanelOpen(!open)} aria-pressed={open} className={phase === "in-call" ? "call-live" : undefined}>
-      {label}
-    </button>
   );
 }

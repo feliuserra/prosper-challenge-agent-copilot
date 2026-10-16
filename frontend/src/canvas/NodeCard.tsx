@@ -56,11 +56,13 @@ export function HeatLines({ heat }: { heat: NodeHeat }) {
 }
 
 export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<AgentFlowNode>) {
-  const { node, status = [], active, heat } = data;
+  const { node, status = [], active, heat, mark } = data;
   const task = taskSummary(node.task_messages?.[0]?.content);
   const tools = node.tools ?? [];
   const look = heatStyle(heat);
-  const className = ["node-card", selected && "selected", active && "active", look.className].filter(Boolean).join(" ");
+  const className = ["node-card", selected && "selected", active && "active", mark && `mark-${mark}`, look.className]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div
       className={className}
@@ -75,6 +77,14 @@ export const NodeCard = memo(function NodeCard({ data, selected }: NodeProps<Age
             {displayName(node.name)}
           </span>
           <span className="node-card-status">
+            {mark && (
+              <span
+                className={`badge mark ${mark}`}
+                title={mark === "added" ? "Added by the Copilot" : "Changed by the Copilot"}
+              >
+                {mark === "added" ? "New" : "Changed"}
+              </span>
+            )}
             {status.map((s) => (
               <span key={s.tone} className={`badge ${s.tone}`} title={s.title}>
                 {s.label}

@@ -5,8 +5,8 @@ import { patientsLabel, readClinic, type ClinicField, type ClinicInfo } from "./
 
 // The Clinic tab (#43, ADR 0016): the open agent's clinic, read-only. An agent is
 // a template graph plus a clinic configuration; the graph says how to talk, the
-// configuration says what the clinic offers, and the tools enforce it. Editing the
-// configuration here is #31's, at approval time.
+// configuration says what the clinic offers, and the tools enforce it. Editing it at
+// approval time was cut from #31: it changes through the guidelines and a new spec step.
 
 export type ClinicLoad =
   | { id: string; info: ClinicInfo | null; problems: ClinicProblem[] }
@@ -60,15 +60,20 @@ function ClinicPage({ id, info, problems }: { id: string; info: ClinicInfo | nul
         </p>
       </header>
       {problems.length > 0 && <Problems problems={problems} />}
-      {info && (
-        <>
-          <WhoDoesWhat info={info} />
-          <Coverage info={info} />
-          <Fields info={info} />
-          <LateChanges info={info} />
-          <Facts info={info} />
-        </>
-      )}
+      {info && <ClinicSections info={info} />}
+    </>
+  );
+}
+
+/** The configuration's grids and lists, also shown by the Copilot panel's configuration card (#31). */
+export function ClinicSections({ info }: { info: ClinicInfo }) {
+  return (
+    <>
+      <WhoDoesWhat info={info} />
+      <Coverage info={info} />
+      <Fields info={info} />
+      <LateChanges info={info} />
+      <Facts info={info} />
     </>
   );
 }

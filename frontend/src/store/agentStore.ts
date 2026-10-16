@@ -62,6 +62,8 @@ interface AgentState {
   moveStage(stage: string, offset: Position): void;
   tidyLayout(): void;
   updateAgent(patch: AgentPatch): void;
+  /** Replace the whole agent in one undo step: an accepted Copilot proposal (#31). */
+  replaceAgent(agent: Agent): void;
 }
 
 const ok: Result = { ok: true };
@@ -347,6 +349,17 @@ export const useAgentStore = create<AgentState>()(
 
         updateAgent(patch) {
           change((agent) => merge(agent, patch));
+        },
+
+        replaceAgent(next) {
+          const { agent, selection, collapsed } = get();
+          if (!agent) return;
+          const stages = new Set(stagesOf(next).map((s) => s.name));
+          set({
+            agent: next,
+            selection: selectionExists(next, selection) ? selection : null,
+            collapsed: collapsed.filter((s) => stages.has(s)),
+          });
         },
       };
     },

@@ -7,7 +7,6 @@ import {
   listMicsIfAllowed,
   selectMic,
   setMuted,
-  setPanelOpen,
   startCall,
   useCallStore,
   type CallPhase,
@@ -48,14 +47,7 @@ export function CallPanel() {
   const showSteps = steps && (!idle || Object.values(steps).includes("failed"));
 
   return (
-    <aside className="call-panel nokey" aria-label="Test call">
-      <div className="call-panel-header">
-        <h2>Test call</h2>
-        <button className="link" onClick={() => setPanelOpen(false)} title="Close (a call keeps going)">
-          Close
-        </button>
-      </div>
-
+    <div className="call-panel" aria-label="Test call">
       <div className="row">
         {idle ? (
           <button
@@ -80,7 +72,7 @@ export function CallPanel() {
       {notice && <div className={`call-notice ${notice.tone}`}>{notice.text}</div>}
       <MicPicker />
       <Transcript />
-    </aside>
+    </div>
   );
 }
 

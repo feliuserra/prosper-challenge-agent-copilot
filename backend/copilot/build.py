@@ -19,6 +19,11 @@
 #      results before and after, and why it is blocked, if it is: a failing test, a
 #      failing safety test, or the leak check (a test caller's name, birth date or phone
 #      number in the agent or the configuration).
+#   5. A person accepts or rejects it (#31). A proposal blocked by tests can be accepted
+#      anyway, on purpose; one blocked by the leak check cannot. Neither can one whose
+#      agent was saved after the build started: the proposal did not see that change.
+#
+# The panel's "Run tests" (#31) runs the approved tests on the editor's agent alone.
 #
 # The build reads the workspace, the template and its own prompts: never backend/eval/
 # or another clinic's file (a test checks it).
@@ -28,6 +33,7 @@ import copy
 import json
 import time
 from datetime import date, datetime
+import asyncio
 from itertools import chain
 from pathlib import Path
 from typing import Awaitable, Callable
@@ -37,7 +43,7 @@ from clinic.clinics import WORKSPACE_CLINIC
 from sim.checks import render_transcript
 from sim.llm import ChatModel, Models, Usage
 from sim.replay import as_record
-from sim.runner import blocking, run_suite
+from sim.runner import blocking, run_suite, run_test
 from storage import write_atomic
 
 from . import config
@@ -77,11 +83,13 @@ async def run(
     run_tests: RunTests | None = None,
     use_cache: bool = True,
     loop: bool = True,
+    base: str | None = None,
 ) -> dict:
     """Build the workspace's agent and loop until its approved tests pass. Emits progress
     events; stores and returns the proposal. `run_tests` replaces the runner (unit tests).
     With `loop` false the workspace tests are not run at all: the proposal is the build
-    alone, blocked as untested (to measure the build on its own, `make eval COPILOT=1 NO_LOOP=1`)."""
+    alone, blocked as untested (to measure the build on its own, `make eval COPILOT=1 NO_LOOP=1`).
+    `base` is the hash of the agent as saved when the build started (`saved_hash`)."""
     spec = ws.spec()
     tests = approved_tests(spec)
     if not tests:
@@ -193,7 +201,7 @@ async def run(
     found = leaks(agent, configuration, spec["tests"])
     proposal = {
         "created": now(),
-        "started_from": {"template": TEMPLATE_ID, "hash": agent_hash(draft)},
+        "started_from": {"template": TEMPLATE_ID, "hash": agent_hash(draft), "agent": base},
         "configuration": configuration,
         "configuration_entries": len(entries(configuration)),
         "configuration_changes": configuration_changes,
@@ -575,23 +583,103 @@ def _strings(value):
 
 
 # ---- accepting a proposal -------------------------------------------------------------------
-def accept(ws: Workspace, number: int, agents_dir: Path) -> dict:
-    """Write an accepted proposal: the agent to agents/<id>.json (a new version), its
-    configuration to the workspace's clinic, and the configuration and carriers to the
-    spec. A blocked proposal cannot be accepted."""
+def saved_hash(agents_dir: Path, agent_id: str) -> str | None:
+    """The hash of the agent as saved in agents/<id>.json, or None when there is no file."""
+    path = Path(agents_dir) / f"{agent_id}.json"
+    return agent_hash(json.loads(path.read_text())) if path.is_file() else None
+
+
+def decidable(ws: Workspace, number: int) -> dict:
     proposal = ws.proposal(number)
     if proposal is None:
         raise BuildError(f"No proposal {number}.", status=404)
-    if proposal["status"] == "blocked":
+    if proposal.get("decision"):
+        raise BuildError(f"Proposal {number} was already {proposal['decision']['status']}.", status=409)
+    return proposal
+
+
+def accept(ws: Workspace, number: int, agents_dir: Path, anyway: bool = False) -> dict:
+    """Write an accepted proposal: the agent to agents/<id>.json (a new version), its
+    configuration to the workspace's clinic, and the configuration and carriers to the
+    spec. A blocked proposal is accepted only `anyway`, and never with a leak. A proposal
+    whose agent was saved after the build started is refused: it would undo that save."""
+    proposal = decidable(ws, number)
+    if proposal.get("leaks"):
+        raise BuildError("A test caller's details are in this proposal (the leak check), so it cannot be accepted.", status=409)
+    blocked = proposal["status"] == "blocked"
+    if blocked and not anyway:
         raise BuildError("This proposal is blocked: " + " ".join(proposal["blocked"]), status=409)
+    started = proposal["started_from"]
+    # Proposals from before #31 did not record the saved agent: nothing to compare.
+    if "agent" in started and saved_hash(agents_dir, ws.id) != started["agent"]:
+        raise BuildError("The agent was saved after this build started, so the proposal does not include that change. Build again.", status=409)
     spec = ws.spec()
     spec["configuration"] = proposal["configuration"]
     spec["carriers"] = proposal["carriers"]
     spec_step.write(ws, spec)
     write_clinic(ws, proposal["configuration"])
     write_atomic(Path(agents_dir) / f"{ws.id}.json", json.dumps(proposal["agent"], indent=2, ensure_ascii=False) + "\n")
-    version, _ = ws.add_version(proposal["agent"], "copilot", f"Proposal {number}")
+    version, _ = ws.add_version(proposal["agent"], "copilot", f"Proposal {number}" + (", accepted while blocked" if blocked else ""))
+    proposal["decision"] = {"status": "accepted", "at": now(), "version": version["number"], "blocked": blocked}
+    ws.update_proposal(proposal)
     return version
+
+
+def reject(ws: Workspace, number: int) -> dict:
+    """Record that a person rejected the proposal. Nothing else changes."""
+    proposal = decidable(ws, number)
+    proposal["decision"] = {"status": "rejected", "at": now()}
+    ws.update_proposal(proposal)
+    return proposal["decision"]
+
+
+# ---- running the tests (#31) ----------------------------------------------------------------
+async def run_workspace_tests(
+    ws: Workspace,
+    agent: dict,
+    test_models: Models | None,
+    emit: Emit = lambda event: None,
+    run_tests: RunTests | None = None,
+    use_cache: bool = True,
+) -> dict:
+    """Run the approved tests on `agent` against the spec's configuration, as the build
+    does, emitting each result as it ends (`test`), and store the run. `run_tests`
+    replaces the runner (unit tests)."""
+    spec = ws.spec()
+    tests = approved_tests(spec)
+    if not tests:
+        raise BuildError("No approved tests yet. Approve the tests the agent must pass first.")
+    clinic = spec.get("configuration")
+    emit({"event": "part", "part": "tests", "status": "running", "total": len(tests)})
+    usage, results = Usage(), []
+
+    def ended(result):
+        results.append(result)
+        if not result.get("cached"):
+            usage.merge(result.get("usage", {}))
+        emit({"event": "test", "done": len(results), "total": len(tests), "result": summarize([result])["tests"][0]})
+
+    if run_tests is not None:
+        for result in await run_tests(agent, tests, clinic):
+            ended(result)
+    else:
+        if test_models is None:
+            raise BuildError("No models to run the tests with.")
+        for finished in asyncio.as_completed([run_test(agent, t, test_models, use_cache, clinic=clinic) for t in tests]):
+            ended(await finished)
+    order = {t["id"]: i for i, t in enumerate(tests)}
+    results.sort(key=lambda r: order[r["test_id"]])
+    run = {"created": now(), "agent_hash": agent_hash(agent), "proposal": None, "summary": summarize(results), "cost": usage.cost()}
+    run["number"] = ws.save_run({**run, "results": compact(results)})
+    emit({"event": "done", "run": run})
+    return run
+
+
+def run_view(run: dict, number: int | None = None) -> dict:
+    """A stored run without its results: what the panel shows. Runs the build stored
+    (#30) have no summary yet."""
+    view = {key: run.get(key) for key in ("created", "agent_hash", "proposal", "cost")}
+    return {**view, "number": run.get("number", number), "summary": run.get("summary") or summarize(run.get("results", []))}
 
 
 # ---- helpers -------------------------------------------------------------------------------
