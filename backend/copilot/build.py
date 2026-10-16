@@ -55,6 +55,17 @@ from .workspace import Workspace, agent_hash, now
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "agents" / "prosper-scheduler.json"
 TEMPLATE_ID = "prosper-scheduler"
+# The baseline safety rules the template's persona carries for every clinic (B1 emergencies,
+# B2 medical advice). A build may add to the persona but keeps these word for word: when
+# the template had none, a build said "already carried by the template" and its agent
+# transferred a caller with chest pain instead of sending them to 911 (Maple Street, 2026-10-16).
+SAFETY_RULES = {
+    "B1": "If a caller describes a medical emergency, such as chest pain, trouble breathing, heavy bleeding, signs of a "
+    "stroke or thoughts of harming themselves, tell them to hang up and call 911 right away, and call no function: "
+    "do not transfer them, book or ask for anything first.",
+    "B2": "Never give medical advice: not what to take, how much, whether to stop a medicine or whether something is "
+    "serious; offer to book a visit instead.",
+}
 
 # The broken links of a rule chain (ADR 0015, narrowed for #30): the model names one per
 # failure from this list, given the failing turn's recorded context.
@@ -126,7 +137,7 @@ async def run(
         )
     except StillInvalid as error:
         raise BuildError("The build's operations did not apply.", problems=error.problems) from None
-    agent, carriers = draft, copy.deepcopy(spec.get("carriers") or empty_carriers())
+    agent, carriers = draft, start_carriers(spec, known)
     for i, op in enumerate(authored["operations"]):
         step = apply_operations(agent, [op], carriers)
         agent, carriers = step.agent, step.carriers
@@ -251,6 +262,13 @@ def start_agent(clinic_id: str, configuration: dict) -> dict:
     return agent
 
 
+def start_carriers(spec: dict, known: list[str]) -> dict:
+    """The spec's carriers, plus the baseline requirements the template's persona carries."""
+    carriers = copy.deepcopy(spec.get("carriers") or empty_carriers())
+    carriers["persona"] = carriers["persona"] + [i for i in SAFETY_RULES if i in known and i not in carriers["persona"]]
+    return carriers
+
+
 def better(old: list[dict], new: list[dict]) -> tuple[bool, str]:
     """Whether a full rerun is an improvement worth keeping, and why (not)."""
     passing = lambda results: {r["test_id"] for r in results if not blocking(r)}
@@ -303,7 +321,7 @@ def check_build(answer: dict, draft: dict, spec: dict, known: list[str]) -> tupl
         return None, problems + ["`operations` must be a non-empty list of operations."]
     if not isinstance(uncarried, list) or not all(isinstance(u, dict) for u in uncarried):
         return None, problems + ["`uncarried` must be a list of {requirement, reason}."]
-    applied = apply_operations(draft, operations, spec.get("carriers") or empty_carriers(), known)
+    applied = apply_operations(draft, operations, start_carriers(spec, known), known)
     problems += applied.errors
     problems += _kept_fixed(applied.agent, draft)
     if applied.ok:
@@ -477,18 +495,26 @@ def carry_configuration(carriers: dict, key: str, value, cited: list[str]) -> No
 def guide_problems(agent: dict) -> list[str]:
     """Rules of the authoring guide that code can check. Every node that is not an end node
     offers transfer_to_human: a caller can ask for a person at any step, and the persona's
-    rules to transfer work only where the tool is offered."""
+    rules to transfer work only where the tool is offered. The persona keeps the template's
+    safety rules word for word."""
+    problems = []
     missing = [
         n["name"]
         for n in agent.get("nodes", [])
         if isinstance(n, dict) and not n.get("end") and "transfer_to_human" not in (n.get("tools") or [])
     ]
-    if not missing:
-        return []
-    return [
-        f"transfer_to_human must be offered in every node that is not an end node; missing in {', '.join(missing)}. "
-        "Use set_tools with the node's current tools plus transfer_to_human."
+    if missing:
+        problems.append(
+            f"transfer_to_human must be offered in every node that is not an end node; missing in {', '.join(missing)}. "
+            "Use set_tools with the node's current tools plus transfer_to_human."
+        )
+    persona = agent.get("persona") or ""
+    problems += [
+        f"The persona must keep the template's safety rule for {i} word for word: \"{rule}\""
+        for i, rule in SAFETY_RULES.items()
+        if rule not in persona
     ]
+    return problems
 
 
 def _kept_fixed(agent: dict, before: dict) -> list[str]:

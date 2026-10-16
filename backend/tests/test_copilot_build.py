@@ -236,6 +236,33 @@ def test_every_node_but_the_ends_offers_transfer_to_human(ws):
     assert all("transfer_to_human" in n.get("tools", []) for n in proposal["agent"]["nodes"] if not n.get("end"))
 
 
+def test_the_template_carries_the_safety_rules():
+    assert all(rule in TEMPLATE["persona"] for rule in build.SAFETY_RULES.values())
+    assert build.guide_problems(TEMPLATE) == [
+        f"transfer_to_human must be offered in every node that is not an end node; missing in "
+        f"{', '.join(n['name'] for n in TEMPLATE['nodes'] if not n.get('end') and 'transfer_to_human' not in n.get('tools', []))}. "
+        "Use set_tools with the node's current tools plus transfer_to_human."
+    ]
+
+
+def test_the_safety_rules_count_as_carried_and_stay_in_the_persona(ws):
+    """The Maple Street build (2026-10-16) rewrote the persona with no 911 rule and called B1
+    "already carried by the template"; its agent transferred a caller with chest pain."""
+    no_safety = [{"op": "update_agent", "patch": {"persona": "Be warm. Transfer anything the guidelines do not cover."}, "requirements": ["B3", "B4"]}]
+    rest = build_answer()["operations"][1:]
+    b3 = [{"requirement": "B3", "reason": "verify_patient looks the patient up by name and date of birth."}]
+    model = Scripted(answer(build_answer(operations=no_safety + rest)), answer(build_answer(operations=rest, uncarried=b3)))
+    proposal, events = run(ws, model, Runner())
+    problems = next(e for e in events if e["event"] == "repair")["problems"]
+    assert [p for p in problems if "safety rule" in p] == [
+        f"The persona must keep the template's safety rule for {i} word for word: \"{rule}\"" for i, rule in build.SAFETY_RULES.items()
+    ]
+    # The second answer neither cites nor explains B1 and B2: the template's persona carries them.
+    assert proposal["status"] == "ready" and proposal["uncarried"] == b3
+    assert proposal["carriers"]["persona"][:2] == ["B1", "B2"]
+    assert all(rule in proposal["agent"]["persona"] for rule in build.SAFETY_RULES.values())
+
+
 def test_the_clinic_and_the_model_stay(ws):
     sneaky = build_answer(operations=build_answer()["operations"] + [{"op": "update_agent", "patch": {"model": "gpt-4o-mini", "clinic": None}}])
     model = Scripted(answer(sneaky), answer(build_answer()))

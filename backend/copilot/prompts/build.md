@@ -11,7 +11,9 @@ The clinic's rules that are tables or numbers are already in its configuration, 
 
 Make the smallest change that does the job: keep the template's nodes, edges, stages and names when they already work. Do not change the agent's `clinic`, `model` or `voice_id`. Never write a caller's name, date of birth or phone number into the agent.
 
-Cite a requirement only on an operation whose text carries it. A requirement the template already carries as it is goes in `uncarried`, with the reason saying where.
+Cite a requirement only on an operation whose text carries it. A requirement the template already carries as it is goes in `uncarried`, with the reason quoting the template's words that carry it; if you cannot quote them, the template does not carry it.
+
+The template's persona carries the baseline safety rules for every clinic: emergencies go to 911, and no medical advice. Keep those sentences word for word when you change the persona (the build checks it), and never add a rule that would send an emergency to a transfer: a rule to transfer requests the guidelines do not cover is for ordinary requests, not for someone describing an emergency.
 
 ## Operations
 

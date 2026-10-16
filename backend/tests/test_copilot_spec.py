@@ -513,6 +513,80 @@ def test_checks_that_could_never_pass_are_sent_back():
     assert lint({"type": "tool_called", "tool": "check_coverage", "result": {"covered": False}}, config) == []
 
 
+# A two-doctor clinic like Maple Street's (2026-10-16), where these checks failed correct calls.
+MAPLE = {
+    "providers": [{"id": "dr-shah", "name": "Dr. Priya Shah"}, {"id": "dr-okafor", "name": "Dr. Tom Okafor"}],
+    "appointment_types": [
+        {"id": "new_patient_visit", "name": "New Patient Visit", "patients": "new"},
+        {"id": "sick_visit", "name": "Sick Visit", "patients": "existing"},
+        {"id": "follow_up", "name": "Follow-Up", "patients": "existing"},
+    ],
+    "insurance_plans": [{"id": "aetna", "name": "Aetna"}],
+    "registration_fields": [{"name": "insurance_plan", "description": "x", "required": True}],
+}
+EMILY = {"id": "pat-1", "full_name": "Emily Carter", "date_of_birth": "1994-04-02", "phone": "555-111-2222"}
+
+
+def card_test(checks, persona="Existing patient, 32.", goal="Book the earliest appointment.", facts=None, world=None) -> dict:
+    facts = {"full_name": "Emily Carter", "date_of_birth": "April 2, 1994"} if facts is None else facts
+    return {"id": "t", "caller": {"persona": persona, "goal": goal, "facts": facts, "style": "x"},
+            "world": {"patients": [EMILY]} if world is None else world, "checks": checks}
+
+
+def test_arguments_the_caller_does_not_decide_are_sent_back():
+    lint = lambda test: spec_step.lint_test(test, MAPLE)
+    slots = {"type": "tool_called", "tool": "find_slots", "args": {"appointment_type": "sick_visit"}}
+    assert lint(card_test([slots])) == [
+        "check 1: args.appointment_type 'sick_visit': nothing in the caller's card or the test's patients and appointments "
+        "decides it, so the assistant may choose another value. Give the caller that fact, or leave the argument out."
+    ]
+    # Decided by the card: the type by name, or a reason the types' descriptions match.
+    assert lint(card_test([slots], goal="Book a sick visit.")) == []
+    assert lint(card_test([slots], facts={"full_name": "Emily Carter", "reason": "a cough"})) == []
+    follow = {"type": "tool_called", "tool": "find_slots", "args": {"appointment_type": "follow_up"}}
+    assert lint(card_test([follow], persona="Wants Dr. Okafor for a follow-up.")) == []
+    # The only type a new caller can book.
+    new = {"type": "tool_called", "tool": "find_slots", "args": {"appointment_type": "new_patient_visit"}}
+    assert lint(card_test([new], world={})) == []
+    assert lint(card_test([new]))  # Emily is a patient already: nothing decides it
+    # Names, dates, phone numbers, plans and ids as the card and the world give them.
+    exact = {"type": "tool_called", "tool": "register_patient",
+             "args": {"full_name": "Ana Lopez", "date_of_birth": "1999-03-12", "phone": "5555557777", "insurance_plan": "aetna"}}
+    facts = {"full_name": "Ana Lopez", "date_of_birth": "March 12, 1999", "phone": "555-555-7777", "insurance_plan": "Aetna"}
+    assert lint(card_test([exact], facts=facts, world={})) == []
+    cancel = {"type": "tool_called", "tool": "cancel_appointment", "args": {"appointment_id": "appt-1", "fee_acknowledged": True}}
+    assert lint(card_test([cancel], world={"appointments": [{"id": "appt-1"}]})) == []
+    assert lint(card_test([cancel])) != []
+    # A refusal says nothing about what the assistant chose: tool_not_called is left alone.
+    never = {"type": "tool_not_called", "tool": "book_appointment", "args": {"appointment_type": "sick_visit"}}
+    assert lint(card_test([never])) == []
+
+
+def test_a_provider_on_find_slots_is_sent_back():
+    for kind in ("tool_called", "tool_not_called"):
+        check = {"type": kind, "tool": "find_slots", "args": {"provider": "dr-shah"}}
+        assert spec_step.lint_test(card_test([check], persona="Wants Dr. Shah."), MAPLE) == [
+            "check 1: args.provider: find_slots matches it loosely (a name or an id), so the assistant may pass either and "
+            "an exact value matches by chance; check who the booking went to with book_appointment's result "
+            "appointment.provider_id, or leave it out."
+        ]
+
+
+def test_identification_before_a_transfer_is_sent_back():
+    lookup = {"type": "tool_called", "tool": "lookup_patient", "args": {"full_name": "Emily Carter"}, "result": {"found": True}}
+    for transfer in ({"type": "transferred"}, {"type": "call_ended", "reason": "transfer"}, {"type": "tool_called", "tool": "transfer_to_human"}):
+        problems = spec_step.lint_test(card_test([lookup, transfer]), MAPLE)
+        assert problems == [
+            "check 1: lookup_patient is required in a test that checks a transfer. A caller who needs a person is transferred "
+            "at once, without being asked for their details first: leave the check out, or, if a requirement asks to "
+            "identify the caller before this transfer, say so in a judge rule."
+        ]
+    # Without a transfer, or when finding nobody is why the caller is transferred, it stays.
+    assert spec_step.lint_test(card_test([lookup]), MAPLE) == []
+    not_found = {**lookup, "result": {"found": False}}
+    assert spec_step.lint_test(card_test([not_found, {"type": "transferred"}]), MAPLE) == []
+
+
 def test_fields_a_check_type_does_not_take_are_dropped():
     raw = check("transferred", tool="transfer_to_human", args=[{"name": "reason", "value": "x"}])
     assert spec_step._check(raw) == {"type": "transferred"}
