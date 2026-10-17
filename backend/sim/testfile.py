@@ -9,6 +9,8 @@
 #                      (clinic, providers, patients, appointments, and the configuration
 #                      keys of ADR 0016), so a test only writes what differs
 #   replay             optional caller turns from a real call: [{question, answer}]
+#   hearing            optional [said, heard] pairs: how speech-to-text hears the caller's
+#                      words, and the caller the agent's (sim/hearing.py; #33)
 #   max_turns          optional, most caller turns before the runner stops the call
 #   checks             what must hold; see CHECKS
 #
@@ -119,6 +121,12 @@ def validate_test(test, clinic: str | dict = DEFAULT_CLINIC) -> list[str]:
         isinstance(r, dict) and isinstance(r.get("question"), str) and _text(r.get("answer")) for r in replay
     ):
         errors.append("replay must be a list of {question, answer} strings.")
+
+    hearing = test.get("hearing", [])
+    if not isinstance(hearing, list) or not all(
+        isinstance(pair, list) and len(pair) == 2 and all(_text(word) for word in pair) for pair in hearing
+    ):
+        errors.append("hearing must be a list of [said, heard] pairs of strings.")
 
     max_turns = test.get("max_turns", config.DEFAULT_MAX_TURNS)
     if not isinstance(max_turns, int) or isinstance(max_turns, bool) or not 1 <= max_turns <= 60:

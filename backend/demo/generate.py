@@ -3,17 +3,13 @@
 # with the hidden callers in callers.json, stored as `production-mock` call records in
 # the seed workspace. Paid: about 7 cents a call with gpt-4o as the agent.
 #
-# Speech-to-text, simulated. A text caller reads every word the agent writes, so it
-# corrects a garbled name on sight (why #27's mutant M15 survived). Here a caller's
-# `garbles` work both ways: what the caller says reaches the agent as speech-to-text
-# heard it ("Sarah Burrell" becomes "Sara Boreal"), and the agent's words reach the
-# caller as they sound ("Sara Boreal" is heard as "Sarah Burrell"). Letters spelled out
-# are not touched, so an agent that spells the name back lets the caller catch it.
+# Speech-to-text, simulated (sim/hearing.py): a caller's `garbles` are [said, heard]
+# pairs, so "Sarah Burrell" reaches the agent as "Sara Boreal" and the agent's "Sara
+# Boreal" reaches the caller as "Sarah Burrell". Spelled letters are not touched.
 #
 
 import asyncio
 import json
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -23,6 +19,7 @@ from sim import config
 from sim.caller import Caller
 from sim.checks import grade
 from sim.conversation import Conversation
+from sim.hearing import Hearing, HeardCaller
 from sim.llm import Models, Usage
 from sim.runner import talk
 from sim.testfile import resolve_world, validate_tests
@@ -68,40 +65,6 @@ def as_test(entry: dict) -> dict:
     if "max_turns" in entry:
         test["max_turns"] = entry["max_turns"]
     return test
-
-
-class Hearing:
-    """Speech-to-text and the phone line for one caller: [said, heard] pairs, longest first."""
-
-    def __init__(self, garbles: list[list[str]] | None):
-        self.pairs = sorted(garbles or [], key=lambda pair: -len(pair[0]))
-
-    def to_agent(self, text: str) -> str:
-        return _swap(text, [(said, heard) for said, heard in self.pairs])
-
-    def to_caller(self, text: str) -> str:
-        return _swap(text, [(heard, said) for said, heard in self.pairs])
-
-
-def _swap(text: str, pairs: list[tuple[str, str]]) -> str:
-    if not pairs:
-        return text
-    pattern = re.compile("|".join(re.escape(old) for old, _ in pairs), re.IGNORECASE)
-    lookup = {old.lower(): new for old, new in pairs}
-    return pattern.sub(lambda m: lookup[m.group(0).lower()], text)
-
-
-class HeardCaller:
-    """A Caller that hears the agent through `hearing` and is heard through it."""
-
-    def __init__(self, caller: Caller, hearing: Hearing):
-        self.caller = caller
-        self.hearing = hearing
-
-    async def next(self, turns: list[dict], usage: Usage) -> tuple[str, bool, dict]:
-        heard = [{**t, "text": self.hearing.to_caller(t["text"])} if t["speaker"] == "agent" and t["text"] else t for t in turns]
-        text, hang_up, extra = await self.caller.next(heard, usage)
-        return self.hearing.to_agent(text), hang_up, extra
 
 
 async def simulate(agent: dict, entry: dict, models: Models) -> tuple[dict, list[dict]]:

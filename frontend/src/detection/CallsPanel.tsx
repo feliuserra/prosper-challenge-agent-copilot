@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { getAgent } from "../api";
 import { displayName } from "../agent/names";
+import { fixIssue, fixRefusal, useCopilotStore } from "../copilot/copilotStore";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
 import { callTime, ENDINGS, toolCalls, turnMarks } from "./calls";
 import { selectNode, useCallsStore } from "./callsStore";
@@ -11,7 +12,8 @@ import type { CallDetail, CallIssue, RecordedTurn } from "./types";
 // The Calls tab (#32): the calls the judge read (every call the signals flagged, plus a
 // random sample), then one call: its tickets, the judge's issues, the caller card the
 // judge inferred, and the transcript with each issue at its quoted turn. Opening an
-// issue scrolls there and selects its decisive node on the canvas.
+// issue scrolls there and selects its decisive node on the canvas; "Fix" starts a fix
+// from it (#33) in the Copilot tab.
 
 export function CallsPanel() {
   const open = useCallsStore((s) => s.open);
@@ -113,7 +115,14 @@ function CallBody({ detail }: { detail: CallDetail }) {
           <h4>{issues.length ? `${issues.length} ${issues.length === 1 ? "issue" : "issues"}` : "No issues found"}</h4>
           <ol className="call-issues">
             {issues.map((issue, i) => (
-              <IssueRow key={i} issue={issue} open={focused === i} onOpen={() => focus(focused === i ? null : i)} />
+              <IssueRow
+                key={i}
+                issue={issue}
+                workspace={detail.workspace}
+                call={call.id}
+                open={focused === i}
+                onOpen={() => focus(focused === i ? null : i)}
+              />
             ))}
           </ol>
           {judge.other.length > 0 && (
@@ -151,13 +160,30 @@ function CallBody({ detail }: { detail: CallDetail }) {
   );
 }
 
-function IssueRow({ issue, open, onOpen }: { issue: CallIssue; open: boolean; onOpen: () => void }) {
+function IssueRow({
+  issue,
+  workspace,
+  call,
+  open,
+  onOpen,
+}: {
+  issue: CallIssue;
+  workspace: string;
+  call: string;
+  open: boolean;
+  onOpen: () => void;
+}) {
+  // Re-render on what decides whether a fix can start.
+  useCopilotStore((s) => `${s.workspace}|${s.step?.running}`);
+  useAgentStore((s) => `${s.agentId}|${selectIsDirty(s)}`);
+  const refusal = fixRefusal(workspace);
   return (
     <li className={open ? "call-issue open" : "call-issue"}>
       <button className="issue-head" onClick={onOpen} aria-expanded={open}>
         <span className={`chip severity-${issue.severity}`}>{issue.severity}</span>
         <span className="issue-title">{issue.label}</span>
         {issue.requirement && <span className="chip">{issue.requirement}</span>}
+        {issue.fixed && <span className="chip">fixed in v{issue.fixed.version}</span>}
         <span className="issue-line">{issue.summary}</span>
         <span className="issue-line muted">
           Turn {issue.quote_turn}: “{issue.quote}”
@@ -171,6 +197,14 @@ function IssueRow({ issue, open, onOpen }: { issue: CallIssue; open: boolean; on
               : ` (the second run said turn ${issue.second_turn})`}
         </span>
       </button>
+      {open && !issue.fixed && (
+        <div className="row issue-fix">
+          <button disabled={refusal !== null} title={refusal ?? undefined} onClick={() => void fixIssue(call, issue.turn)}>
+            Fix this issue
+          </button>
+          <span className="muted">{refusal ?? "Reproduce it, try 3 changes at turn " + issue.turn + ", then test: about $6."}</span>
+        </div>
+      )}
     </li>
   );
 }

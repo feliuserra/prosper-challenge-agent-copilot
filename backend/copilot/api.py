@@ -3,7 +3,7 @@
 # agents API. #28 reads and fills a workspace; #29 adds the spec step, streamed as
 # server-sent events, and the spec changes #31 needs (approve tests, delete a test or a
 # requirement). #30 adds the build and its proposals; #31 deciding on a proposal and
-# running the tests, for the Copilot panel.
+# running the tests, for the Copilot panel. #33 adds fixing an issue from a call.
 #
 #   POST   .../spec                      run the spec step: an event stream (below)
 #   PATCH  .../spec/tests                {"status": "approved"} approves every draft test
@@ -18,12 +18,18 @@
 #   POST   .../proposals/{n}/reject      record the decision; nothing else changes
 #   POST   .../tests/run                 {"agent": ...}: run the approved tests on it, a stream
 #   GET    .../runs/last                 the newest test run, summarized
+#   POST   .../fix                       {"call", "turn"}: fix the judge's issue decided at
+#                                        that turn of the call, from the saved agent: a stream
+#   GET    .../fixes/last                the newest fix's report
 #
 # The stream sends `event: <type>` and `data: <json>` per event: `part` (a part running,
 # then done with its result), `repair` (problems sent back to the model), then `done`
 # with the spec, or `error`. The build adds `operation` (the agent after each one),
 # `tests` (a test run) and `round`, and ends with `done` and the proposal. A test run
-# sends `test` as each test ends, then `done` with the run. Problems
+# sends `test` as each test ends, then `done` with the run. A fix sends `backcast` (the
+# reproduction on the current agent), `candidate` (a candidate's turn rate, then its full
+# rate), `tests` and `round`, and ends with `done`, its report (`fix`) and, when it got
+# that far, the proposal. Problems
 # before the stream starts (no guidelines, approved tests in the way, a step already
 # running) are plain HTTP errors. One step at a time per workspace.
 #
@@ -47,6 +53,7 @@ from sim.llm import ChatModel, ModelError, Models, OpenAIChat
 from sim.llm import models as real_models
 
 from . import build as build_step
+from . import fix as fix_step
 from . import recording
 from . import spec as spec_step
 from .workspace import WORKSPACES_DIR, Workspace, agent_hash, now
@@ -68,6 +75,11 @@ class BuildRun(BaseModel):
 
 class Decision(BaseModel):
     anyway: bool = False  # accept a proposal blocked by its tests, on purpose
+
+
+class FixRun(BaseModel):
+    call: str
+    turn: int  # the issue's decisive turn
 
 
 class TestRun(BaseModel):
@@ -208,6 +220,45 @@ def make_router(
             return {**done, "proposal": proposal}
 
         return served(ws, "build", work, finish)
+
+    @router.post("/fix")
+    async def run_fix(agent_id: str, body: FixRun):
+        ws = workspace(agent_id)
+        not_the_template(agent_id)
+        if agents_dir is None:
+            raise HTTPException(501, "This server does not keep agents.")
+        if agent_id in running:
+            raise HTTPException(409, "A Copilot step is already running for this workspace.")
+        path = Path(agents_dir) / f"{agent_id}.json"
+        if not path.is_file():
+            raise HTTPException(404, f"No saved agent '{agent_id}'.")
+        agent = json.loads(path.read_text())
+        try:
+            fix_step.find_issue(ws, body.call, body.turn)
+        except build_step.BuildError as error:
+            raise HTTPException(error.status, str(error))
+        base = saved_hash(agent_id)
+        work = lambda emit: fix_step.run(ws, body.call, body.turn, agent, model(), test_models(), emit, base=base)
+
+        def finish(done):
+            proposal = done.get("proposal")
+            if proposal:
+                proposal = {k: v for k, v in proposal.items() if k not in ("number", "decision")}
+                proposal["created"] = now()
+                proposal["started_from"] = {**proposal["started_from"], "agent": base}
+                ws.save_proposal(proposal)
+            report = {**done["fix"], "created": now(), **({"proposal": proposal["number"]} if proposal else {})}
+            report["number"] = ws.save_fix(report)
+            return {**done, "fix": report, **({"proposal": proposal} if proposal else {})}
+
+        return served(ws, "fix", work, finish)
+
+    @router.get("/fixes/last")
+    async def last_fix(agent_id: str):
+        report = workspace(agent_id).last_fix()
+        if report is None:
+            raise HTTPException(404, f"No fix for '{agent_id}' yet.")
+        return report
 
     @router.post("/tests/run")
     async def run_tests_now(agent_id: str, body: TestRun):
