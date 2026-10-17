@@ -139,6 +139,24 @@ class Workspace:
     def proposal(self, number: int) -> dict | None:
         return _read(self.dir / "proposals" / f"{number:04d}.json") if number > 0 else None
 
+    # ---- fixes from issues (#33) -------------------------------------------------------
+    def save_fix(self, report: dict) -> int:
+        """Store a fix's report (copilot/fix.py) and return its number."""
+        return _append(self.dir / "fixes", {k: v for k, v in report.items() if k != "number"})
+
+    def last_fix(self) -> dict | None:
+        found = _numbered(self.dir / "fixes")
+        return {**_read(found[-1][1]), "number": found[-1][0]} if found else None
+
+    def fixed(self) -> list[dict]:
+        """Issues an accepted fix closed: {call, turn, kind, version, proposal, at}."""
+        return _read(self.dir / "fixed.json") or []
+
+    def mark_fixed(self, issue: dict, version: int, proposal: int) -> None:
+        entries = [e for e in self.fixed() if (e["call"], e["turn"]) != (issue["call"], issue["turn"])]
+        entries.append({"call": issue["call"], "turn": issue["turn"], "kind": issue["kind"], "version": version, "proposal": proposal, "at": now()})
+        _write(self.dir / "fixed.json", entries)
+
     # ---- calls -----------------------------------------------------------------------
     def save_call(
         self, record: dict, agent: dict, source: str, *, id: str | None = None, start: str | None = None, end: str | None = None

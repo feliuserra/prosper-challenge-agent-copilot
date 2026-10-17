@@ -5,7 +5,18 @@ import type { Agent } from "../agent/schema";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
 import { undo } from "../store/history";
 import { parseEvents, type Proposal, type Spec, type StepEvent } from "./api";
-import { accept, acceptRefusal, build, describe as line, loadWorkspace, reject, stop, useCopilotStore } from "./copilotStore";
+import {
+  accept,
+  acceptRefusal,
+  build,
+  describe as line,
+  fixIssue,
+  fixRefusal,
+  loadWorkspace,
+  reject,
+  stop,
+  useCopilotStore,
+} from "./copilotStore";
 import { questionsText } from "./CopilotPanel";
 import { nodeDiff, positioned } from "./diff";
 
@@ -63,6 +74,65 @@ describe("progress lines", () => {
     expect(line(op)?.text).toBe("Operation 2: update node greeting");
     const round: StepEvent = { event: "round", round: 1, kept: false, reason: "None of the failing tests passed." };
     expect(line(round)?.text).toBe("Round 1: change not kept. None of the failing tests passed.");
+  });
+
+  it("describes a fix's events (#33)", () => {
+    expect(line({ event: "backcast", k: 5, passed: 0, failed: 5, rate: "0/5" })?.text).toBe(
+      "Reproduction on the current agent: 5 of 5 continuations fail",
+    );
+    const turn: StepEvent = { event: "candidate", number: 2, rationale: "Ask for the spelling.", turn: { passed: 4, rate: "4/5" } };
+    expect(line(turn)?.text).toBe("Candidate 2: 4/5 at the decisive turn. Ask for the spelling.");
+    const full: StepEvent = { event: "candidate", number: 2, full: { k: 5, passed: 3, failed: 2, rate: "3/5" } };
+    expect(line(full)?.text).toBe("Candidate 2: 3/5 in full");
+    expect(line({ event: "done", fix: { created: "", issue: fixed, outcome: "not_reproduced", message: "It did not come back." } })?.text).toBe(
+      "It did not come back.",
+    );
+  });
+});
+
+const fixed = { call: "lg-1019-0804", turn: 4, kind: "wrong_patient", label: "wrong patient or name", requirement: "B3", summary: "", node: "ask_name" };
+
+describe("a fix from an issue (#33)", () => {
+  beforeEach(async () => {
+    editor().open("demo", example());
+    backend({ "GET /guidelines": json({ text: "" }), "GET /spec": json(emptySpec) });
+    await loadWorkspace("demo");
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("needs the issue's agent open and saved", () => {
+    expect(fixRefusal("demo")).toBeNull();
+    expect(fixRefusal("linden-grove")).toMatch(/Open the agent linden-grove first/);
+    editor().updateAgent({ name: "Unsaved" });
+    expect(fixRefusal("demo")).toMatch(/Save the draft first/);
+  });
+
+  it("streams the fix and shows its proposal on the canvas", async () => {
+    const fix = { created: "", issue: fixed, outcome: "proposal", message: "Proposal 3 is ready.", proposal: 3 };
+    const events = [
+      { event: "part", part: "reproduction", status: "running" },
+      { event: "backcast", k: 5, passed: 0, failed: 5, rate: "0/5" },
+      { event: "candidate", number: 1, rationale: "Ask for the spelling.", turn: { passed: 5, rate: "5/5" } },
+      { event: "done", fix, proposal: proposal({ kind: "fix", issue: fixed }) },
+    ];
+    const calls = backend({
+      "POST /fix": streamed(sse(events)),
+      "GET /spec": json(emptySpec),
+      "GET /fixes/last": json(fix),
+      "GET /proposals/last": json(proposal({ kind: "fix", issue: fixed })),
+    });
+    await fixIssue("lg-1019-0804", 4);
+    expect(calls.find((c) => c.path === "/fix")?.body).toEqual({ call: "lg-1019-0804", turn: 4 });
+    expect(copilot().canvas?.mode).toBe("proposal");
+    expect(copilot().proposal?.kind).toBe("fix");
+    expect(copilot().fix?.outcome).toBe("proposal");
+    expect(copilot().step?.log.map((l) => l.text)).toEqual([
+      "Reproduction: working…",
+      "Reproduction on the current agent: 5 of 5 continuations fail",
+      "Candidate 1: 5/5 at the decisive turn. Ask for the spelling.",
+      "Proposal 3 is ready.",
+    ]);
+    expect(acceptRefusal()).toBeNull();
   });
 });
 

@@ -1,12 +1,15 @@
 import { create } from "zustand";
 
 import type { Agent } from "../agent/schema";
+import { setSideTab } from "../components/sideStore";
+import { useCallsStore } from "../detection/callsStore";
 import { selectIsDirty, useAgentStore } from "../store/agentStore";
 import {
   acceptProposal,
   approveTests,
   deleteTest,
   getGuidelines,
+  getLastFix,
   getLastProposal,
   getLastRun,
   getSpec,
@@ -14,8 +17,10 @@ import {
   putGuidelines,
   rejectProposal,
   streamBuild,
+  streamFix,
   streamSpec,
   streamTests,
+  type FixReport,
   type Proposal,
   type Spec,
   type StepEvent,
@@ -28,8 +33,9 @@ import { positioned } from "./diff";
 // what the canvas shows instead of the draft: the agent while it is built, or a
 // proposal under review. The panel is rebuilt from the workspace on load; there is no
 // chat history. Accepting a proposal is one store operation, so one Cmd+Z undoes it.
+// A fix from an issue (#33) starts from the Calls tab and ends in a proposal like a build's.
 
-export type StepKind = "spec" | "build" | "tests";
+export type StepKind = "spec" | "build" | "tests" | "fix";
 
 export interface LogLine {
   text: string;
@@ -60,6 +66,8 @@ interface CopilotState {
   spec: Spec | null;
   proposal: Proposal | null;
   run: TestRun | null;
+  /** The newest fix's report (#33): what it found, also when it made no proposal. */
+  fix: FixReport | null;
   step: Step | null;
   canvas: CanvasOverride | null;
   /** The draft (as JSON) when the build of `proposal` started in this session: Accept checks it is unchanged. */
@@ -77,6 +85,7 @@ const initial = {
   spec: null,
   proposal: null,
   run: null,
+  fix: null,
   step: null,
   canvas: null,
   startedFrom: null,
@@ -105,14 +114,15 @@ export async function loadWorkspace(id: string | null) {
   useCopilotStore.setState({ ...initial, workspace: id, loading: id !== null });
   if (!id) return;
   try {
-    const [guidelines, spec, proposal, run] = await Promise.all([
+    const [guidelines, spec, proposal, run, fix] = await Promise.all([
       getGuidelines(id),
       getSpec(id),
       getLastProposal(id),
       getLastRun(id),
+      getLastFix(id),
     ]);
     if (get().workspace !== id) return;
-    set({ loading: false, guidelines, savedGuidelines: guidelines, spec, proposal, run });
+    set({ loading: false, guidelines, savedGuidelines: guidelines, spec, proposal, run, fix });
   } catch (error) {
     if (get().workspace === id) set({ loading: false, loadError: String(error) });
   }
@@ -125,8 +135,8 @@ export function setGuidelines(guidelines: string) {
 async function refresh() {
   const id = get().workspace;
   if (!id) return;
-  const [spec, proposal, run] = await Promise.all([getSpec(id), getLastProposal(id), getLastRun(id)]);
-  if (get().workspace === id) set({ spec, proposal, run });
+  const [spec, proposal, run, fix] = await Promise.all([getSpec(id), getLastProposal(id), getLastRun(id), getLastFix(id)]);
+  if (get().workspace === id) set({ spec, proposal, run, fix });
 }
 
 // ---- steps --------------------------------------------------------------------------------------
@@ -250,6 +260,54 @@ export async function build(loop = true) {
   if (result && !(result instanceof Error) && result.event === "done") await refresh().catch(() => {});
 }
 
+/** Why a fix of an issue in `workspace`'s calls cannot start now, or null when it can. */
+export function fixRefusal(workspace: string): string | null {
+  const state = editor();
+  if (state.agentId !== workspace) return `Open the agent ${workspace} first: the fix changes it.`;
+  if (get().workspace !== workspace) return "The Copilot is still loading this agent's workspace.";
+  if (get().step?.running) return "A Copilot step is running.";
+  if (selectIsDirty(state)) return "Save the draft first: the fix starts from the saved agent.";
+  return null;
+}
+
+/**
+ * Fix the judge's issue decided at `turn` of `call` (#33): reproduce it, try candidate
+ * changes on the decisive turn, then the tests. The Copilot tab shows the progress and
+ * the proposal; the canvas shows the proposal when it comes.
+ */
+export async function fixIssue(call: string, turn: number) {
+  const { workspace } = get();
+  const draft = editor().agent;
+  if (!workspace || !draft) return;
+  const refusal = fixRefusal(workspace);
+  if (refusal) {
+    set({ notice: { text: refusal, tone: "error" } });
+    return;
+  }
+  setSideTab("copilot");
+  editor().select(null);
+  set({ startedFrom: { proposal: null, json: JSON.stringify(draft) } });
+  const result = await runStep(
+    "fix",
+    (signal) => streamFix(workspace, call, turn, signal),
+    (event) => {
+      if (event.event !== "done") return;
+      if (event.fix) set({ fix: event.fix });
+      if (event.proposal) {
+        const proposal = event.proposal;
+        set({
+          proposal,
+          canvas: { agent: positioned(proposal.agent, draft), mode: "proposal" },
+          startedFrom: { proposal: proposal.number, json: get().startedFrom?.json ?? JSON.stringify(draft) },
+        });
+      }
+    },
+  );
+  const done = result && !(result instanceof Error) && result.event === "done";
+  if (!(done && result.proposal)) set({ startedFrom: null });
+  if (done) await refresh().catch(() => {});
+}
+
 /** Run the approved tests on the agent as it is in the editor. */
 export async function runTests() {
   const { workspace } = get();
@@ -332,6 +390,9 @@ export async function accept(anyway = false) {
       },
     });
     await refresh();
+    // A fix closed an issue: the Calls tab shows it as fixed.
+    const open = useCallsStore.getState().open;
+    if (proposal.kind === "fix" && open) await useCallsStore.getState().openCall(open.workspace, open.call, open.issue);
   } catch (error) {
     set({ notice: { text: error instanceof Error ? error.message : String(error), tone: "error" } });
   }
@@ -357,6 +418,9 @@ const PARTS: Record<string, string> = {
   tests: "Tests",
   build: "Build",
   diagnosis: "Diagnosis",
+  reproduction: "Reproduction",
+  backcast: "Backcast",
+  candidates: "Candidates",
 };
 
 const partName = (part: string) => PARTS[part] ?? part.charAt(0).toUpperCase() + part.slice(1);
@@ -406,13 +470,24 @@ export function describe(event: StepEvent): LogLine | null {
       return {
         text: `Round ${event.round}: ${event.kept ? "change kept" : "change not kept"}${event.reason ? `. ${event.reason}` : ""}${event.error ? `. ${event.error}` : ""}`,
       };
+    case "backcast":
+      return {
+        text: `Reproduction on the current agent: ${event.failed} of ${event.k} continuations fail`,
+        tone: event.failed === 0 ? "error" : undefined,
+      };
+    case "candidate":
+      if (event.turn)
+        return {
+          text: `Candidate ${event.number}: ${event.turn.rate ?? event.turn.error} at the decisive turn. ${event.rationale ?? ""}`.trim(),
+        };
+      return event.full ? { text: `Candidate ${event.number}: ${event.full.rate} in full`, tone: "muted" } : null;
     case "test":
       return {
         text: `${event.result.test_id}: ${event.result.status}`,
         tone: event.result.status === "pass" ? "muted" : undefined,
       };
     case "done":
-      return { text: "Done." };
+      return { text: event.fix?.message ?? "Done." };
     case "error":
       return { text: event.message, tone: "error" };
   }

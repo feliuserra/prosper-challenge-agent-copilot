@@ -5,7 +5,7 @@ PROJECT := backend
 FRONTEND := frontend
 TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset synth detect detect-eval demo-seed demo-calls judge judge-eval eval spec build record spend memo clean
+.PHONY: help install run dev test clinic-reset synth detect detect-eval demo-seed demo-calls judge judge-eval eval spec build fix record spend memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -62,6 +62,9 @@ spec: ## Write a workspace's spec from its guidelines (#29; model calls, about $
 
 build: ## Build a workspace's agent from the template and loop until its approved tests pass (#30; model calls, about $1.50 and up): WORKSPACE=id, NO_CACHE=1
 	uv run --directory $(PROJECT) python -m copilot build $(WORKSPACE) $(if $(NO_CACHE),--no-cache)
+
+fix: ## Fix the judge's issue at a turn of a call, from the saved agent (#33; model calls, about $$6): WORKSPACE=linden-grove CALL=lg-1019-0804 TURN=4, NO_CACHE=1
+	uv run --directory $(PROJECT) python -m copilot fix $(or $(WORKSPACE),linden-grove) $(CALL) $(TURN) $(if $(NO_CACHE),--no-cache)
 
 record: ## Write replayable Copilot streams from a workspace's stored spec and proposal (#31; no model calls): WORKSPACE=id, PROPOSAL=n
 	uv run --directory $(PROJECT) python -m copilot record $(WORKSPACE) $(if $(PROPOSAL),--proposal $(PROPOSAL))

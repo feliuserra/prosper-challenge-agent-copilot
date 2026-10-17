@@ -28,6 +28,11 @@ CLINIC_NOW = "2026-10-19T08:00"
 # whose change no failing test passes with costs no full rerun.
 MAX_ROUNDS = 3
 
+# A fix from an issue (#33; ADR 0015): candidate changes per issue, and how many times
+# each continuation or turn replay is sampled.
+CANDIDATES = 3
+FIX_K = 5
+
 PROMPTS = Path(__file__).parent / "prompts"
 
 
