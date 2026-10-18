@@ -7,7 +7,8 @@
 # GET /composer/calls (#32): the judged calls of every workspace.
 # GET /composer/calls/{workspace}/{call}: one call for the Calls tab: its turns (without
 #   the context each agent turn was given), its path, the judge's issues, other findings
-#   and caller card, and the tickets matched to it.
+#   and caller card, and the tickets matched to it. An issue an accepted fix closed
+#   (#33) carries `fixed`: the version and proposal.
 #
 
 from collections import Counter
@@ -64,6 +65,9 @@ def make_router(data_dir: Path, workspaces_dir: Path | None = None) -> APIRouter
             raise HTTPException(404, f"No call {call_id} in {workspace}.")
         result = judge.stored(space, call_id)
         matched = judge.match_tickets(judge.tickets(space), [call])
+        fixed = {e["turn"]: e for e in space.fixed() if e["call"] == call_id}  # #33: the version that fixed an issue
+        if result is not None:
+            result = {**result, "issues": [{**i, "fixed": fixed.get(i["turn"])} for i in result["issues"]]}
         return {
             "workspace": workspace,
             "call": {key: call.get(key) for key in ("id", "source", "version", "start", "end", "end_reason", "start_node")}

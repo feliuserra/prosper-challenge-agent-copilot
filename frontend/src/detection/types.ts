@@ -201,6 +201,8 @@ export interface CallIssue {
   summary: string;
   agreed: boolean;
   second_turn: number | null;
+  /** Set when an accepted fix closed it (#33). */
+  fixed?: { version: number; proposal: number } | null;
 }
 
 export interface CallerCard {

@@ -1,6 +1,6 @@
 # ADR 0010: Test format and grading
 
-- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): turn checks graded as rates. #26 (2026-10-12): the caller model is pinned and the judge is provisional until #27 ([`docs/notes/models.md`](../notes/models.md)); the format as built is documented in `backend/sim/testfile.py`.
+- **Status:** Accepted, 2026-10-05. Models and the judge prompt are confirmed in #26 and #27. Amended 2026-10-08 by [ADR 0015](0015-debugging-by-cause.md): turn checks graded as rates. #26 (2026-10-12): the caller model is pinned and the judge is provisional until #27 ([`docs/notes/models.md`](../notes/models.md)); the format as built is documented in `backend/sim/testfile.py`. #33 (2026-10-16): an optional `hearing`, see the end.
 - **Date:** 2026-10-05
 
 ## Context
@@ -43,3 +43,7 @@
 - Reference tests are portable across agents because of the shared tool catalog.
 - Soft rules depend on the judge, so the judge is calibrated (ADR 0011).
 - Results stay cheap enough to run in the Copilot's loop.
+
+## Amendment (2026-10-16, #33)
+
+A test may carry `hearing`: [said, heard] pairs (`sim/hearing.py`, moved there from #32's demo). What the caller says reaches the agent as speech-to-text heard it, and the agent's words reach the caller as they sound; the caller remembers its own words as it said them. Spelled letters are not touched. A reproduction made from a call (#33) needs it: the caller card knows only the misheard name ("Sara Boreal"), a ticket gives the true one, and without the mishearing an improvised "Sarah Burrell" would reach the agent intact and any agent would pass. `continue_from` takes the same pairs. Tests without `hearing` run as before, with the same cache keys.

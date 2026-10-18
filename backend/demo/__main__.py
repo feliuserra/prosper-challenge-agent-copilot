@@ -88,9 +88,11 @@ def install(force: bool = False, agents_dir: Path = AGENTS_DIR, workspaces_dir: 
     agents_dir.mkdir(parents=True, exist_ok=True)
     agent_path.write_text(agent_text)
     source, target = generate.seed_workspace().dir, Path(workspaces_dir) / AGENT_ID
-    for folder in ("versions", "calls", "proposals", "runs"):
+    for folder in ("versions", "calls", "proposals", "runs", "fixes"):
         if force:
             shutil.rmtree(target / folder, ignore_errors=True)
+    if force:
+        (target / "fixed.json").unlink(missing_ok=True)  # #33's fixed issues
     shutil.copytree(source, target, dirs_exist_ok=True)
     return []
 

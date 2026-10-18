@@ -134,53 +134,15 @@ async def run(
     emit({"event": "part", "part": "build", "status": "done", "outline": authored["outline"], "uncarried": authored["uncarried"]})
 
     # 3. the loop
-    operations = list(authored["operations"])
-    configuration_changes: list[dict] = []
     results = await test(agent, tests, configuration, "before") if loop else []
     before = results
-    rounds: list[dict] = []
-    diagnosed: tuple[str, list[dict]] | None = None  # (what was diagnosed, diagnoses)
-    while loop and len(rounds) < config.MAX_ROUNDS:
-        failing = [r for r in results if blocking(r) and r["status"] != "error"]
-        if not failing:
-            break
-        n = len(rounds) + 1
-        emit({"event": "part", "part": f"round {n}", "status": "running"})
-        try:
-            fix = await ask_fix(spec, agent, configuration, carriers, tests, failing, rounds, model, usage, repaired(f"round {n}"))
-        except StillInvalid as error:
-            rounds.append({"round": n, "error": "The change did not apply.", "problems": error.problems, "kept": False})
-            continue
-        diagnosed = (state_hash(agent, configuration), fix["diagnoses"])
-        record = {
-            "round": n,
-            "diagnoses": fix["diagnoses"],
-            "rationale": fix["rationale"],
-            "operations": fix["operations"],
-            "configuration": fix["configuration"],
-            "concerns": fix["concerns"],
-            "kept": False,
-        }
-        rounds.append(record)
-        if not fix["operations"] and not fix["configuration"]:
-            record["reason"] = "No change: every failure is a question for the client."
-            emit({"event": "round", **record})
-            break
-        candidate, candidate_carriers, candidate_config = fix["agent"], fix["carriers"], fix["clinic"]
-        ids = {r["test_id"] for r in failing}
-        rerun = await test(candidate, [t for t in tests if t["id"] in ids], candidate_config, f"round {n}: failing tests")
-        record["rerun"] = summarize(rerun)
-        if all(blocking(r) for r in rerun):
-            record["reason"] = "None of the failing tests passed with the change."
-        else:
-            full = await test(candidate, tests, candidate_config, f"round {n}: all tests")
-            record["full"] = summarize(full)
-            record["kept"], record["reason"] = better(results, full)
-            if record["kept"]:
-                agent, carriers, configuration, results = candidate, candidate_carriers, candidate_config, full
-                operations += fix["operations"]
-                configuration_changes += fix["configuration"]
-        emit({"event": "round", **record})
+    looped = await improve(spec, agent, carriers, configuration, tests, results, model, test, usage, repaired, emit) if loop else None
+    if looped:
+        agent, carriers, configuration, results = looped["agent"], looped["carriers"], looped["configuration"], looped["results"]
+    rounds = looped["rounds"] if looped else []
+    operations = list(authored["operations"]) + (looped["operations"] if looped else [])
+    configuration_changes = looped["configuration_changes"] if looped else []
+    diagnosed = looped["diagnosed"] if looped else None
 
     # Every failure left names its broken link: diagnose the final agent if no round did.
     failing = [r for r in results if blocking(r) and r["status"] != "error"]
@@ -231,6 +193,69 @@ async def run(
         ws.save_run({"created": now(), "agent_hash": agent_hash(agent), "proposal": proposal["number"], "results": compact(results)})
     emit({"event": "done", "proposal": proposal})
     return proposal
+
+
+async def improve(spec, agent, carriers, configuration, tests, results, model, test, usage, repaired, emit, targets: set[str] | None = None) -> dict:
+    """The loop (#30), at most MAX_ROUNDS rounds from `results`, the tests' results on
+    `agent`: one call diagnoses the failures and returns one change; the failing tests
+    rerun on it, and only if one now passes, all of them; the change is kept when it is
+    `better`. `targets` limits the failures worked on to those tests (a fix, #33, leaves
+    the agent's other failures alone). `test(agent, tests, clinic, label)` runs tests."""
+    operations: list[dict] = []
+    configuration_changes: list[dict] = []
+    rounds: list[dict] = []
+    diagnosed: tuple[str, list[dict]] | None = None  # (what was diagnosed, diagnoses)
+    while len(rounds) < config.MAX_ROUNDS:
+        failing = [r for r in results if blocking(r) and r["status"] != "error" and (targets is None or r["test_id"] in targets)]
+        if not failing:
+            break
+        n = len(rounds) + 1
+        emit({"event": "part", "part": f"round {n}", "status": "running"})
+        try:
+            fix = await ask_fix(spec, agent, configuration, carriers, tests, failing, rounds, model, usage, repaired(f"round {n}"))
+        except StillInvalid as error:
+            rounds.append({"round": n, "error": "The change did not apply.", "problems": error.problems, "kept": False})
+            continue
+        diagnosed = (state_hash(agent, configuration), fix["diagnoses"])
+        record = {
+            "round": n,
+            "diagnoses": fix["diagnoses"],
+            "rationale": fix["rationale"],
+            "operations": fix["operations"],
+            "configuration": fix["configuration"],
+            "concerns": fix["concerns"],
+            "kept": False,
+        }
+        rounds.append(record)
+        if not fix["operations"] and not fix["configuration"]:
+            record["reason"] = "No change: every failure is a question for the client."
+            emit({"event": "round", **record})
+            break
+        candidate, candidate_carriers, candidate_config = fix["agent"], fix["carriers"], fix["clinic"]
+        ids = {r["test_id"] for r in failing}
+        rerun = await test(candidate, [t for t in tests if t["id"] in ids], candidate_config, f"round {n}: failing tests")
+        record["rerun"] = summarize(rerun)
+        if all(blocking(r) for r in rerun):
+            record["reason"] = "None of the failing tests passed with the change."
+        else:
+            full = await test(candidate, tests, candidate_config, f"round {n}: all tests")
+            record["full"] = summarize(full)
+            record["kept"], record["reason"] = better(results, full)
+            if record["kept"]:
+                agent, carriers, configuration, results = candidate, candidate_carriers, candidate_config, full
+                operations += fix["operations"]
+                configuration_changes += fix["configuration"]
+        emit({"event": "round", **record})
+    return {
+        "agent": agent,
+        "carriers": carriers,
+        "configuration": configuration,
+        "results": results,
+        "rounds": rounds,
+        "operations": operations,
+        "configuration_changes": configuration_changes,
+        "diagnosed": diagnosed,
+    }
 
 
 def approved_tests(spec: dict) -> list[dict]:
@@ -434,7 +459,7 @@ def check_fix(answer, agent, configuration, carriers, known, failing_ids, all_te
     problems += applied.errors
     problems += _kept_fixed(applied.agent, agent)
     if applied.ok:
-        problems += guide_problems(applied.agent)
+        problems += guide_problems(applied.agent, agent)
     clinic, carriers_after = copy.deepcopy(configuration), applied.carriers
     for edit in edits:
         key = edit.get("key") if isinstance(edit, dict) else None
@@ -474,20 +499,25 @@ def carry_configuration(carriers: dict, key: str, value, cited: list[str]) -> No
         mapping[entry] = mapping.get(entry, []) + [i for i in cited if i not in mapping.get(entry, [])]
 
 
-def guide_problems(agent: dict) -> list[str]:
+def guide_problems(agent: dict, before: dict | None = None) -> list[str]:
     """Rules of the authoring guide that code can check. Every node that is not an end node
     offers transfer_to_human: a caller can ask for a person at any step, and the persona's
-    rules to transfer work only where the tool is offered."""
-    missing = [
-        n["name"]
-        for n in agent.get("nodes", [])
-        if isinstance(n, dict) and not n.get("end") and "transfer_to_human" not in (n.get("tools") or [])
-    ]
+    rules to transfer work only where the tool is offered. With `before`, only what the
+    change from it broke: a fix (#33) is not refused for the agent's other defects."""
+    missing = [name for name in _no_transfer(agent) if before is None or name not in _no_transfer(before)]
     if not missing:
         return []
     return [
         f"transfer_to_human must be offered in every node that is not an end node; missing in {', '.join(missing)}. "
         "Use set_tools with the node's current tools plus transfer_to_human."
+    ]
+
+
+def _no_transfer(agent: dict) -> list[str]:
+    return [
+        n["name"]
+        for n in agent.get("nodes", [])
+        if isinstance(n, dict) and not n.get("end") and "transfer_to_human" not in (n.get("tools") or [])
     ]
 
 
@@ -601,7 +631,8 @@ def decidable(ws: Workspace, number: int) -> dict:
 def accept(ws: Workspace, number: int, agents_dir: Path, anyway: bool = False) -> dict:
     """Write an accepted proposal: the agent to agents/<id>.json (a new version), its
     configuration to the workspace's clinic, and the configuration and carriers to the
-    spec. A blocked proposal is accepted only `anyway`, and never with a leak. A proposal
+    spec. A fix's proposal (#33) adds its reproduction test, approved, instead of the
+    configuration, and marks its issue fixed in the new version. A blocked proposal is accepted only `anyway`, and never with a leak. A proposal
     whose agent was saved after the build started is refused: it would undo that save."""
     proposal = decidable(ws, number)
     if proposal.get("leaks"):
@@ -614,12 +645,25 @@ def accept(ws: Workspace, number: int, agents_dir: Path, anyway: bool = False) -
     if "agent" in started and saved_hash(agents_dir, ws.id) != started["agent"]:
         raise BuildError("The agent was saved after this build started, so the proposal does not include that change. Build again.", status=409)
     spec = ws.spec()
-    spec["configuration"] = proposal["configuration"]
+    fix = proposal.get("kind") == "fix"
+    message = f"Proposal {number}"
+    if fix:
+        # A fix (#33) leaves the configuration alone and adds its reproduction to the suite,
+        # approved by this accept.
+        issue = proposal["issue"]
+        message += f": fixes {issue['label'] or issue['kind']} in call {issue['call']} (turn {issue['turn']})"
+        test = {**proposal["reproduction"]["test"], "status": "approved"}
+        spec["tests"] = [t for t in spec["tests"] if t["id"] != test["id"]] + [test]
+    else:
+        spec["configuration"] = proposal["configuration"]
     spec["carriers"] = proposal["carriers"]
     spec_step.write(ws, spec)
-    write_clinic(ws, proposal["configuration"])
+    if not fix:
+        write_clinic(ws, proposal["configuration"])
     write_atomic(Path(agents_dir) / f"{ws.id}.json", json.dumps(proposal["agent"], indent=2, ensure_ascii=False) + "\n")
-    version, _ = ws.add_version(proposal["agent"], "copilot", f"Proposal {number}" + (", accepted while blocked" if blocked else ""))
+    version, _ = ws.add_version(proposal["agent"], "copilot", message + (", accepted while blocked" if blocked else ""))
+    if fix:
+        ws.mark_fixed(proposal["issue"], version["number"], number)
     proposal["decision"] = {"status": "accepted", "at": now(), "version": version["number"], "blocked": blocked}
     ws.update_proposal(proposal)
     return version

@@ -21,6 +21,7 @@ from . import config
 from .caller import Caller
 from .checks import grade
 from .conversation import Conversation
+from .hearing import hearing_caller
 from .llm import ModelError, Models, Usage
 from .testfile import resolve_world
 
@@ -45,7 +46,7 @@ async def simulate(agent: dict, test: dict, models: Models, clinic: dict | None 
     clinic, or in `clinic` (a clinic file) when given. Returns its record."""
     started = time.monotonic()
     conversation = Conversation(agent, ClinicWorld(resolve_world(test, _clinic(agent, clinic))), models)
-    caller = Caller(test["caller"], models.caller, replay=test.get("replay"))
+    caller = hearing_caller(Caller(test["caller"], models.caller, replay=test.get("replay")), test.get("hearing"))
     await conversation.start()
     await talk(conversation, caller, test.get("max_turns", config.DEFAULT_MAX_TURNS))
     record = conversation.record()

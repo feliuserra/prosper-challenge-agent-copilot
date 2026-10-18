@@ -4,7 +4,7 @@ import { EXAMPLE_AGENT_ID } from "../agent/templates";
 import { ClinicSections } from "../clinic/ClinicView";
 import { readClinic } from "../clinic/clinic";
 import { useAgentStore } from "../store/agentStore";
-import type { Proposal, Requirement, Spec, SpecTest, TestRow, TestRun, TestSummary } from "./api";
+import type { FixReport, Proposal, Requirement, Spec, SpecTest, TestRow, TestRun, TestSummary } from "./api";
 import {
   accept,
   acceptRefusal,
@@ -27,7 +27,8 @@ import { nodeDiff } from "./diff";
 // The Copilot tab (#31): the workspace of the open agent, top to bottom in the order of
 // the work: paste the guidelines, review what the spec step wrote (requirements, client
 // questions, the clinic configuration, tests), approve tests, build, decide on the
-// proposal, run the tests. Every button calls the endpoint directly.
+// proposal, run the tests. Every button calls the endpoint directly. A fix from an issue
+// (#33) starts in the Calls tab; its progress and its proposal show here.
 
 export function CopilotPanel() {
   const workspace = useCopilotStore((s) => s.workspace);
@@ -36,6 +37,8 @@ export function CopilotPanel() {
   const spec = useCopilotStore((s) => s.spec);
   const proposal = useCopilotStore((s) => s.proposal);
   const run = useCopilotStore((s) => s.run);
+  const fix = useCopilotStore((s) => s.fix);
+  const fixing = useCopilotStore((s) => s.step?.kind === "fix");
 
   if (!workspace) return <p className="muted">No agent open.</p>;
   // Accepting writes the agent's file: into the template, every later build would start
@@ -68,6 +71,7 @@ export function CopilotPanel() {
           <Configuration configuration={spec.configuration} />
           <Tests spec={spec} run={run} />
           <Build spec={spec} />
+          {(fixing || fix) && <Fix report={fix} />}
           {proposal && <ProposalCard proposal={proposal} />}
           <RunTests spec={spec} run={run} />
         </>
@@ -145,6 +149,7 @@ const STEP_TITLES: Record<StepKind, string> = {
   spec: "Writing the spec",
   build: "Building",
   tests: "Running the tests",
+  fix: "Fixing the issue",
 };
 
 /** The running or last step's log, shown in the card of its kind. */
@@ -452,6 +457,27 @@ function Build({ spec }: { spec: Spec }) {
   );
 }
 
+// ---- a fix from an issue (#33) ------------------------------------------------------------------
+function Fix({ report }: { report: FixReport | null }) {
+  const running = useCopilotStore((s) => s.step?.kind === "fix" && s.step.running);
+  return (
+    <Card title="Fix from an issue">
+      {report && !running && (
+        <p>
+          {report.issue.label ?? report.issue.kind} in call <code>{report.issue.call}</code>, decided at turn{" "}
+          {report.issue.turn}: {report.message}
+        </p>
+      )}
+      <div className="hint">
+        Started from an issue in the Calls tab. The issue is reproduced first (the call continued 5 times on the saved
+        agent); then 3 candidate changes are tried on the decisive turn and in full, and the one that passes the
+        reproduction most often goes through the tests: about $6 in model calls, mostly simulated calls.
+      </div>
+      <StepLog kind="fix" />
+    </Card>
+  );
+}
+
 // ---- the proposal -------------------------------------------------------------------------------
 function ProposalCard({ proposal }: { proposal: Proposal }) {
   const draft = useAgentStore((s) => s.agent);
@@ -483,14 +509,20 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       }
     >
       <ul className="copilot-facts">
-        <li>
-          {plural(proposal.operations.length, "operation")} on the template ({operationCounts(proposal)})
-        </li>
-        <li>
-          {plural(proposal.configuration_entries, "configuration entry").replace("entrys", "entries")}
-          {proposal.configuration_changes.length > 0 &&
-            `, ${plural(proposal.configuration_changes.length, "change")} by the fix loop (${proposal.configuration_changes.map((c) => c.key).join(", ")})`}
-        </li>
+        {proposal.kind === "fix" ? (
+          <FixFacts proposal={proposal} />
+        ) : (
+          <>
+            <li>
+              {plural(proposal.operations.length, "operation")} on the template ({operationCounts(proposal)})
+            </li>
+            <li>
+              {plural(proposal.configuration_entries ?? 0, "configuration entry").replace("entrys", "entries")}
+              {proposal.configuration_changes.length > 0 &&
+                `, ${plural(proposal.configuration_changes.length, "change")} by the fix loop (${proposal.configuration_changes.map((c) => c.key).join(", ")})`}
+            </li>
+          </>
+        )}
         {pending && diff && (
           <li>
             Against your draft: {added.length > 0 ? <NodeNames label="added" names={added} /> : "none added"},{" "}
@@ -505,8 +537,10 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
         )}
         {proposal.results ? (
           <li>
-            Tests: <Score summary={proposal.results.before} /> before the fixes,{" "}
-            <Score summary={proposal.results.after} /> after
+            Tests: <Score summary={proposal.results.before} />{" "}
+            {proposal.kind === "fix" ? "on the current agent" : "before the fixes"}, <Score summary={proposal.results.after} />{" "}
+            after
+            {proposal.not_rerun && proposal.not_rerun.length > 0 && ` (the ${plural(proposal.not_rerun.length, "test")} failing before were not run again)`}
             {proposal.rounds.length > 0 &&
               ` (${plural(proposal.rounds.length, "round")}, ${proposal.rounds.filter((r) => r.kept).length} kept)`}
           </li>
@@ -518,7 +552,9 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
         </li>
       </ul>
 
-      {proposal.outline.length > 0 && (
+      {proposal.candidates && <Candidates proposal={proposal} />}
+
+      {proposal.outline && proposal.outline.length > 0 && (
         <details className="copilot-aside">
           <summary className="muted">What the build did ({proposal.outline.length})</summary>
           <ol className="copilot-list">
@@ -593,6 +629,77 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       {pending && refusal && <div className="call-notice error">{refusal}</div>}
       {notice && <div className={`call-notice ${notice.tone === "error" ? "error" : "info"}`}>{notice.text}</div>}
     </Card>
+  );
+}
+
+/** What a fix's proposal shows first: the issue, the reproduction before and after, the turn. */
+function FixFacts({ proposal }: { proposal: Proposal }) {
+  const { issue, reproduction, turn_before: turnBefore, diagnosis } = proposal;
+  if (!issue || !reproduction) return null;
+  const chosen = proposal.candidates?.find((c) => c.number === proposal.chosen);
+  return (
+    <>
+      <li>
+        Fixes <strong>{issue.label ?? issue.kind}</strong> in call <code>{issue.call}</code>
+        {issue.requirement && <span className="chip">{issue.requirement}</span>}, decided at turn {issue.turn} in{" "}
+        <code>{issue.node}</code>.
+      </li>
+      <li>
+        Reproduction <code>{reproduction.test.id}</code>: <strong>{reproduction.before.failed}/{reproduction.before.k}</strong> fail on
+        the current agent
+        {reproduction.after && (
+          <>
+            , <strong>{reproduction.after.passed}/{reproduction.after.k}</strong> pass with the fix
+          </>
+        )}
+        .
+      </li>
+      {reproduction.corrections.length > 0 && (
+        <li className="muted">
+          The caller said{" "}
+          {reproduction.corrections.map((c) => `“${c.said}”, heard as “${c.heard}” (ticket ${c.ticket})`).join("; ")}.
+        </li>
+      )}
+      {diagnosis && (
+        <li>
+          <span className="badge warning">{diagnosis.link.replace(/_/g, " ")}</span> {diagnosis.explanation}
+        </li>
+      )}
+      {chosen && (
+        <li>
+          Decisive turn replayed: {turnBefore?.rate ?? "?"} on the current agent, {chosen.turn.rate} with candidate{" "}
+          {chosen.number} ({plural(proposal.operations.length, "operation")}: {operationCounts(proposal)}).
+        </li>
+      )}
+    </>
+  );
+}
+
+function Candidates({ proposal }: { proposal: Proposal }) {
+  const candidates = proposal.candidates ?? [];
+  const agreement = proposal.agreement;
+  return (
+    <details className="copilot-aside">
+      <summary className="muted">
+        {plural(candidates.length, "candidate")}
+        {agreement && `: the turn replay agreed with the full reproduction on ${agreement.agreed} of ${agreement.of}`}
+      </summary>
+      <ol className="copilot-list">
+        {candidates.map((c) => (
+          <li key={c.number}>
+            {c.number === proposal.chosen && <span className="badge">chosen</span>} {c.rationale}
+            <div className="muted">
+              Turn {c.turn.rate ?? `not replayed: ${c.turn.error}`}
+              {c.full && `, full reproduction ${c.full.rate}`} · {plural(c.operations.length, "operation")}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className="hint">
+        The candidate is chosen on the turn replay alone, before any full call runs; every candidate's full reproduction
+        is reported to measure how well the turn replay predicts it.
+      </div>
+    </details>
   );
 }
 

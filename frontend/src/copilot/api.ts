@@ -1,7 +1,7 @@
 import type { Agent } from "../agent/schema";
 
 // Client for the Copilot's workspace API (backend/copilot/api.py), reached through the
-// Vite proxy. The steps (spec, build, test run) answer with a stream of server-sent
+// Vite proxy. The steps (spec, build, fix, test run) answer with a stream of server-sent
 // events over a POST, so they are read from fetch's body rather than an EventSource.
 
 export interface Requirement {
@@ -81,19 +81,61 @@ export interface Round {
   full?: TestSummary;
 }
 
+/** K continuations of a call from its start (#33): the reproduction on one agent. */
+export interface Rollout {
+  k: number;
+  passed: number;
+  failed: number;
+  rate: string;
+}
+
+export interface FixCandidate {
+  number: number;
+  rationale: string;
+  operations: { op: string }[];
+  /** replay_turn on the decisive turn; null with `error` when it could not run. */
+  turn: { passed: number | null; rate: string | null; error?: string | null };
+  /** The full reproduction on the candidate, for the agreement number. */
+  full?: Rollout;
+}
+
+/** The issue a fix proposal fixes (#33). */
+export interface FixIssue {
+  call: string;
+  turn: number;
+  kind: string;
+  label: string | null;
+  requirement: string;
+  summary: string;
+  node: string;
+}
+
 export interface Proposal {
   number: number;
   created: string;
   status: "ready" | "blocked";
   blocked: string[];
-  started_from: { template: string; hash: string; agent?: string | null };
+  started_from: { template?: string; hash: string; agent?: string | null };
+  /** "fix" for a fix from an issue (#33); a build's proposal has none. */
+  kind?: "fix";
   configuration: unknown;
-  configuration_entries: number;
+  /** A build's; a fix leaves the configuration alone. */
+  configuration_entries?: number;
   configuration_changes: { key: string }[];
-  outline: string[];
+  outline?: string[];
+  issue?: FixIssue;
+  reproduction?: { test: { id: string; title: string }; before: Rollout; after?: Rollout; corrections: { said: string; heard: string; ticket: string }[] };
+  turn_before?: { passed: number | null; rate: string | null };
+  diagnosis?: { link: string; turn: number | null; explanation: string; question: string | null };
+  candidates?: FixCandidate[];
+  chosen?: number;
+  agreement?: { k: number; agreed: number; of: number; best_turn_is_best_full: boolean };
+  regressions?: string[];
+  /** A fix's tests that failed on the current agent, so were not run again after it. */
+  not_rerun?: string[];
   operations: { op: string }[];
   agent: Agent;
-  uncarried: { requirement: string; reason: string }[];
+  uncarried?: { requirement: string; reason: string }[];
   diagnoses: Diagnosis[];
   questions: { test: string; question: string }[];
   concerns: unknown[];
@@ -102,6 +144,16 @@ export interface Proposal {
   leaks: string[];
   meta: { seconds: number; cost: { copilot: number | null; tests: number | null } };
   decision?: { status: "accepted" | "rejected"; at: string; version?: number; blocked?: boolean };
+}
+
+/** What a fix did (#33), stored whether or not it got to a proposal. */
+export interface FixReport {
+  number?: number;
+  created: string;
+  issue: FixIssue;
+  outcome: "proposal" | "not_reproduced" | "no_candidate";
+  message: string;
+  proposal?: number;
 }
 
 export interface TestRun {
@@ -121,7 +173,9 @@ export type StepEvent =
   | { event: "tests"; label: string; results: TestSummary }
   | ({ event: "round" } & Round)
   | { event: "test"; done: number; total: number; result: TestRow }
-  | { event: "done"; spec?: Spec; proposal?: Proposal; run?: TestRun }
+  | ({ event: "backcast" } & Rollout)
+  | ({ event: "candidate"; number: number } & Partial<Pick<FixCandidate, "rationale" | "turn" | "full">>)
+  | { event: "done"; spec?: Spec; proposal?: Proposal; run?: TestRun; fix?: FixReport }
   | { event: "error"; part: string | null; message: string; problems: string[] };
 
 export class HttpError extends Error {
@@ -213,6 +267,13 @@ export const streamSpec = (workspace: string, replaceApproved: boolean, signal: 
 
 export const streamBuild = (workspace: string, loop: boolean, signal: AbortSignal) =>
   stream(workspace, "/build", { loop }, signal);
+
+/** Fix the judge's issue decided at `turn` of `call`, from the saved agent (#33). */
+export const streamFix = (workspace: string, call: string, turn: number, signal: AbortSignal) =>
+  stream(workspace, "/fix", { call, turn }, signal);
+
+export const getLastFix = (workspace: string) =>
+  maybe<FixReport>(async () => (await call(workspace, "/fixes/last")).json());
 
 export const streamTests = (workspace: string, agent: Agent, signal: AbortSignal) =>
   stream(workspace, "/tests/run", { agent }, signal);

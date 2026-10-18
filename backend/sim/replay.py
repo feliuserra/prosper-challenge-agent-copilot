@@ -21,6 +21,7 @@ from . import config
 from .caller import Caller, recorded_answers
 from .checks import TURN_CHECKS, grade, grade_turn
 from .conversation import Conversation, ReplayError
+from .hearing import hearing_caller
 from .llm import Models, Usage
 from .runner import talk
 from .testfile import validate_check
@@ -101,14 +102,17 @@ async def continue_from(
     k: int = 5,
     checks: list[dict] | None = None,
     max_turns: int = config.DEFAULT_MAX_TURNS,
+    hearing: list[list[str]] | None = None,
 ) -> dict:
+    """`hearing`, [said, heard] pairs (sim/hearing.py), is how speech-to-text hears the
+    caller's improvised words: the recorded ones are already as it heard them."""
     record = as_record(record)
     agent_turn(record, turn)
     answers = recorded_answers(record["turns"], from_turn=turn)
 
     async def one() -> dict:
         conversation = _rebuild(record, turn, agent, models)
-        simulated = Caller(caller, models.caller, replay=answers, strict=True)
+        simulated = hearing_caller(Caller(caller, models.caller, replay=answers, strict=True), hearing)
         await conversation.run_agent()
         await talk(conversation, simulated, max_turns)
         run = conversation.record()
