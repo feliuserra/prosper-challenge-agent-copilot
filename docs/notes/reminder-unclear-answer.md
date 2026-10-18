@@ -17,9 +17,18 @@ Three things together, all in the prompt and the field, none in code:
 - **Linden Grove** gets the same sentence as a new version (3) of its own agent through the Composer, like #33's fix. Its workspace (`backend/workspaces/`) is gitignored, so this branch does not include it. The text to add, after the same sentence in its `offer_times`, is the template's new sentence.
 - **Test** `unclear-reminder-answer-asked-again` in the seed spec (`backend/demo/workspace/linden-grove/spec.json`, R20). An existing patient whose style is to answer the reminder question with exactly "By text." the first time and "A text message, please." if asked again. `hearing` is `[["By text", "Bye"]]`, so the code turns the first answer into "Bye" and leaves the second alone. Checks: `book_appointment` is never called with "No reminder" or "none", a sick visit is booked, and a judge rule checks that the question was asked again and the booking used the next answer (text). The seed spec only reaches new installs. The user's live workspace needs the test added in the Composer (re-seeding would replace version 2). Adding it moves the test count in `test_tests_that_failed_before_the_fix_are_not_run_again` (26/24 to 27/25). The branch is based on #33's branch, which adds `hearing`.
 
-## Runs (2026-10-18, $0.77)
+## Runs (2026-10-18, $1.53 in all)
 
-The first version of the test used `replay` with a recorded "Bye.". It ran 3 times on version 2 and 3 times with the rule, and all 6 passed, but the caller model used the recorded answer only once, in a run with the rule: "Bye." reads like hanging up, so the caller treated it as not making sense and said "Text, please." itself. So version 2 was never tested against "Bye". In the one run that got "Bye", the fixed agent asked again ("Could you please let me know how you would like to be reminded...") and booked with `text`. That is why the test now uses `hearing`. The `hearing` version has not been run yet. Running it again would cost about the same, $0.75 for 3 runs on each agent.
+**First try, with `replay` ($0.77).** A recorded "Bye." ran 3 times on version 2 and 3 times with the rule, and all 6 passed. But the caller model used the recorded answer only once, in a run with the rule: "Bye." reads like hanging up, so the caller decided it no longer made sense and said "Text, please." itself. So version 2 never faced "Bye". In the one run that got it, the fixed agent asked again and booked with `text`.
+
+**With `hearing` ($0.76).** All 6 runs got "Bye".
+
+| Agent | Passed | What it did after "Bye" |
+|---|---|---|
+| Version 2 | 1 of 3 | Twice it said goodbye and the call ended with nothing booked. Once it said "I will not book the appointment", and booked only because the caller objected (the checks pass that run). |
+| Version 2 plus the rule | 3 of 3 | Asked the reminder question again every time, then booked with "text" or "text message". |
+
+None of the simulated version 2 runs booked with "none" as the live call did. They took "Bye" as goodbye instead. It is the same cause (an answer that does not answer the question is acted on), and the checks catch both forms: "none" fails `tool_not_called`, and no booking fails `tool_called`. The rule fixed both forms in these runs. Three runs per agent is a small sample.
 
 One side effect of the pair: the agent's own "Bye" reaches the caller as "By text" (it works both ways). "Goodbye" is not touched (whole words only), and the agent says it only at the end of the call.
 
