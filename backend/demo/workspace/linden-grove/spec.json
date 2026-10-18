@@ -1990,7 +1990,7 @@
           "reason": "Sore throat for three days",
           "reminder_preference": "Text"
         },
-        "style": "Polite and brief"
+        "style": "Polite and brief. The first time you are asked how you want the reminder, say exactly \"By text.\" and nothing else. If you are asked again, say \"A text message, please.\""
       },
       "world": {
         "patients": [
@@ -2004,12 +2004,6 @@
           }
         ]
       },
-      "replay": [
-        {
-          "question": "Would you like a reminder by text, by phone call, or no reminder?",
-          "answer": "Bye."
-        }
-      ],
       "max_turns": 16,
       "checks": [
         {
@@ -2038,7 +2032,13 @@
           "rule": "After the caller's answer to the reminder question came through as 'Bye', the assistant asked the reminder question again instead of booking, and booked with the reminder the caller gave next (a text)."
         }
       ],
-      "status": "approved"
+      "status": "approved",
+      "hearing": [
+        [
+          "By text",
+          "Bye"
+        ]
+      ]
     }
   ],
   "meta": {
