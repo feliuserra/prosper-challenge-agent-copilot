@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-17: #33 in review, fix from an issue; the user's live call still to make)
+## 0. Status (updated 2026-10-18: #33 in review, fix from an issue; the user's live call confirmed it)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -45,12 +45,12 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #30 Build from the template and loop (cuts of 2026-10-15) | Merged (see "What #30 built"): 13 of 20 reference tests, below the 18 asked | #72, #73 |
 | #31 Copilot panel (thin, cuts of 2026-10-15) | Merged (see "What #31 built"); the user's real run worked end to end | #75 |
 | #32 Judge on a sample and calls inbox (thin, cuts of 2026-10-16) | Merged (see "What #32 built"); the user checked `make judge-eval` | #77 |
-| #33 Fix from an issue (cuts of 2026-10-16) | In review (see "What #33 built"); the user's live call on version 2 still to make | (this PR) |
+| #33 Fix from an issue (cuts of 2026-10-16) | In review (see "What #33 built"); the user's live call on version 2 confirmed the fix | #78 |
 | #34, #35 | Open, in the order of `PLAN-phase2.md` | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** the user's live call on Linden Grove version 2 (the wrong-name fix: say a name speech-to-text mishears and check the agent asks for the spelling and registers the spelled name), then the review of #33 (see "What #33 built"), then #34 and #11. Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built"). The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+**Next step:** the review and merge of #33 (PR #78, see "What #33 built"), then #34 and #11. A new issue seen in the live call, not fixed: in offer_times, asked how to be reminded, the caller's "By text" reached the agent as "Bye", and the agent booked with `reminder: none` before the caller could correct it ("Text" came after the booking). Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built"). The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
 
 What #33 built (backend and frontend; cuts decided with the user on 2026-10-16, in the issue's "Approach and cuts"):
 - Decided: reproduce from the caller card corrected by the matched ticket, the funnel (3 candidates, turn replay, full reproductions), the #30 loop, a thin UI (a Fix button in the Calls tab, the proposal card); cut: tickets without a call, rollouts for an earlier decisive turn. Budget agreed $7; spent $18.74 over three runs (see below), each overrun agreed with the user before it ran.
@@ -59,7 +59,7 @@ What #33 built (backend and frontend; cuts decided with the user on 2026-10-16, 
 - API: `POST /copilot/workspaces/{id}/fix` `{call, turn}` (a stream: `backcast`, `candidate`, `tests`, `round`, `done` with `fix` and the proposal), `GET .../fixes/last`. CLI: `make fix CALL=lg-1019-0804 TURN=4`. `make demo-seed FORCE=1` also clears fixes.
 - Frontend: "Fix this issue" on an open issue in the Calls tab (refused unless the issue's agent is open and saved), a "Fix from an issue" card with the streamed log, the proposal card's fix rows (issue, reproduction before and after, the correction, the broken link, the turn replay, candidates with turn and full rates, tests not run again), "fixed in vN" on the issue after the accept.
 - Real runs on `lg-1019-0804` (Sarah Burrell registered as "Sara Boreal", decided at turn 4 in ask_name, ticket T1): run 1 ($2.65, stopped by me after two full reproductions failed: the candidates fixed only ask_name while the `record_spelling` edge still said "the name as the caller said it"; not a harness bug). Run 2 ($10.15: the candidate prompt was told to follow the answer through the edges; the model wrote a check with `patient_id: null`, now refused in code, which failed every run; every failing test of the weak agent was rerun, which doubled the suite cost). Run 3 ($5.90, after choosing by the full rate and rerunning only passing tests): backcast 5/5 fail; candidates turn 5/5, 3/5, 0/5 and full 3/5, 4/5, 5/5, so the turn replay ranked them in reverse (agreed on 2 of 3, the best by turn was not the best in full; in run 2, re-graded without the bad check: turn 5, 2, 0 against full 1, 4, 5). Chosen: candidate 3, an `ask_for_spelling_again` self-loop edge in ask_name; reproduction 5/5 after; 12 of the 13 tests rerun passed; blocked only by `transfer-running-late`, which was flaky on the current agent and fails in greeting, a node the fix does not touch. After that run only outright passes count as a baseline (code and test), and the user had the proposal accepted anyway as version 2 on 2026-10-17. The issue's criterion "the fix passes the turn replay" is not met by the winner (0/5): the turn check asks for the spelling at turn 4, and the fixes that work ask later.
-- Not checked: the user's live call; the reproduction test in a later suite run (it passed in run 3's suite; a run on version 2 is about $2.50).
+- The user's live call on version 2 (2026-10-18): asked for the name, the agent asked for the spelling (the new self-loop), the caller spelled their name letter by letter, and `register_patient` got the spelled name; booked end to end. Not checked: the reproduction test in a later suite run (it passed in run 3's suite; a run on version 2 is about $2.50).
 - Tests: 456 pytest (22 new in `test_copilot_fix.py`), 268 Vitest (3 new in `copilot.test.ts`).
 
 What #32 built (backend and frontend; thin cuts decided with the user on 2026-10-16, in the issue's "Approach and cuts" and PR #77):
