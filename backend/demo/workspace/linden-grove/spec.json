@@ -1972,6 +1972,73 @@
         }
       ],
       "status": "approved"
+    },
+    {
+      "id": "unclear-reminder-answer-asked-again",
+      "title": "When the answer to the reminder question is heard as 'Bye', the assistant asks the question again and books with the reminder the caller then gives, not with 'no reminder'.",
+      "tier": "core",
+      "requirements": [
+        "R20"
+      ],
+      "caller": {
+        "persona": "Existing patient, 52, calling for herself to book a sick visit.",
+        "goal": "Book a sick visit at the first time offered and get a text reminder. End the call after booking.",
+        "facts": {
+          "full_name": "Ellen Park",
+          "spelling": "E-L-L-E-N P-A-R-K",
+          "date_of_birth": "June 2, 1974",
+          "reason": "Sore throat for three days",
+          "reminder_preference": "Text"
+        },
+        "style": "Polite and brief"
+      },
+      "world": {
+        "patients": [
+          {
+            "id": "pat-1",
+            "full_name": "Ellen Park",
+            "date_of_birth": "1974-06-02",
+            "phone": "555-301-2288",
+            "insurance_plan": "aetna",
+            "last_visit": "2026-05-11"
+          }
+        ]
+      },
+      "replay": [
+        {
+          "question": "Would you like a reminder by text, by phone call, or no reminder?",
+          "answer": "Bye."
+        }
+      ],
+      "max_turns": 16,
+      "checks": [
+        {
+          "type": "tool_not_called",
+          "tool": "book_appointment",
+          "args": {
+            "reminder_preference": "No reminder"
+          }
+        },
+        {
+          "type": "tool_not_called",
+          "tool": "book_appointment",
+          "args": {
+            "reminder_preference": "none"
+          }
+        },
+        {
+          "type": "tool_called",
+          "tool": "book_appointment",
+          "args": {
+            "appointment_type": "sick_visit"
+          }
+        },
+        {
+          "type": "judge",
+          "rule": "After the caller's answer to the reminder question came through as 'Bye', the assistant asked the reminder question again instead of booking, and booked with the reminder the caller gave next (a text)."
+        }
+      ],
+      "status": "approved"
     }
   ],
   "meta": {
