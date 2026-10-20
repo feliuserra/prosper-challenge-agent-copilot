@@ -350,3 +350,28 @@ def test_the_api_refuses_an_issue_the_judge_did_not_find(seed, tmp_path):
     assert response.status_code == 404 and "turns: 4, 34" in response.json()["detail"]
     assert client.post("/copilot/workspaces/linden-grove/fix", json={"call": "nope", "turn": 4}).status_code == 404
     assert client.get("/copilot/workspaces/linden-grove/fixes/last").status_code == 404
+
+
+def test_a_stored_fix_replays_as_its_stream_and_can_be_accepted(seed, weak, monkeypatch, tmp_path):
+    """#34's cached Act 2: a fix's stream rebuilt from its report, replayed on a reset workspace."""
+    from copilot import recording
+
+    monkeypatch.setattr(recording, "MAX_GAP", 0)
+    fakes = Fakes(backcasts=[0, 5, 4, 1], turns={"then ask them to spell it": 5, "in one question": 4})
+    report, events = run_fix(seed, weak, monkeypatch, fakes, answer(reproduction()), answer(candidates()))
+    recordings = tmp_path / "recordings"
+    recording.write_from_fix(seed, recordings / "linden-grove", report["number"])
+    assert [e["event"] for e in recording.read(recordings / "linden-grove" / "fix.jsonl")] == [e["event"] for e in events]
+
+    shutil.rmtree(seed.dir / "proposals")  # as demo-reset leaves it
+    shutil.rmtree(seed.dir / "fixes")
+    app = FastAPI()
+    app.include_router(copilot_api.make_router(root=seed.dir.parent, agents_dir=tmp_path / "agents", recordings=recordings))
+    client = TestClient(app)
+    assert client.get("/copilot/workspaces/linden-grove/recordings").json() == {"steps": ["fix"]}
+    response = client.post("/copilot/workspaces/linden-grove/fix", json={"call": CALL, "turn": TURN, "cached": True})
+    replayed = [json.loads(block.split("data: ", 1)[1]) for block in response.text.split("\n\n") if "data: " in block]
+    assert replayed[-1]["event"] == "done" and replayed[-1]["proposal"]["number"] == 1
+    assert client.get("/copilot/workspaces/linden-grove/fixes/last").json()["proposal"] == 1
+    assert client.post("/copilot/workspaces/linden-grove/proposals/1/accept").json()["version"]["number"] == 2
+    assert seed.fixed()[0]["call"] == CALL

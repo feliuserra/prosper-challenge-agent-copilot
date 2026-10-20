@@ -8,6 +8,10 @@
 #   installs the seed as agents/linden-grove.json and workspaces/linden-grove/
 # python -m demo eval
 #   the judge's results on the installed workspace measured against labels.json
+# python -m demo reset
+#   the demo's start (#34): archives the Linden Grove agent and workspace and Act 1's
+#   (to backend/.demo-archive/<time>/), installs the seed again and removes Act 1's
+#   agent and workspace. `make demo-reset` adds the clinics' state and the synthetic logs.
 #
 
 import argparse
@@ -16,6 +20,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,6 +33,8 @@ from .weak import AGENT_ID, weak_agent
 
 AGENTS_DIR = Path(__file__).resolve().parent.parent / "agents"
 SPEC_FROM = WORKSPACES_DIR / "clinic-a" / "spec.json"  # clinic-a's spec (#29): Linden Grove's guidelines
+ACT1_ID = "linden-grove-new"  # the agent Act 1 creates ("Linden Grove New"); its recordings replay clinic-a's run
+ARCHIVE = Path(__file__).resolve().parent.parent / ".demo-archive"
 
 
 def main(argv=None) -> int:
@@ -41,8 +48,10 @@ def main(argv=None) -> int:
     install = commands.add_parser("install", help="install the seed as the linden-grove agent and workspace")
     install.add_argument("--force", action="store_true", help="replace an agent or workspace that differs")
     commands.add_parser("eval", help="measure the judge against the labels")
+    commands.add_parser("reset", help="archive the demo's agents and workspaces, then install the seed again")
     args = parser.parse_args(argv)
-    return {"agent": agent_command, "calls": calls_command, "install": install_command, "eval": eval_command}[args.command](args)
+    commands = {"agent": agent_command, "calls": calls_command, "install": install_command, "eval": eval_command, "reset": reset_command}
+    return commands[args.command](args)
 
 
 def agent_command(args) -> int:
@@ -103,6 +112,32 @@ def install_command(args) -> int:
         print("\n".join(refused), file=sys.stderr)
         return 1
     print(f"Installed agents/{AGENT_ID}.json and workspaces/{AGENT_ID}/ from the seed.")
+    return 0
+
+
+def reset(agents_dir: Path = AGENTS_DIR, workspaces_dir: Path = WORKSPACES_DIR, archive: Path = ARCHIVE) -> Path | None:
+    """Back to the demo's start. What it replaces (an accepted fix, Act 1's build) cost
+    model calls and is not in git, so it is moved to `archive/<time>/` first; returns
+    that folder, or None when there was nothing to keep."""
+    kept = Path(archive) / time.strftime("%Y-%m-%dT%H%M%S")
+    moved = False
+    for agent_id in (AGENT_ID, ACT1_ID):
+        for source, target in ((Path(agents_dir) / f"{agent_id}.json", kept / "agents"), (Path(workspaces_dir) / agent_id, kept / "workspaces")):
+            if source.exists():
+                target.mkdir(parents=True, exist_ok=True)
+                (shutil.copytree if source.is_dir() else shutil.copy2)(source, target / source.name)
+                moved = True
+    for path in (Path(agents_dir) / f"{ACT1_ID}.json", Path(workspaces_dir) / ACT1_ID):
+        shutil.rmtree(path) if path.is_dir() else path.unlink(missing_ok=True)
+    shutil.rmtree(Path(workspaces_dir) / AGENT_ID, ignore_errors=True)  # judge results come back with the seed
+    install(True, agents_dir, workspaces_dir)
+    return kept if moved else None
+
+
+def reset_command(args) -> int:
+    kept = reset()
+    print(f"Archived the demo's agents and workspaces to {kept}." if kept else "Nothing to archive.")
+    print(f"Installed agents/{AGENT_ID}.json and workspaces/{AGENT_ID}/ from the seed; removed {ACT1_ID} (Act 1 creates it).")
     return 0
 
 

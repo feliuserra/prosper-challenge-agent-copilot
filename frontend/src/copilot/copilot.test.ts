@@ -14,7 +14,9 @@ import {
   fixRefusal,
   loadWorkspace,
   reject,
+  selectCanUseRehearsal,
   stop,
+  switchToRehearsal,
   useCopilotStore,
 } from "./copilotStore";
 import { questionsText } from "./CopilotPanel";
@@ -122,7 +124,7 @@ describe("a fix from an issue (#33)", () => {
       "GET /proposals/last": json(proposal({ kind: "fix", issue: fixed })),
     });
     await fixIssue("lg-1019-0804", 4);
-    expect(calls.find((c) => c.path === "/fix")?.body).toEqual({ call: "lg-1019-0804", turn: 4 });
+    expect(calls.find((c) => c.path === "/fix")?.body).toEqual({ call: "lg-1019-0804", turn: 4, cached: false });
     expect(copilot().canvas?.mode).toBe("proposal");
     expect(copilot().proposal?.kind).toBe("fix");
     expect(copilot().fix?.outcome).toBe("proposal");
@@ -204,6 +206,51 @@ function streamed(text: string, hold?: Promise<void>): () => Response {
 }
 
 const emptySpec = { requirements: [], set_aside: [], questions: [], configuration: null, tests: [] };
+
+describe("the rehearsal's result (#34)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("stops a slow step and replays the agent's recording instead", async () => {
+    editor().open("demo", example());
+    backend({ "GET /guidelines": json({ text: "" }), "GET /spec": json(emptySpec), "GET /recordings": json({ steps: ["build"] }) });
+    await loadWorkspace("demo");
+    expect(copilot().recordings).toEqual(["build"]);
+    let release = () => {};
+    const slow = new Promise<void>((resolve) => (release = resolve));
+    const events = [
+      { event: "part", part: "build", status: "running", agent: example() },
+      { event: "done", proposal: proposal() },
+    ];
+    let builds = 0;
+    const calls = backend({
+      "POST /build": () => (builds++ === 0 ? streamed(sse(events), slow)() : streamed(sse(events))()),
+      "GET /spec": json(emptySpec),
+      "GET /proposals/last": json(proposal()),
+    });
+    const live = build();
+    await vi.waitFor(() => expect(selectCanUseRehearsal(copilot())).toBe(true));
+    await switchToRehearsal();
+    release();
+    await live;
+    expect(calls.filter((c) => c.path === "/build").map((c) => c.body)).toEqual([
+      { loop: true, cached: false },
+      { loop: true, cached: true },
+    ]);
+    expect(copilot().step?.cached).toBe(true);
+    expect(copilot().step?.log[0].text).toMatch(/rehearsal's result/);
+    expect(copilot().proposal?.number).toBe(3);
+    expect(selectCanUseRehearsal(copilot())).toBe(false);
+  });
+
+  it("is not offered without a recording of the running step", async () => {
+    editor().open("demo", example());
+    backend({ "GET /guidelines": json({ text: "" }), "GET /spec": json(emptySpec) });
+    await loadWorkspace("demo");
+    expect(copilot().recordings).toEqual([]);
+    useCopilotStore.setState({ step: { kind: "build", running: true, log: [], error: null, progress: null, cached: false } });
+    expect(selectCanUseRehearsal(copilot())).toBe(false);
+  });
+});
 
 describe("build, accept and reject", () => {
   beforeEach(async () => {

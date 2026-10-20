@@ -144,6 +144,10 @@ class Workspace:
         """Store a fix's report (copilot/fix.py) and return its number."""
         return _append(self.dir / "fixes", {k: v for k, v in report.items() if k != "number"})
 
+    def fix(self, number: int) -> dict | None:
+        report = _read(self.dir / "fixes" / f"{number:04d}.json") if number > 0 else None
+        return {**report, "number": number} if report else None
+
     def last_fix(self) -> dict | None:
         found = _numbered(self.dir / "fixes")
         return {**_read(found[-1][1]), "number": found[-1][0]} if found else None

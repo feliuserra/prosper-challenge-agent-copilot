@@ -15,9 +15,11 @@ import {
   reject,
   removeTest,
   runTests,
+  selectCanUseRehearsal,
   setGuidelines,
   showProposal,
   stop,
+  switchToRehearsal,
   useCopilotStore,
   type Step,
   type StepKind,
@@ -161,6 +163,7 @@ function StepLog({ kind }: { kind: StepKind }) {
 
 function StepView({ step }: { step: Step }) {
   const [all, setAll] = useState(false);
+  const canUseRehearsal = useCopilotStore(selectCanUseRehearsal);
   const shown = all ? step.log : step.log.slice(-8);
   // A step started from a button above or on the canvas: bring its progress into view.
   const box = useRef<HTMLDivElement>(null);
@@ -173,12 +176,22 @@ function StepView({ step }: { step: Step }) {
         <strong>
           {step.running ? `${STEP_TITLES[step.kind]}…` : step.error ? "Stopped with an error" : "Last run"}
         </strong>
+        {step.cached && <span className="muted">rehearsal's result</span>}
         {step.progress && (
           <span className="muted">
             {step.progress.done}/{step.progress.total}
           </span>
         )}
         <span className="spacer" />
+        {canUseRehearsal && (
+          <button
+            className="small"
+            onClick={() => void switchToRehearsal()}
+            title="Stop this run and replay the result recorded in the rehearsal (no model calls)"
+          >
+            Use the rehearsal's result
+          </button>
+        )}
         {step.running && (
           <button className="small danger" onClick={stop}>
             Stop

@@ -5,7 +5,7 @@ PROJECT := backend
 FRONTEND := frontend
 TECTONIC ?= tectonic
 
-.PHONY: help install run dev test clinic-reset synth detect detect-eval demo-seed demo-calls judge judge-eval eval spec build fix record spend memo clean
+.PHONY: help install run dev test clinic-reset synth detect detect-eval demo-reset demo-seed demo-calls judge judge-eval eval spec build fix record spend memo clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -20,8 +20,8 @@ run: ## Run the voice agent only (then open http://localhost:7860/client)
 
 # One shell for the whole recipe (macOS ships make 3.81, which has no .ONESHELL):
 # the runner runs in the background and is stopped when the frontend exits.
-dev: ## Run the voice agent and the editor together (then open http://localhost:5173): STUB=name replays the Copilot's recorded streams (no model calls), RECORD=name records live ones (#31; folders in backend/copilot/recordings/)
-	$(if $(STUB),COPILOT_REPLAY=copilot/recordings/$(STUB)) $(if $(RECORD),COPILOT_RECORD=copilot/recordings/$(RECORD)) \
+dev: ## Run the voice agent and the editor together (then open http://localhost:5173): STUB=name replays the Copilot's recorded streams (no model calls), RECORD=name records live ones (#31; folders in backend/copilot/recordings/), REHEARSE=1 records each agent's live steps for the demo's cached switch (#34)
+	$(if $(STUB),COPILOT_REPLAY=copilot/recordings/$(STUB)) $(if $(RECORD),COPILOT_RECORD=copilot/recordings/$(RECORD)) $(if $(REHEARSE),COPILOT_REHEARSE=1) \
 	uv run --directory $(PROJECT) python bot.py & runner=$$!; \
 	trap 'kill $$runner 2>/dev/null' EXIT; \
 	npm run dev --prefix $(FRONTEND)
@@ -41,6 +41,10 @@ detect: ## Print the ranked issues found in the call logs (#58; no model calls)
 
 detect-eval: ## Measure detection against the planted defects, with recall by rate and volume (#58)
 	uv run --directory $(PROJECT) python -m detect eval
+
+demo-reset: ## Back to the demo's start (#34; no model calls): archives the demo agents to backend/.demo-archive/, installs the seed, removes Act 1's agent, resets the clinics and writes the synthetic logs again
+	uv run --directory $(PROJECT) python -m demo reset
+	$(MAKE) clinic-reset synth
 
 demo-seed: ## Install the demo's weak Linden Grove agent, its 22 mock production calls and 3 tickets as agents/linden-grove.json and workspaces/linden-grove/ (#32; no model calls): FORCE=1 to replace a changed agent
 	uv run --directory $(PROJECT) python -m demo install $(if $(FORCE),--force)

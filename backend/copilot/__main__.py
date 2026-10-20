@@ -1,7 +1,7 @@
 #
 # python -m copilot spec WORKSPACE [--guidelines FILE] [--replace-approved]
 # python -m copilot build WORKSPACE [--no-cache]
-# python -m copilot record WORKSPACE [--proposal N] [--out DIR]
+# python -m copilot record WORKSPACE [--proposal N | --fix N] [--out DIR]
 # python -m copilot fix WORKSPACE CALL TURN [--no-cache]
 #
 # `spec` runs the spec step (#29) on a workspace, as the browser's POST /copilot/.../spec
@@ -18,7 +18,8 @@
 # candidates and the proposal. Model calls (about $6 on the demo: the continuations and test runs are most).
 #
 # `record` writes the panel's recorded streams (#31, recording.py) from what a workspace
-# stored: its spec, a proposal (the newest by default) and its test run. No model calls.
+# stored: its spec, a proposal (the newest by default) and its test run; with --fix, a
+# fix's stream from its report and proposal (#34's cached Act 2). No model calls.
 #
 
 import argparse
@@ -38,7 +39,6 @@ from . import recording
 from . import spec as spec_step
 from .workspace import WORKSPACES_DIR, Workspace
 
-RECORDINGS = Path(__file__).parent / "recordings"
 AGENTS = Path(__file__).resolve().parent.parent / "agents"
 
 
@@ -61,13 +61,17 @@ def main(argv: list[str] | None = None) -> int:
     recorded = commands.add_parser("record", help="write replayable streams from a workspace's stored spec and proposal")
     recorded.add_argument("workspace", help="the workspace (agent) id")
     recorded.add_argument("--proposal", type=int, help="the proposal to replay (default: the newest)")
+    recorded.add_argument("--fix", type=int, help="record the fix stream of this fix's report instead")
     recorded.add_argument("--out", type=Path, help="the folder (default: copilot/recordings/WORKSPACE)")
     args = parser.parse_args(argv)
 
     if args.command == "record":
-        out = args.out or RECORDINGS / args.workspace
+        out = args.out or recording.RECORDINGS / args.workspace
         try:
-            paths = recording.write_from_workspace(Workspace(args.workspace), out, args.proposal)
+            if args.fix:
+                paths = [recording.write_from_fix(Workspace(args.workspace), out, args.fix)]
+            else:
+                paths = recording.write_from_workspace(Workspace(args.workspace), out, args.proposal)
         except ValueError as error:
             print(f"error: {error}", file=sys.stderr)
             return 1

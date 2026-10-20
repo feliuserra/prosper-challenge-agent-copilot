@@ -6,13 +6,18 @@
 #   COPILOT_RECORD=<dir>   the runner records every stream it serves to <dir>/<step>.jsonl
 #   COPILOT_REPLAY=<dir>   the runner serves <dir>/<step>.jsonl instead of running a step
 #
-# Steps are `spec`, `build` and `tests`. A recording is one JSON line per event, with `t`
+# Steps are `spec`, `build`, `tests` and `fix` (#33). A recording is one JSON line per event, with `t`
 # (seconds since the stream started); a line without `event` is a note. Replaying keeps
 # the order and shortens the waits to at most MAX_GAP seconds; the stored effects (the
 # spec, the proposal, the test run) are written by the API, as the real step would.
 #
 # `python -m copilot record WORKSPACE` writes recordings from what a workspace already
-# stored (its spec, a proposal and its run): real model output, no new model calls.
+# stored (its spec, a proposal and its run; with --fix, a fix's report and its proposal):
+# real model output, no new model calls.
+#
+# The demo (#34) keeps one folder per agent, `recordings/<agent id>/`: a step started with
+# `cached` replays that agent's recording, so a slow step can switch to the rehearsal's
+# result, and `make demo REHEARSE=1` records every live step there.
 #
 
 import asyncio
@@ -26,7 +31,8 @@ from storage import write_atomic
 from .ops import apply_operations, empty_carriers
 from .workspace import Workspace, now
 
-STEPS = ("spec", "build", "tests")
+STEPS = ("spec", "build", "tests", "fix")
+RECORDINGS = Path(__file__).parent / "recordings"
 MAX_GAP = 0.6  # seconds between replayed events
 
 
@@ -115,14 +121,7 @@ def from_workspace(ws: Workspace, proposal_number: int | None = None) -> dict[st
     results = proposal.get("results")
     if results:
         build_events.append({"event": "tests", "label": "before", "results": results["before"]})
-    for record in proposal["rounds"]:
-        n = record["round"]
-        build_events.append({"event": "part", "part": f"round {n}", "status": "running"})
-        if record.get("rerun"):
-            build_events.append({"event": "tests", "label": f"round {n}: failing tests", "results": record["rerun"]})
-        if record.get("full"):
-            build_events.append({"event": "tests", "label": f"round {n}: all tests", "results": record["full"]})
-        build_events.append({"event": "round", **record})
+    build_events += round_events(proposal)
     build_events.append({"event": "done", "proposal": proposal})
 
     summary = results["after"] if results else None
@@ -139,6 +138,58 @@ def from_workspace(ws: Workspace, proposal_number: int | None = None) -> dict[st
     return streams
 
 
+def round_events(proposal: dict) -> list[dict]:
+    """The loop's rounds as the build and the fix stream them."""
+    events = []
+    for record in proposal["rounds"]:
+        n = record["round"]
+        events.append({"event": "part", "part": f"round {n}", "status": "running"})
+        if record.get("rerun"):
+            events.append({"event": "tests", "label": f"round {n}: failing tests", "results": record["rerun"]})
+        if record.get("full"):
+            events.append({"event": "tests", "label": f"round {n}: all tests", "results": record["full"]})
+        events.append({"event": "round", **record})
+    return events
+
+
+def from_fix(ws: Workspace, number: int | None = None) -> list[dict]:
+    """A fix's stream (#33) rebuilt from its stored report (the newest by default) and
+    the proposal it made, in the order fix.run emits it."""
+    report = ws.fix(number) if number else ws.last_fix()
+    if report is None:
+        raise ValueError(f"Workspace '{ws.id}' has no fix {number or ''}.".replace("  ", " "))
+    report = {k: v for k, v in report.items() if k != "number"}
+    reproduction = report.get("reproduction") or {}
+    events = [{"event": "part", "part": "reproduction", "status": "running"}]
+    if reproduction:
+        events.append({"event": "part", "part": "reproduction", "status": "done", "test": reproduction["test"], "turn_check": reproduction["turn_check"]})
+    if reproduction.get("before"):
+        events.append({"event": "part", "part": "backcast", "status": "running", "k": reproduction["before"]["k"]})
+        events.append({"event": "backcast", **reproduction["before"]})
+    if report.get("diagnosis"):
+        events.append({"event": "part", "part": "candidates", "status": "running"})
+        events.append({"event": "part", "part": "candidates", "status": "done", "diagnosis": report["diagnosis"]})
+        for entry in report.get("candidates", []):
+            events.append({"event": "candidate", **{k: v for k, v in entry.items() if k not in ("operations", "full")}})
+        events.append({"event": "part", "part": "full reproductions", "status": "running"})
+        for entry in report.get("candidates", []):
+            if entry.get("full"):
+                events.append({"event": "candidate", "number": entry["number"], "full": entry["full"]})
+    proposal = ws.proposal(report["proposal"]) if report.get("proposal") else None
+    if proposal:
+        proposal = {k: v for k, v in proposal.items() if k not in ("number", "decision")}
+        events.append({"event": "tests", "label": "before: the current agent", "results": proposal["results"]["before"]})
+        # The winner's first run is not stored apart: with no round kept it is the final one.
+        events.append({"event": "tests", "label": f"candidate {proposal['chosen']}", "results": proposal["results"]["after"]})
+        events += round_events(proposal)
+        if any(r.get("kept") for r in proposal["rounds"]):
+            events.append({"event": "part", "part": "reproduction after", "status": "running"})
+    events.append({"event": "done", "fix": report, **({"proposal": proposal} if proposal else {})})
+    for i, event in enumerate(events):
+        event["t"] = float(i)
+    return events
+
+
 def write_from_workspace(ws: Workspace, out: Path, proposal_number: int | None = None) -> list[Path]:
     note = f"Rebuilt from workspace '{ws.id}' (its stored spec and proposal) on {now()}: real model output, replayed."
     paths = []
@@ -147,3 +198,14 @@ def write_from_workspace(ws: Workspace, out: Path, proposal_number: int | None =
         write(path, events, note)
         paths.append(path)
     return paths
+
+
+def write_from_fix(ws: Workspace, out: Path, number: int | None = None) -> Path:
+    path = Path(out) / "fix.jsonl"
+    write(path, from_fix(ws, number), f"Rebuilt from workspace '{ws.id}' (a stored fix and its proposal) on {now()}: real model output, replayed.")
+    return path
+
+
+def available(agent_id: str, root: Path = RECORDINGS) -> list[str]:
+    """The steps the agent has a recording of, for the demo's cached switch."""
+    return [step for step in STEPS if (Path(root) / agent_id / f"{step}.jsonl").is_file()]

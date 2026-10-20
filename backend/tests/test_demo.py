@@ -112,3 +112,25 @@ def test_the_judge_meets_its_bar_on_the_seed():
     assert len(report["false_alarms"]) / report["judged"] * 5 <= 1
     assert report["blamed"] / report["planted_found"] >= 0.8
     assert all(t["right"] for t in report["tickets"])
+
+
+def test_reset_archives_what_it_replaces_and_installs_the_seed(tmp_path):
+    """#34: an accepted fix and Act 1's build cost model calls and are not in git."""
+    from demo.__main__ import ACT1_ID, reset
+
+    agents, spaces, archive = tmp_path / "agents", tmp_path / "workspaces", tmp_path / "archive"
+    assert reset(agents, spaces, archive) is None  # nothing there yet: the seed is installed
+    (agents / "linden-grove.json").write_text('{"changed": true}')
+    (spaces / "linden-grove" / "fixes").mkdir()
+    (spaces / "linden-grove" / "fixes" / "0001.json").write_text("{}")
+    (agents / f"{ACT1_ID}.json").write_text("{}")
+    (spaces / ACT1_ID).mkdir()
+    (spaces / ACT1_ID / "spec.json").write_text("{}")
+
+    kept = reset(agents, spaces, archive)
+    assert (kept / "workspaces" / "linden-grove" / "fixes" / "0001.json").is_file()
+    assert (kept / "agents" / "linden-grove.json").read_text() == '{"changed": true}'
+    assert (kept / "workspaces" / ACT1_ID / "spec.json").is_file()
+    assert (agents / "linden-grove.json").read_text() == generate.AGENT.read_text()
+    assert not (spaces / "linden-grove" / "fixes").exists() and (spaces / "linden-grove" / "judge").is_dir()
+    assert not (agents / f"{ACT1_ID}.json").exists() and not (spaces / ACT1_ID).exists()

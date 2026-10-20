@@ -36,6 +36,9 @@ Thumbs.db
 backend/clinic/state/
 backend/clinic/state.json
 
+# ---- What demo-reset replaced (#34): agents and workspaces that cost model calls ----
+backend/.demo-archive/
+
 # ---- Text runner results, cached by input hash (backend/sim) ----
 backend/.sim-cache/
 
