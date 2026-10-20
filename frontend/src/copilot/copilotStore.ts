@@ -12,6 +12,7 @@ import {
   getLastFix,
   getLastProposal,
   getLastRun,
+  getRecordings,
   getSpec,
   HttpError,
   putGuidelines,
@@ -49,6 +50,8 @@ export interface Step {
   error: { message: string; problems: string[] } | null;
   /** Tests ended out of all, during a test run. */
   progress: { done: number; total: number } | null;
+  /** Replayed from the rehearsal's recording, not run (#34). */
+  cached: boolean;
 }
 
 /** What the canvas shows instead of the draft, read-only. */
@@ -74,6 +77,8 @@ interface CopilotState {
   startedFrom: { proposal: number | null; json: string } | null;
   /** The outcome of the last decision or a refusal, shown in the proposal card. */
   notice: { text: string; tone: "ok" | "error" } | null;
+  /** The steps with a rehearsal recording for this agent: a running one can switch to it (#34). */
+  recordings: StepKind[];
 }
 
 const initial = {
@@ -90,6 +95,7 @@ const initial = {
   canvas: null,
   startedFrom: null,
   notice: null,
+  recordings: [],
 } satisfies CopilotState;
 
 export const useCopilotStore = create<CopilotState>()(() => initial);
@@ -99,6 +105,8 @@ const set = (patch: Partial<CopilotState>) => useCopilotStore.setState(patch);
 const editor = () => useAgentStore.getState();
 
 let controller: AbortController | null = null;
+/** The running step started again from its recording: set by each step when it starts. */
+let replayRunning: (() => Promise<void>) | null = null;
 
 /** Whether the proposal still waits for a person's decision. */
 export const isPending = (proposal: Proposal | null): proposal is Proposal => proposal !== null && !proposal.decision;
@@ -114,15 +122,25 @@ export async function loadWorkspace(id: string | null) {
   useCopilotStore.setState({ ...initial, workspace: id, loading: id !== null });
   if (!id) return;
   try {
-    const [guidelines, spec, proposal, run, fix] = await Promise.all([
+    const [guidelines, spec, proposal, run, fix, recordings] = await Promise.all([
       getGuidelines(id),
       getSpec(id),
       getLastProposal(id),
       getLastRun(id),
       getLastFix(id),
+      getRecordings(id).catch(() => [] as string[]),
     ]);
     if (get().workspace !== id) return;
-    set({ loading: false, guidelines, savedGuidelines: guidelines, spec, proposal, run, fix });
+    set({
+      loading: false,
+      guidelines,
+      savedGuidelines: guidelines,
+      spec,
+      proposal,
+      run,
+      fix,
+      recordings: recordings as StepKind[],
+    });
   } catch (error) {
     if (get().workspace === id) set({ loading: false, loadError: String(error) });
   }
@@ -148,12 +166,14 @@ async function runStep(
   kind: StepKind,
   open: (signal: AbortSignal) => AsyncGenerator<StepEvent>,
   onEvent: (event: StepEvent) => void,
+  cached = false,
 ): Promise<StepEvent | Error | null> {
   controller?.abort();
   const mine = new AbortController();
   controller = mine;
   const workspace = get().workspace;
-  set({ step: { kind, running: true, log: [], error: null, progress: null }, notice: null });
+  const log: LogLine[] = cached ? [{ text: "The rehearsal's result, replayed (no model calls).", tone: "muted" }] : [];
+  set({ step: { kind, running: true, log, error: null, progress: null, cached }, notice: null });
   const update = (change: (step: Step) => Partial<Step>) => {
     const step = get().step;
     if (step && controller === mine && get().workspace === workspace) set({ step: { ...step, ...change(step) } });
@@ -200,8 +220,20 @@ export function stop() {
   if (get().canvas?.mode === "building") set({ canvas: null, startedFrom: null });
 }
 
+/** Whether the running step can switch to the rehearsal's result (#34). */
+export const selectCanUseRehearsal = (s: CopilotState) =>
+  s.step?.running === true && !s.step.cached && s.recordings.includes(s.step.kind);
+
+/** Stop the running step and replay the rehearsal's result for it instead (#34: a slow call never stalls the demo). */
+export async function switchToRehearsal() {
+  const again = replayRunning;
+  if (!again || !selectCanUseRehearsal(get())) return;
+  stop();
+  await again();
+}
+
 /** Save the guidelines and run the spec step on them. Approved tests are replaced only after a confirm. */
-export async function createFromGuidelines(replaceApproved = false) {
+export async function createFromGuidelines(replaceApproved = false, cached = false) {
   const { workspace, guidelines } = get();
   if (!workspace) return;
   try {
@@ -209,33 +241,36 @@ export async function createFromGuidelines(replaceApproved = false) {
     set({ savedGuidelines: guidelines });
   } catch (error) {
     set({
-      step: { kind: "spec", running: false, log: [], error: { message: String(error), problems: [] }, progress: null },
+      step: { kind: "spec", running: false, log: [], error: { message: String(error), problems: [] }, progress: null, cached: false },
     });
     return;
   }
+  replayRunning = () => createFromGuidelines(replaceApproved, true);
   const result = await runStep(
     "spec",
-    (signal) => streamSpec(workspace, replaceApproved, signal),
+    (signal) => streamSpec(workspace, replaceApproved, signal, cached),
     (event) => {
       if (event.event === "done" && event.spec) set({ spec: event.spec });
     },
+    cached,
   );
   if (result instanceof HttpError && result.status === 409 && !replaceApproved && /approved/i.test(result.message)) {
-    if (confirm(`${result.message}\n\nReplace them with new draft tests?`)) await createFromGuidelines(true);
+    if (confirm(`${result.message}\n\nReplace them with new draft tests?`)) await createFromGuidelines(true, cached);
   }
 }
 
 /** Build the agent from the approved spec (with the test loop, unless `loop` is false). */
-export async function build(loop = true) {
+export async function build(loop = true, cached = false) {
   const { workspace } = get();
   const draft = editor().agent;
   if (!workspace || !draft) return;
   // Nothing hidden under the built agent stays selected (Backspace would delete it).
   editor().select(null);
   set({ startedFrom: { proposal: null, json: JSON.stringify(draft) } });
+  replayRunning = () => build(loop, true);
   const result = await runStep(
     "build",
-    (signal) => streamBuild(workspace, loop, signal),
+    (signal) => streamBuild(workspace, loop, signal, cached),
     (event) => {
       const shown = get().canvas?.agent ?? draft;
       if (event.event === "part" && event.part === "build" && event.status === "running" && event.agent) {
@@ -251,6 +286,7 @@ export async function build(loop = true) {
         });
       }
     },
+    cached,
   );
   // Stopped, failed or refused: back to the draft.
   if (!(result && !(result instanceof Error) && result.event === "done")) {
@@ -275,7 +311,7 @@ export function fixRefusal(workspace: string): string | null {
  * changes on the decisive turn, then the tests. The Copilot tab shows the progress and
  * the proposal; the canvas shows the proposal when it comes.
  */
-export async function fixIssue(call: string, turn: number) {
+export async function fixIssue(call: string, turn: number, cached = false) {
   const { workspace } = get();
   const draft = editor().agent;
   if (!workspace || !draft) return;
@@ -287,9 +323,10 @@ export async function fixIssue(call: string, turn: number) {
   setSideTab("copilot");
   editor().select(null);
   set({ startedFrom: { proposal: null, json: JSON.stringify(draft) } });
+  replayRunning = () => fixIssue(call, turn, true);
   const result = await runStep(
     "fix",
-    (signal) => streamFix(workspace, call, turn, signal),
+    (signal) => streamFix(workspace, call, turn, signal, cached),
     (event) => {
       if (event.event !== "done") return;
       if (event.fix) set({ fix: event.fix });
@@ -302,6 +339,7 @@ export async function fixIssue(call: string, turn: number) {
         });
       }
     },
+    cached,
   );
   const done = result && !(result instanceof Error) && result.event === "done";
   if (!(done && result.proposal)) set({ startedFrom: null });
@@ -309,16 +347,18 @@ export async function fixIssue(call: string, turn: number) {
 }
 
 /** Run the approved tests on the agent as it is in the editor. */
-export async function runTests() {
+export async function runTests(cached = false) {
   const { workspace } = get();
   const agent = editor().agent;
   if (!workspace || !agent) return;
+  replayRunning = () => runTests(true);
   await runStep(
     "tests",
-    (signal) => streamTests(workspace, agent, signal),
+    (signal) => streamTests(workspace, agent, signal, cached),
     (event) => {
       if (event.event === "done" && event.run) set({ run: event.run });
     },
+    cached,
   );
 }
 

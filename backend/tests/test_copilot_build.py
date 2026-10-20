@@ -526,6 +526,42 @@ def test_the_api_records_live_streams(ws, tmp_path):
     assert [e["event"] for e in recording.read(recordings / "build.jsonl")] == [e["event"] for e in events]
 
 
+def test_a_cached_step_replays_the_agents_recording(ws, tmp_path, monkeypatch):
+    """#34's switch: `cached` replays recordings/<agent id>/<step>.jsonl on a live server."""
+    from copilot import recording
+
+    monkeypatch.setattr(recording, "MAX_GAP", 0)
+    recordings = tmp_path / "recordings"
+    api = client(tmp_path, Scripted(answer(build_answer())), Runner())
+    live = events_of(api.post("/copilot/workspaces/harbor/build"))
+    recording.write_from_workspace(ws, recordings / "harbor")
+    app = FastAPI()
+    app.include_router(make_router(tmp_path, model=lambda: Scripted(), agents_dir=tmp_path / "agents", run_tests=Runner(), recordings=recordings))
+    server = TestClient(app)
+    assert server.get("/copilot/workspaces/harbor/recordings").json() == {"steps": ["spec", "build", "tests"]}
+    assert server.get("/copilot/workspaces/other/recordings").json() == {"steps": []}
+    cached = events_of(server.post("/copilot/workspaces/harbor/build", json={"cached": True}))
+    assert cached[-1]["proposal"]["number"] == 2 and cached[-1]["proposal"]["agent"]["clinic"] == "harbor"
+    assert cached[-1]["proposal"]["operations"] == live[-1]["proposal"]["operations"]
+    ws.save_guidelines("Any guidelines.")
+    again = events_of(server.post("/copilot/workspaces/harbor/build", json={"cached": True, "loop": False}))
+    assert again[-1]["event"] == "done"  # the same recording, loop or not
+    (recordings / "harbor" / "spec.jsonl").unlink()
+    failed = events_of(server.post("/copilot/workspaces/harbor/spec", json={"cached": True, "replace_approved": True}))
+    assert failed[-1]["event"] == "error" and "No recording" in failed[-1]["message"]
+
+
+def test_a_rehearsal_records_each_agents_live_steps(ws, tmp_path):
+    recordings = tmp_path / "recordings"
+    app = FastAPI()
+    app.include_router(make_router(tmp_path, model=lambda: Scripted(answer(build_answer())), agents_dir=tmp_path / "agents",
+                                   run_tests=Runner(), recordings=recordings, rehearse=True))
+    events = events_of(TestClient(app).post("/copilot/workspaces/harbor/build"))
+    from copilot import recording
+
+    assert [e["event"] for e in recording.read(recordings / "harbor" / "build.jsonl")] == [e["event"] for e in events]
+
+
 def test_the_api_never_builds_into_the_template(tmp_path, monkeypatch):
     monkeypatch.setattr(clinics_module, "WORKSPACES_DIR", tmp_path)
     ws = Workspace(build.TEMPLATE_ID, tmp_path)

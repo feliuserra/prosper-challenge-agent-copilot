@@ -76,7 +76,7 @@ How it works, cheapest first:
 
 ## The loop
 
-Coding agents work because code comes with a spec, tests they can run and bug reports with evidence. Voice agents have none of these. The Copilot creates them, then works the same loop. Dashed boxes are designed but not built yet.
+Coding agents work because code comes with a spec, tests they can run and bug reports with evidence. Voice agents have none of these. The Copilot creates them, then works the same loop.
 
 ```mermaid
 flowchart TD
@@ -88,9 +88,6 @@ flowchart TD
     issues -- "reproduce" --> fix["Fix<br/>a diff and a regression test"]
     tickets["Client tickets"] --> fix
     fix -- "regression test" --> tests
-
-    classDef designed stroke-dasharray:5 5
-    class fix designed
 ```
 
 - **Clinic rules are data, not prompts.** Appointment types, which provider does which, insurance coverage, required fields and the late-change fee live in a validated clinic configuration, and the tools enforce it: `book_appointment` refuses a visit the provider does not do, with a reason the model can act on.
@@ -149,18 +146,22 @@ The tests and the Copilot call OpenAI with the key in `backend/.env` and cost mo
 | `make eval COPILOT=1 NO_LOOP=1` | The Copilot writes clinic A's spec from its guidelines, builds the agent from the template, and the reference suite runs on it | about $2.50 |
 | `make spend` | The estimated spend so far, by day and source, from the spend log | free |
 
+The demo ([`docs/demo.md`](docs/demo.md)) starts from `make demo-reset` (no model calls) and `make dev`. Every long Copilot step can switch to the result recorded in the rehearsal.
+
 `make help` lists every target with its options.
 
 ## What is built
 
 | Built | Designed, not built yet |
 | --- | --- |
-| Graph editor with stages, validation and undo; test calls with live node highlighting | Fix from an issue: reproduce, fix, keep a regression test (#33) |
-| Clinic configuration, tool catalog and mock calendar; the scheduling template | A second clinic written by a person, held out until one final run |
+| Graph editor with stages, validation and undo; test calls with live node highlighting | A second clinic written by a person, held out until one final run |
+| Clinic configuration, tool catalog and mock calendar; the scheduling template | |
 | Text runner, test format, reference suite, mutants, judge calibration, spend log | |
 | Spec step, build from the template and the loop; the Copilot panel to review, approve, watch it build and accept (#31) | |
 | Synthetic call logs, signals, triage and the call heatmap | |
 | Model judge on flagged calls plus a sample, and a calls inbox with each call's transcript (#32) | |
+| Fix from an issue: reproduce, candidate fixes replayed on the decisive turn, keep a regression test (#33) | |
+| The demo: a reset, a script and a switch to the rehearsal's result for every long step ([`docs/demo.md`](docs/demo.md), #34) | |
 
 ## Layout
 

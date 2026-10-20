@@ -6,7 +6,7 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 
 ---
 
-## 0. Status (updated 2026-10-18: #33 in review, fix from an issue; the user's live call confirmed it)
+## 0. Status (updated 2026-10-20: #34 in progress, the free part of demo readiness)
 
 | Issue | State | PR |
 | --- | --- | --- |
@@ -46,11 +46,20 @@ Working style: the user (Feliu) is a strong Python developer and wants direct an
 | #31 Copilot panel (thin, cuts of 2026-10-15) | Merged (see "What #31 built"); the user's real run worked end to end | #75 |
 | #32 Judge on a sample and calls inbox (thin, cuts of 2026-10-16) | Merged (see "What #32 built"); the user checked `make judge-eval` | #77 |
 | #33 Fix from an issue (cuts of 2026-10-16) | In review (see "What #33 built"); the user's live call on version 2 confirmed the fix | #78 |
-| #34, #35 | Open, in the order of `PLAN-phase2.md` | |
+| #34 Demo readiness | In progress: the free part (reset, cached switch, script, numbers, docs; see "What #34 built"); the paid runs and clinic B are next | |
+| #35 | Open, in the order of `PLAN-phase2.md` | |
 | #38, #39 | Closed as not planned on 2026-10-14: cut when the memo was drafted (#56) | |
 | #11 | Open, last: README, the final memo (its PDF committed only then), Beamer slides, the video (see section 6) | |
 
-**Next step:** the review and merge of #33 (PR #78, see "What #33 built"), then #34 and #11. A new issue seen in the live call, not fixed: in offer_times, asked how to be reminded, the caller's "By text" reached the agent as "Bye", and the agent booked with `reminder: none` before the caller could correct it ("Text" came after the booking). Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built"). The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+**Next step:** #34's paid runs, each priced and agreed first (see "What #34 built"), the user's clinic B, then #11. The reminder issue from the 2026-10-18 live call is fixed in the template (#79, `docs/notes/reminder-unclear-answer.md`); the user's Linden Grove workspace still needs it as a version 3, and `make demo-reset` installs the seed with its 27th test. Still open from #30: a decision on its gap to 18 of 20 (see "What #30 built"). The older notes below are kept for reference. A side session (2026-10-15) measured `gpt-4.1-mini` as the agent model; whether the template and live bot switch is the user's call.
+
+What #34 built so far (2026-10-20; the free part, no model calls):
+- Decided with the user: Act 1 shows the honest result (the proposal is blocked, 15 of 25 tests, and is accepted anyway), with no prompt work to force green; the free work first, then each paid run priced and agreed. Revised estimate: about $6 minimum, about $26 recommended (up to $35 with reruns).
+- `make demo-reset` (`python -m demo reset`, then `clinic-reset` and `synth`): archives the Linden Grove and Act 1 (`linden-grove-new`) agents and workspaces to `backend/.demo-archive/<time>/` (gitignored), since accepted fixes and builds cost model calls and `backend/workspaces/` is not in git, then installs the seed and removes Act 1's agent. It does not clear `backend/.sim-cache`: identical test runs stay free.
+- The cached switch: every Copilot step (spec, build, tests, fix) takes `cached`, which replays `copilot/recordings/<agent id>/<step>.jsonl` (`GET .../recordings` lists them); the step card shows "Use the rehearsal's result" next to Stop when the agent has one, which stops the live run and replays. `make dev REHEARSE=1` records each live step that ends well into its agent's folder. A replayed build's agent gets the workspace's clinic id.
+- Recordings: `linden-grove-new/` is a copy of `clinic-a/` (the stored spec and its first build with the loop); `linden-grove/fix.jsonl` is rebuilt from #33's third run with `python -m copilot record linden-grove --fix 1` (new: `recording.from_fix`, `Workspace.fix`). That fix ran on the seed's 26 tests; the seed has 27 since #79.
+- Docs: `docs/demo.md` (the script, the rehearsal, what to do when something breaks), `docs/notes/results.md` (every number with its source; rows "to run"), `docs/notes/readme-drafts.md` (#11's two sections), `docs/notes/call-tests.md` (template tools: interpreter field, read-back, reschedule, cancel, unclear answer, clinic questions; the demo's Linden Grove agent). README: #33 moved to built, the demo added.
+- Paid runs left, none done: a fresh reference run ($1.90; the runner changed in #30 and #33), clinic B ($3 to $12), optionally one live spec and build, one live fix, the suite on version 2 ($2.50). The memo's numbers wait for them; the user has uncommitted edits in `docs/memo/memo.tex`.
 
 What #33 built (backend and frontend; cuts decided with the user on 2026-10-16, in the issue's "Approach and cuts"):
 - Decided: reproduce from the caller card corrected by the matched ticket, the funnel (3 candidates, turn replay, full reproductions), the #30 loop, a thin UI (a Fix button in the Calls tab, the proposal card); cut: tickets without a call, rollouts for an earlier decisive turn. Budget agreed $7; spent $18.74 over three runs (see below), each overrun agreed with the user before it ran.

@@ -34,7 +34,10 @@
 # running) are plain HTTP errors. One step at a time per workspace.
 #
 # With COPILOT_REPLAY set, the streams are replayed from recordings instead of running
-# (recording.py): the stub backend for the panel's browser checks.
+# (recording.py): the stub backend for the panel's browser checks. A step started with
+# `cached: true` replays the agent's own recording (recordings/<agent id>/<step>.jsonl),
+# the demo's switch to the rehearsal's result (#34); GET .../recordings lists them. With
+# COPILOT_REHEARSE set, every live step that ends well is recorded there.
 #
 
 import asyncio
@@ -65,11 +68,15 @@ class Guidelines(BaseModel):
     text: str = Field(max_length=MAX_GUIDELINES)
 
 
-class SpecRun(BaseModel):
+class StepRun(BaseModel):
+    cached: bool = False  # replay the agent's recording instead of running (#34)
+
+
+class SpecRun(StepRun):
     replace_approved: bool = False  # the person confirmed that approved tests may go
 
 
-class BuildRun(BaseModel):
+class BuildRun(StepRun):
     loop: bool = True  # false: the build alone, no test runs (cheap, blocked as untested)
 
 
@@ -77,12 +84,12 @@ class Decision(BaseModel):
     anyway: bool = False  # accept a proposal blocked by its tests, on purpose
 
 
-class FixRun(BaseModel):
+class FixRun(StepRun):
     call: str
     turn: int  # the issue's decisive turn
 
 
-class TestRun(BaseModel):
+class TestRun(StepRun):
     agent: dict  # the agent as it is in the editor
 
 
@@ -101,23 +108,34 @@ def make_router(
     run_tests: build_step.RunTests | None = None,
     record: Path | None = None,
     replay: Path | None = None,
+    recordings: Path = recording.RECORDINGS,
+    rehearse: bool | None = None,
 ) -> APIRouter:
     """`agents_dir` is where an accepted proposal's agent is written; `run_tests` replaces
     the runner in the build (unit tests). `record` and `replay` are recording folders
-    (recording.py), from COPILOT_RECORD and COPILOT_REPLAY when not given."""
+    (recording.py), from COPILOT_RECORD and COPILOT_REPLAY when not given. `recordings`
+    holds one folder per agent for `cached` steps; `rehearse` (COPILOT_REHEARSE) records
+    every live step into it."""
     record = record or _folder("COPILOT_RECORD")
     replay = replay or _folder("COPILOT_REPLAY")
+    rehearse = bool(os.environ.get("COPILOT_REHEARSE")) if rehearse is None else rehearse
     router = APIRouter(prefix="/copilot/workspaces/{agent_id}")
     running: set[str] = set()  # workspaces with a spec step or a build in progress
     if replay:
         logger.warning(f"Copilot streams are replayed from {replay}: no model calls")
 
-    def served(ws: Workspace, step: str, work, finish):
+    def served(ws: Workspace, step: str, work, finish, cached: bool = False):
         """The step's stream: replayed (with `finish` storing what the step would), or run
         and maybe recorded."""
-        if replay:
+        recorder = None
+        if cached:
+            work = recording.replayer(recordings / ws.id / f"{step}.jsonl", finish)
+        elif replay:
             work = recording.replayer(replay / f"{step}.jsonl", finish)
-        recorder = recording.Recorder(record / f"{step}.jsonl") if record and not replay else None
+        elif record:
+            recorder = recording.Recorder(record / f"{step}.jsonl")
+        elif rehearse:
+            recorder = recording.Recorder(recordings / ws.id / f"{step}.jsonl")
         return streaming(stream(ws, work, running, recorder))
 
     def not_the_template(agent_id: str) -> None:
@@ -188,13 +206,14 @@ def make_router(
             ws.save_spec({k: v for k, v in done["spec"].items() if k != "gaps"})
             return done
 
-        return served(ws, "spec", work, finish)
+        return served(ws, "spec", work, finish, bool(body and body.cached))
 
     @router.post("/build")
     async def run_build(agent_id: str, body: BuildRun | None = None):
         ws = workspace(agent_id)
         not_the_template(agent_id)
         loop = body.loop if body else True
+        cached = bool(body and body.cached)
         if agent_id in running:
             raise HTTPException(409, "A Copilot step is already running for this workspace.")
         spec = ws.spec()
@@ -212,6 +231,9 @@ def make_router(
             proposal = {k: v for k, v in done["proposal"].items() if k not in ("number", "decision")}
             proposal["created"] = now()
             proposal["started_from"] = {**proposal["started_from"], "agent": base}
+            # A recording made in another workspace (the demo's Act 1 replays clinic-a's
+            # build) still names that clinic: the agent calls with this workspace's.
+            proposal["agent"] = {**proposal["agent"], "clinic": ws.id}
             build_step.write_clinic(ws, proposal["configuration"])
             ws.save_proposal(proposal)
             if proposal.get("results"):
@@ -219,7 +241,7 @@ def make_router(
                 ws.save_run({"created": now(), "agent_hash": agent_hash(proposal["agent"]), "proposal": proposal["number"], "summary": summary})
             return {**done, "proposal": proposal}
 
-        return served(ws, "build", work, finish)
+        return served(ws, "build", work, finish, cached)
 
     @router.post("/fix")
     async def run_fix(agent_id: str, body: FixRun):
@@ -251,7 +273,13 @@ def make_router(
             report["number"] = ws.save_fix(report)
             return {**done, "fix": report, **({"proposal": proposal} if proposal else {})}
 
-        return served(ws, "fix", work, finish)
+        return served(ws, "fix", work, finish, body.cached)
+
+    @router.get("/recordings")
+    async def recordings_of(agent_id: str):
+        """The steps with a rehearsal recording: the panel offers the cached switch for them."""
+        workspace(agent_id)  # a valid id
+        return {"steps": recording.available(agent_id, recordings)}
 
     @router.get("/fixes/last")
     async def last_fix(agent_id: str):
@@ -274,7 +302,7 @@ def make_router(
             run["number"] = ws.save_run({k: v for k, v in run.items() if k != "number"})
             return {**done, "run": run}
 
-        return served(ws, "tests", work, finish)
+        return served(ws, "tests", work, finish, body.cached)
 
     @router.get("/runs/last")
     async def last_run(agent_id: str):
@@ -393,7 +421,7 @@ async def _guarded(work, emit) -> None:
         emit({"event": "error", "part": None, "message": f"The model could not be reached: {error}", "problems": []})
     except OpenAIError as error:  # no key: the client cannot be built
         emit({"event": "error", "part": None, "message": f"No model client: {type(error).__name__}.", "problems": []})
-    except FileNotFoundError as error:  # a recording missing (COPILOT_REPLAY)
+    except FileNotFoundError as error:  # a recording missing (COPILOT_REPLAY, or a cached step)
         emit({"event": "error", "part": None, "message": str(error), "problems": []})
     except asyncio.CancelledError:
         raise

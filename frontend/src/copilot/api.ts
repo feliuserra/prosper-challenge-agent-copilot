@@ -261,22 +261,30 @@ export async function rejectProposal(workspace: string, number: number): Promise
   await call(workspace, `/proposals/${number}/reject`, { method: "POST" });
 }
 
-/** The spec step's stream. Rejected with an HttpError before it starts (e.g. 409 when approved tests would go). */
-export const streamSpec = (workspace: string, replaceApproved: boolean, signal: AbortSignal) =>
-  stream(workspace, "/spec", { replace_approved: replaceApproved }, signal);
+/**
+ * The spec step's stream. Rejected with an HttpError before it starts (e.g. 409 when approved tests would go).
+ * Every step can be `cached`: the backend replays the agent's rehearsal recording instead of running it (#34).
+ */
+export const streamSpec = (workspace: string, replaceApproved: boolean, signal: AbortSignal, cached = false) =>
+  stream(workspace, "/spec", { replace_approved: replaceApproved, cached }, signal);
 
-export const streamBuild = (workspace: string, loop: boolean, signal: AbortSignal) =>
-  stream(workspace, "/build", { loop }, signal);
+export const streamBuild = (workspace: string, loop: boolean, signal: AbortSignal, cached = false) =>
+  stream(workspace, "/build", { loop, cached }, signal);
 
 /** Fix the judge's issue decided at `turn` of `call`, from the saved agent (#33). */
-export const streamFix = (workspace: string, call: string, turn: number, signal: AbortSignal) =>
-  stream(workspace, "/fix", { call, turn }, signal);
+export const streamFix = (workspace: string, call: string, turn: number, signal: AbortSignal, cached = false) =>
+  stream(workspace, "/fix", { call, turn, cached }, signal);
+
+/** The steps this agent has a rehearsal recording of (#34). */
+export async function getRecordings(workspace: string): Promise<string[]> {
+  return (await (await call(workspace, "/recordings")).json()).steps;
+}
 
 export const getLastFix = (workspace: string) =>
   maybe<FixReport>(async () => (await call(workspace, "/fixes/last")).json());
 
-export const streamTests = (workspace: string, agent: Agent, signal: AbortSignal) =>
-  stream(workspace, "/tests/run", { agent }, signal);
+export const streamTests = (workspace: string, agent: Agent, signal: AbortSignal, cached = false) =>
+  stream(workspace, "/tests/run", { agent, cached }, signal);
 
 async function* stream(workspace: string, path: string, body: unknown, signal: AbortSignal): AsyncGenerator<StepEvent> {
   const res = await call(workspace, path, { method: "POST", body: JSON.stringify(body), signal });
