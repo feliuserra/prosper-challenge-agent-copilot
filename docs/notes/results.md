@@ -98,7 +98,19 @@ Call `lg-1019-0804`: Sarah Burrell registered as "Sara Boreal", decided at turn 
 | Minutes from issue to accepted fix | about 4 minutes of model time, then the review; accepted while blocked as version 2 |
 | Live check | the user's live call on version 2 (2026-10-18): the agent asked for the spelling, and the booking got the spelled name |
 
-The turn replay is a cheap filter (1.8 s for 5 replays), but it does not choose: the fixes that work ask for the spelling later than the turn it checks. **Still to run:** the suite on version 2 (about $2.50), to check that the reproduction test still passes there.
+Fourth run, live, 2026-10-20: the same call on version 1 with the seed's tests, including #79's reminder test. 27 tests with the reproduction.
+
+| Measure | Result |
+|---|---|
+| Reproduction on the current agent | 5 of 5 continuations fail |
+| Candidates at the decisive turn | 5/5, 4/5, 5/5 |
+| Candidates in full reproductions | 0/5, 4/5, 2/5 (agreed on 1 of 3; the best by turn was not the best in full) |
+| Chosen | candidate 2: the `record_spelling` edge only once the caller has spelled the name; reproduction 4/5 after |
+| The loop | one round kept: `confirm` must not book for anyone but the patient (R29), since `identify-patient-and-privacy` was flaky after the candidate; then 12 of 12 rerun tests pass (15 failed on version 1 and are not rerun) |
+| Proposal | ready, 2 operations; not accepted (the demo replays it) |
+| Time and cost | 343 s, $6.84 (1,582 requests: `gpt-4o` 1,027, 3,052,208 in (1,202,688 cached), 26,009 out; `gpt-4.1-mini` 476, 355,452 in, 12,919 out; `gpt-4.1` 79, 124,826 in, 5,875 out); test results with identical inputs came from the cache |
+
+The turn replay is a cheap filter (1.8 s for 5 replays), but it does not choose. In both runs, a candidate it scored 5/5 fixed the full call in at most 3 of 5 continuations. The fixes that work wait for the spelling later than the turn it checks. **Still to run:** the suite on version 2 (about $2.50), to check that the reproduction test still passes there.
 
 ## The reminder answer (#79)
 
@@ -117,7 +129,7 @@ The live call of 2026-10-18 showed "By text" heard as "Bye" and booked as no rem
 | Spec step | $0.35 to $0.38 | 2 min |
 | Build call alone | $0.05 | 30 s |
 | Build with the test loop (25 tests, 3 rounds) | about $10 | 8 min |
-| Fix from an issue | $5.90 (from $2.65 to $10.15) | 4 min |
+| Fix from an issue | $5.90 to $6.84 (from $2.65 to $10.15) | 4 to 6 min |
 | Mutants (26 pairs) | $3.08 | |
 | Judge, 22 calls | $0.41 | |
 | Detection, 85,495 calls | $0 | 5 s |

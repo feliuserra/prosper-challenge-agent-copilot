@@ -12,7 +12,7 @@ Every claim is a number from a run that anyone can repeat; [`docs/notes/results.
 - **The judge agrees with people.** On 32 verdicts a person reviewed, the judge (`gpt-4.1`) agreed on all 32. Smaller models did not (30 and 23), so they are not used for safety rules.
 - **Detection finds what was planted, and knows where it stops.** In 85,495 synthetic calls over six weeks, all 6 planted defects were found, with no false alarms in 18 clinic-weeks, and no model calls. Recall falls with volume: a 2-point rise is found every time at 1,500 calls a week, and 2 times in 10 at 150. The memo has the table.
 - **The judge finds silent failures and blames the right turn.** On 22 mock production calls of a deliberately weak agent, it found 8 of 10 planted issues. Every time, it put the decisive turn in the node that had the defect. It raised 2 false alarms. Its prompt was tuned on these calls, so this is not a blind measure.
-- **A fix is checked before anyone accepts it.** The fix of a misheard name failed 5 of 5 reproductions before and passed 5 of 5 after. The tests that passed before were run again, and the one that failed was flaky before the fix.
+- **A fix is checked before anyone accepts it.** The fix of a misheard name failed 5 of 5 reproductions before, and passed 4 or 5 of 5 after, in two live runs. The tests that passed before were run again. In the later run all of them passed. In the earlier run, the only one that failed had been flaky before the fix.
 - **It generalises, or not, on a clinic it never saw.** A person wrote a second clinic's guidelines and tests, kept out of the repo until one final run: *(to run)*.
 
 ## What the tests don't catch

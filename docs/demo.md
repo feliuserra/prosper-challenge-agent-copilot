@@ -21,7 +21,7 @@ Then open http://localhost:5173. Check that `backend/.env` has the OpenAI and vo
 **The cached switch.** While a Copilot step runs (spec, build, tests or fix), its card shows **Use the rehearsal's result** next to Stop, when the agent has a recording of that step. It stops the live run and replays the recording: real model output from a rehearsal, about 0.6 s between events, no model calls. The card then says "rehearsal's result". Recordings live in `backend/copilot/recordings/<agent id>/`.
 
 - `linden-grove-new/` holds spec, build and tests: clinic-a's stored spec and its first build with the test loop (#30), 15 of 25 tests passing.
-- `linden-grove/` holds the fix: #33's third real run on call `lg-1019-0804`.
+- `linden-grove/` holds the fix: the live run of 2026-10-20 on call `lg-1019-0804`, on the seed's current tests.
 
 ## Act 1: from guidelines to a live call
 
@@ -56,12 +56,16 @@ Then open http://localhost:5173. Check that `backend/.env` has the OpenAI and vo
 4. **Fix this issue.** The Copilot tab shows:
    - the reproduction from the call corrected by the ticket
    - 5 of 5 continuations failing on the current agent
-   - three candidate changes, each replayed on the decisive turn (5/5, 3/5, 0/5), then reproduced in full (3/5, 4/5, 5/5)
+   - three candidate changes, each replayed on the decisive turn, then reproduced in full
 
-   The turn replay ranked them in reverse, so the full rate chooses: candidate 3, a self-loop that asks for the spelling again.
-   - Live: about 4 minutes and $6. Switch to the rehearsal once the candidates are listed.
-5. **The proposal.** The reproduction passes 5 of 5 after the fix. 12 of the 13 tests rerun pass. It is blocked only by `transfer-running-late`, which was flaky before the fix and fails in greeting, a node the fix does not touch. **Accept anyway**: version 2, and the issue shows "fixed in v2".
-6. **Live call.** Give a name that is easy to mishear. The agent asks for the spelling, and `register_patient` gets the spelled name. This is the call the user made on 2026-10-18 against version 2.
+   In the recording (2026-10-20) the turn replay gave 5/5, 4/5, 5/5 and the full reproductions 0/5, 4/5, 2/5. The turn replay alone would have picked a candidate that never fixes the call. So the full rate chooses: candidate 2, which makes the `record_spelling` edge wait until the caller has spelled the name.
+   - Live: about 6 minutes and $7, and the candidates differ every run. Switch to the rehearsal once the candidates are listed.
+5. **The proposal** in the recording is **ready**: the reproduction passes 4 of 5 after the fix.
+   - The loop's one round also changed `confirm` (never book for anyone but the patient, R29), because `identify-patient-and-privacy` was flaky after the candidate. With it, all 12 tests that passed before pass again.
+   - Tests that failed on version 1 are not rerun (15 of them).
+   - **Accept**: version 2, and the issue shows "fixed in v2".
+   - A live run can end blocked, as #33's did. Then show the reason and **Accept anyway**.
+6. **Live call.** Give a name that is easy to mishear. The agent asks for the spelling, and `register_patient` gets the spelled name. The user's call of 2026-10-18 did this on #33's fix (a self-loop asking again). The recorded fix is a different change to the same edge, and no live call has checked it yet.
 
 #35 (inspector, chart, ablation) was not built, so it is not in the demo.
 
@@ -70,7 +74,7 @@ Then open http://localhost:5173. Check that `backend/.env` has the OpenAI and vo
 The acceptance criterion: from `make demo-reset`, both acts run end to end twice in a row with no manual fixes.
 
 - **Rehearsal with the switch (no model calls but the live ones).** `make demo-reset`, `make dev`, and both acts with the switch at every long step. Costs the live calls, the spec if it is run live (about $0.38) and the start of the build (cents).
-- **Refreshing a recording.** `make dev REHEARSE=1` records every live step that ends well into its agent's folder, replacing the old recording. A folder must hold one run's spec and build: a new spec with an old build would accept carriers for other requirements. So with `REHEARSE=1`, run Act 1's spec and its whole Build and test live (about $10), or neither. A live Act 2 fix (about $6) refreshes `linden-grove/fix.jsonl` on its own. The stored fix ran on the seed's 26 tests; the seed has 27 since the reminder test (#79), so a fresh fix would include it.
+- **Refreshing a recording.** `make dev REHEARSE=1` records every live step that ends well into its agent's folder, replacing the old recording. A folder must hold one run's spec and build: a new spec with an old build would accept carriers for other requirements. So with `REHEARSE=1`, run Act 1's spec and its whole Build and test live (about $10), or neither. A live Act 2 fix (about $7) refreshes `linden-grove/fix.jsonl` on its own; so does `python -m copilot record linden-grove --fix N` from a stored fix. The recording comes from the 2026-10-20 run on the seed's 26 tests plus the reproduction.
 - `make dev STUB=name` (#31) still replays a whole folder for every agent. That is for checking the UI, not for the demo.
 
 ## If something goes wrong
