@@ -330,7 +330,7 @@ def test_tests_that_failed_before_the_fix_are_not_run_again(seed, weak, monkeypa
     report, _ = run_fix(seed, weak, monkeypatch, fakes, answer(reproduction()), answer(candidates()))
     proposal = seed.proposal(report["proposal"])
     assert proposal["not_rerun"] == ["late-cancel-fee", "no-fee-cancel"]
-    assert fakes.sizes == [26, 24] and proposal["status"] == "ready"
+    assert fakes.sizes == [27, 25] and proposal["status"] == "ready"
 
 
 def test_a_test_flaky_before_the_fix_is_no_regression(seed, weak, monkeypatch):
