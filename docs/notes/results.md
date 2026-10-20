@@ -7,7 +7,7 @@ The numbers behind the memo and the README, each with where it comes from and wh
 | Measure | Result | Source |
 |---|---|---|
 | Reference agent on clinic-a's 20 tests | 19 pass, 1 flaky (`physical-not-with-nina`), safety 5/5; about 60 s, $1.88 | `make eval NO_CACHE=1`, 2026-10-15 |
-| Same, after the runner changes of #30 and #33 | **to run** (about $1.90) | `make eval NO_CACHE=1` |
+| Same, after the runner changes of #30 and #33 | 19 pass, 1 flaky (`cancel-no-fee`: in one run the agent called `cancel_appointment` with `fee_acknowledged: true` on a cancellation outside the fee window), safety 5/5; 33 s, $1.79 (424 requests: `gpt-4o` 280, 762,245 in (227,072 cached), 7,445 out; `gpt-4.1-mini` 127, 85,654 in, 3,779 out; `gpt-4.1` 17, 22,701 in, 1,060 out) | `make eval NO_CACHE=1`, 2026-10-20 |
 | Mutants caught | 12 of 15 | `make eval MUTANTS=1`, 2026-10-15, $3.08 |
 | Judge agreement with the 32 human labels | `gpt-4.1` 32/32 (used), `gpt-4.1-mini` 30/32, `gpt-4.1-nano` 23/32 | `make eval JUDGE=…`, $0.02 |
 
@@ -113,7 +113,7 @@ The live call of 2026-10-18 showed "By text" heard as "Bye" and booked as no rem
 | Run | Cost | Time |
 |---|---|---|
 | One booking-length simulated test | $0.06 to $0.08 | |
-| Reference suite (20 tests) | $1.88 | 60 s |
+| Reference suite (20 tests) | $1.79 to $1.88 | 33 to 60 s |
 | Spec step | $0.35 to $0.38 | 2 min |
 | Build call alone | $0.05 | 30 s |
 | Build with the test loop (25 tests, 3 rounds) | about $10 | 8 min |
